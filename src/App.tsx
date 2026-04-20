@@ -17,6 +17,7 @@ import { ResponsibleGaming } from "./pages/legal/ResponsibleGaming";
 import { FAQ } from "./pages/FAQ";
 import Profile from "./pages/Profile";
 import PaymentReturn from "./pages/PaymentReturn";
+import { HistorialPicks } from "./pages/HistorialPicks";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { AlertCircle } from "lucide-react";
 
@@ -114,6 +115,8 @@ export default function App() {
           <Route path="/" element={<PublicLayout><Home /></PublicLayout>} />
           <Route path="/free-picks" element={<PublicLayout><FreePicks /></PublicLayout>} />
           <Route path="/stats" element={<PublicLayout><Stats /></PublicLayout>} />
+          {/* Historial de picks: nueva página de resultados pasados */}
+          <Route path="/historial" element={<PublicLayout><HistorialPicks /></PublicLayout>} />
           <Route path="/pricing" element={<PublicLayout><Pricing /></PublicLayout>} />
           <Route path="/faq" element={<PublicLayout><FAQ /></PublicLayout>} />
           <Route path="/terms" element={<PublicLayout><TermsOfService /></PublicLayout>} />

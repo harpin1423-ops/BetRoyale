@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
-import { TrendingUp, Activity, Target, CheckCircle2, XCircle, MinusCircle, Calendar, BarChart3, Trophy } from "lucide-react";
+import { TrendingUp, Activity, Target, CheckCircle2, XCircle, MinusCircle, Calendar, BarChart3, Trophy, CheckCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import { motion } from "motion/react";
+import { CountryFlag } from "../components/CountryFlag";
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   LineChart, Line, AreaChart, Area, Legend, Cell
@@ -10,16 +11,21 @@ import { es } from "date-fns/locale";
 
 export function Stats() {
   const [picks, setPicks] = useState<any[]>([]);
+  const [allPicks, setAllPicks] = useState<any[]>([]); // incluye pendientes para el registro
   const [isLoading, setIsLoading] = useState(true);
   const [timeframe, setTimeframe] = useState("all");
   const [plan, setPlan] = useState("all");
+  const [historyPage, setHistoryPage] = useState(1);
+  const HISTORY_PER_PAGE = 10;
 
   useEffect(() => {
     const fetchPicks = async () => {
       try {
         const res = await fetch("/api/picks");
         const data = await res.json();
-        // Solo incluimos picks que ya están resueltos para las estadísticas
+        // Todos los picks para el registro de partidos
+        setAllPicks(data);
+        // Solo resueltos para las estadísticas/gráficos
         const resolvedPicks = data.filter((p: any) => p.status !== 'pending');
         setPicks(resolvedPicks);
       } catch (error) {
@@ -498,6 +504,234 @@ export function Stats() {
               </table>
             </div>
           </div>
+
+          {/* ─── Registro de Partidos ──────────────────────────────────────────── */}
+          {(() => {
+            // Filtramos todos los picks (incluidos pendientes) según el plan y periodo
+            const filteredAll = allPicks.filter(pick => {
+              // Filtro de periodo
+              if (timeframe !== 'all') {
+                const now = new Date();
+                const pickDate = new Date(pick.match_date);
+                const { subMonths } = { subMonths: (d: Date, n: number) => { const r = new Date(d); r.setMonth(r.getMonth() - n); return r; } };
+                if (timeframe === 'this-year' && pickDate.getFullYear() !== now.getFullYear()) return false;
+                if (timeframe === 'this-month' && (pickDate.getMonth() !== now.getMonth() || pickDate.getFullYear() !== now.getFullYear())) return false;
+                if (timeframe === 'last-month') { const lm = subMonths(now, 1); if (pickDate.getMonth() !== lm.getMonth() || pickDate.getFullYear() !== lm.getFullYear()) return false; }
+                if (timeframe === 'last-3-months' && pickDate < subMonths(now, 3)) return false;
+                if (timeframe === 'last-6-months' && pickDate < subMonths(now, 6)) return false;
+                if (timeframe === 'last-year' && pickDate < subMonths(now, 12)) return false;
+              }
+              // Filtro de plan
+              if (plan === 'free' && pick.pick_type_slug !== 'free') return false;
+              if (plan === 'vip' && pick.pick_type_slug === 'free') return false;
+              return true;
+            });
+
+            // Ordenamos de más reciente a más antiguo
+            const sortedAll = [...filteredAll].sort(
+              (a, b) => new Date(b.match_date).getTime() - new Date(a.match_date).getTime()
+            );
+
+            const totalPages = Math.ceil(sortedAll.length / HISTORY_PER_PAGE);
+            const paginated = sortedAll.slice((historyPage - 1) * HISTORY_PER_PAGE, historyPage * HISTORY_PER_PAGE);
+
+            const statusConfig: Record<string, { label: string; color: string; bg: string; border: string; icon: React.ReactNode }> = {
+              won:        { label: 'Ganado',   color: 'text-green-400',   bg: 'bg-green-400/10',   border: 'border-green-400/25',   icon: <CheckCircle  className="w-4 h-4 text-green-400" /> },
+              lost:       { label: 'Perdido',  color: 'text-red-400',     bg: 'bg-red-400/10',     border: 'border-red-400/25',     icon: <XCircle      className="w-4 h-4 text-red-400" /> },
+              void:       { label: 'Anulado',  color: 'text-gray-400',    bg: 'bg-gray-400/10',    border: 'border-gray-400/25',    icon: <MinusCircle  className="w-4 h-4 text-gray-400" /> },
+              'half-won': { label: 'Medio G',  color: 'text-emerald-400', bg: 'bg-emerald-400/10', border: 'border-emerald-400/25', icon: <CheckCircle  className="w-4 h-4 text-emerald-400" /> },
+              'half-lost':{ label: 'Medio P',  color: 'text-orange-400',  bg: 'bg-orange-400/10',  border: 'border-orange-400/25',  icon: <MinusCircle  className="w-4 h-4 text-orange-400" /> },
+              pending:    { label: 'Pendiente',color: 'text-yellow-400',  bg: 'bg-yellow-400/10',  border: 'border-yellow-400/25',  icon: <Activity     className="w-4 h-4 text-yellow-400" /> },
+            };
+
+            return (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.2 }}
+                className="mt-16"
+              >
+                {/* Header de la sección */}
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8">
+                  <div>
+                    <h2 className="text-2xl md:text-3xl font-bold flex items-center gap-3">
+                      <Calendar className="w-7 h-7 text-primary" />
+                      Registro de <span className="text-primary">Partidos</span>
+                    </h2>
+                    <p className="text-muted-foreground mt-1 text-sm">
+                      {sortedAll.length} picks en el período · Transparencia total, pick a pick
+                    </p>
+                  </div>
+
+                  {/* Badges de resumen */}
+                  <div className="flex flex-wrap gap-2">
+                    {(['won', 'lost', 'void', 'pending'] as const).map(s => {
+                      const cnt = sortedAll.filter(p => p.status === s).length;
+                      if (cnt === 0) return null;
+                      const cfg = statusConfig[s];
+                      return (
+                        <div key={s} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-bold ${cfg.bg} ${cfg.border} ${cfg.color}`}>
+                          {cfg.icon}
+                          <span>{cnt} {cfg.label}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Lista de picks */}
+                {paginated.length === 0 ? (
+                  <div className="text-center py-16 text-muted-foreground bg-card border border-white/10 rounded-2xl">
+                    <Trophy className="w-12 h-12 mx-auto mb-4 opacity-30" />
+                    <p className="font-medium">No hay partidos para mostrar en este período.</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="space-y-3">
+                      {paginated.map(pick => {
+                        const cfg = statusConfig[pick.status] || statusConfig['pending'];
+                        const matchDate = new Date(pick.match_date);
+                        const dateStr = matchDate.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
+                        const timeStr = matchDate.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+                        const profitLabel = pick.status === 'won'
+                          ? `+${((Number(pick.odds) - 1) * Number(pick.stake)).toFixed(2)} U`
+                          : pick.status === 'lost'
+                          ? `-${Number(pick.stake).toFixed(2)} U`
+                          : pick.status === 'void'
+                          ? '0.00 U'
+                          : '—';
+                        const profitColor = pick.status === 'won' ? 'text-green-400' : pick.status === 'lost' ? 'text-red-400' : pick.status === 'void' ? 'text-gray-400' : 'text-yellow-400';
+
+                        return (
+                          <motion.div
+                            key={pick.id}
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ duration: 0.2 }}
+                            className={`flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 rounded-2xl border bg-card/50 hover:bg-card transition-all duration-200 ${cfg.bg} ${cfg.border}`}
+                          >
+                            {/* Izquierda: estado + partido */}
+                            <div className="flex items-center gap-4 flex-1 min-w-0">
+                              {/* Badge estado escritorio */}
+                              <div className={`hidden md:flex flex-col items-center justify-center w-[60px] h-[60px] rounded-xl border shrink-0 ${cfg.bg} ${cfg.border}`}>
+                                {cfg.icon}
+                                <span className={`text-[9px] font-black uppercase tracking-wider mt-0.5 ${cfg.color}`}>{cfg.label}</span>
+                              </div>
+
+                              <div className="min-w-0 flex-1">
+                                {/* Cabecera del partido */}
+                                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                  {!Boolean(pick.is_parlay) && pick.country_flag && (
+                                    <CountryFlag code={pick.country_flag} />
+                                  )}
+                                  {Boolean(pick.is_parlay) && (
+                                    <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded bg-indigo-600/30 text-indigo-300 border border-indigo-500/30">PARLAY</span>
+                                  )}
+                                  <span className="font-semibold text-sm truncate">{pick.match_name}</span>
+                                  {/* Estado en móvil */}
+                                  <span className={`md:hidden ml-auto text-[9px] font-black uppercase px-2 py-0.5 rounded-full border ${cfg.bg} ${cfg.border} ${cfg.color}`}>{cfg.label}</span>
+                                </div>
+                                {/* Liga + fecha */}
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+                                  {pick.league_name && (
+                                    <span className="bg-white/5 px-2 py-0.5 rounded-full border border-white/5">{pick.league_name}</span>
+                                  )}
+                                  <span className="flex items-center gap-1">
+                                    <Calendar className="w-3 h-3" />
+                                    {dateStr} · {timeStr}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Derecha: métricas con anchos fijos para alineación perfecta */}
+                            <div className="flex items-center gap-2 md:gap-4 shrink-0 pl-0 md:pl-4 pt-2 md:pt-0 border-t md:border-t-0 border-white/5">
+                              {/* Tipo de pick: muestra nombre específico (VIP 2+, VIP 5+, Free) */}
+                              <div className="text-center hidden sm:flex flex-col items-center w-[72px] shrink-0">
+                                <div className="text-[9px] uppercase tracking-wider text-muted-foreground mb-0.5">Tipo</div>
+                                <span className={`text-[9px] font-black px-2 py-0.5 rounded-md leading-tight text-center ${
+                                  pick.pick_type_slug !== 'free'
+                                    ? 'bg-primary/20 text-primary border border-primary/30'
+                                    : 'bg-white/10 text-white border border-white/10'
+                                }`}>
+                                  {pick.pick_type_slug !== 'free'
+                                    ? (pick.pick_type_name || 'VIP').replace('VIP Cuota ', 'VIP ').replace('Gratis (Free)', 'Free')
+                                    : 'Free'}
+                                </span>
+                              </div>
+
+                              {/* Pronóstico */}
+                              <div className="text-center hidden lg:flex flex-col items-center w-[100px] shrink-0">
+                                <div className="text-[9px] uppercase tracking-wider text-muted-foreground mb-0.5">Pronóstico</div>
+                                <div className="text-xs font-bold truncate w-full text-center">{pick.market_label || pick.market_acronym || pick.pick}</div>
+                              </div>
+
+                              {/* Cuota */}
+                              <div className="flex flex-col items-center w-[60px] shrink-0 text-center">
+                                <div className="text-[9px] uppercase tracking-wider text-muted-foreground mb-0.5">Cuota</div>
+                                <div className="text-sm font-black text-yellow-400">@{Number(pick.odds).toFixed(2)}</div>
+                              </div>
+
+                              {/* Stake */}
+                              <div className="flex flex-col items-center w-[50px] shrink-0 text-center">
+                                <div className="text-[9px] uppercase tracking-wider text-muted-foreground mb-0.5">Stake</div>
+                                <div className="text-sm font-bold">{pick.stake}U</div>
+                              </div>
+
+                              {/* Beneficio */}
+                              <div className="flex flex-col items-center w-[72px] shrink-0 text-center">
+                                <div className="text-[9px] uppercase tracking-wider text-muted-foreground mb-0.5">Beneficio</div>
+                                <div className={`text-sm font-black tabular-nums ${profitColor}`}>{profitLabel}</div>
+                              </div>
+                            </div>
+                          </motion.div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Paginación */}
+                    {totalPages > 1 && (
+                      <div className="flex items-center justify-center gap-3 mt-8">
+                        <button
+                          onClick={() => setHistoryPage(p => Math.max(1, p - 1))}
+                          disabled={historyPage === 1}
+                          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed transition-all text-sm font-medium"
+                        >
+                          <ChevronLeft className="w-4 h-4" /> Anterior
+                        </button>
+                        <div className="flex items-center gap-1">
+                          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                            const page = Math.max(1, Math.min(totalPages - 4, historyPage - 2)) + i;
+                            return (
+                              <button
+                                key={page}
+                                onClick={() => setHistoryPage(page)}
+                                className={`w-9 h-9 rounded-lg text-sm font-bold transition-all ${
+                                  historyPage === page
+                                    ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/30'
+                                    : 'bg-white/5 hover:bg-white/10 text-muted-foreground'
+                                }`}
+                              >
+                                {page}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <button
+                          onClick={() => setHistoryPage(p => Math.min(totalPages, p + 1))}
+                          disabled={historyPage === totalPages}
+                          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed transition-all text-sm font-medium"
+                        >
+                          Siguiente <ChevronRight className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )}
+              </motion.div>
+            );
+          })()}
+
         </>
       )}
     </div>

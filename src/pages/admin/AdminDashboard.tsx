@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { GoogleGenAI, Type } from "@google/genai";
-import { Trophy, PlusCircle, List, Users, Settings, LogOut, CheckCircle, XCircle, MinusCircle, Trash2, Edit, Tag, Globe, X, BarChart3, CheckCircle2, Activity, DollarSign, Search, ChevronLeft, ChevronRight, BrainCircuit, Loader2 } from "lucide-react";
+import { Trophy, PlusCircle, List, Users, Settings, LogOut, CheckCircle, XCircle, MinusCircle, Trash2, Edit, Tag, Globe, X, BarChart3, CheckCircle2, Activity, DollarSign, Search, ChevronLeft, ChevronRight, BrainCircuit, Loader2, Send, ExternalLink } from "lucide-react";
 import { NORMALIZED_PICKS, getPickDisplay, getPlanName } from "../../lib/constants";
 import { getLocalizedStatus } from "../../lib/utils";
 import { useAuth } from "../../context/AuthContext";
@@ -41,6 +41,8 @@ export function AdminDashboard() {
   const [trackingMessage, setTrackingMessage] = useState("");
   const [activeTrackingPickId, setActiveTrackingPickId] = useState<number | null>(null);
   const [editingPickId, setEditingPickId] = useState<number | null>(null);
+  const [isSubmittingPickType, setIsSubmittingPickType] = useState(false);
+  const [pickTypesMessage, setPickTypesMessage] = useState({ type: "", text: "" });
 
   // Form state
   const [formData, setFormData] = useState({
@@ -249,6 +251,36 @@ export function AdminDashboard() {
     }
   };
 
+  const updatePickType = async (typeId: number, data: any) => {
+    setIsSubmittingPickType(true);
+    setPickTypesMessage({ type: "", text: "" });
+    try {
+      const res = await fetch(`/api/pick-types/${typeId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify(data)
+      });
+      const result = await res.json();
+      if (res.ok) {
+        setPickTypesMessage({ type: "success", text: "Configuración actualizada correctamente" });
+        // Refrescamos los tipos para ver los cambios
+        const typesRes = await fetch("/api/pick-types");
+        const typesData = await typesRes.json();
+        setPickTypes(typesData);
+      } else {
+        setPickTypesMessage({ type: "error", text: result.error || "Error al actualizar" });
+      }
+    } catch (error) {
+      setPickTypesMessage({ type: "error", text: "Error de red al actualizar" });
+    } finally {
+      setIsSubmittingPickType(false);
+      setTimeout(() => setPickTypesMessage({ type: "", text: "" }), 3000);
+    }
+  };
+
   const handleCreatePromoCode = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -373,7 +405,11 @@ export function AdminDashboard() {
   useEffect(() => {
     const fetchPickTypes = async () => {
       try {
-        const res = await fetch("/api/pick-types");
+        const res = await fetch("/api/pick-types", {
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        });
         const data = await res.json();
         setPickTypes(data);
         if (data.length > 0 && !editingPickId) {
@@ -1238,6 +1274,13 @@ export function AdminDashboard() {
           >
             <Tag className="h-5 w-5" />
             Cupones
+          </button>
+          <button 
+            onClick={() => setActiveTab("telegram")}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeTab === "telegram" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-white/5 hover:text-foreground"}`}
+          >
+            <Send className="h-5 w-5" />
+            Telegram
           </button>
         </nav>
 
@@ -2831,27 +2874,27 @@ export function AdminDashboard() {
         {activeTab === "stats" && (() => {
           const currentPerfStats = performanceStats ? (performanceStats[selectedStatsPlan] || { totalPicks: 0, won: 0, lost: 0, voided: 0, hitRate: "0.00", yield: "0.00", profit: "0.00" }) : null;
           
-          const processedRevenue = revenueStats?.revenueByDay ? (() => {
+          const processedRevenue = (revenueStats?.revenueByDay || revenueStats?.ingresosPorDia) ? (() => {
             const aggregated: Record<string, { month: string, total_cop: number, total_usd: number }> = {};
-            revenueStats.revenueByDay.forEach((row: any) => {
+            (revenueStats?.revenueByDay || revenueStats?.ingresosPorDia || []).forEach((row: any) => {
               if (selectedStatsPlan !== 'all' && row.plan_id !== selectedStatsPlan) return;
-              const month = row.date.substring(0, 7); // Extract YYYY-MM
+              const month = (row.date || row.fecha || "").substring(0, 7); // Extract YYYY-MM
               if (!aggregated[month]) {
                 aggregated[month] = { month: month, total_cop: 0, total_usd: 0 };
               }
-              aggregated[month].total_cop += Number(row.total_cop);
-              aggregated[month].total_usd += Number(row.total_usd);
+              aggregated[month].total_cop += Number(row.total_cop || 0);
+              aggregated[month].total_usd += Number(row.total_usd || 0);
             });
             return Object.values(aggregated).sort((a, b) => a.month.localeCompare(b.month));
           })() : [];
 
-          const totalRev = revenueStats?.totalRevenue ? (() => {
+          const totalRev = (revenueStats?.totalRevenue || revenueStats?.totalPorPlan) ? (() => {
             let cop = 0;
             let usd = 0;
-            revenueStats.totalRevenue.forEach((row: any) => {
+            (revenueStats?.totalRevenue || revenueStats?.totalPorPlan || []).forEach((row: any) => {
               if (selectedStatsPlan === 'all' || row.plan_id === selectedStatsPlan) {
-                cop += Number(row.total_cop);
-                usd += Number(row.total_usd);
+                cop += Number(row.total_cop || 0);
+                usd += Number(row.total_usd || 0);
               }
             });
             return { cop, usd };
@@ -3007,6 +3050,53 @@ export function AdminDashboard() {
               <div className="text-center py-8 text-muted-foreground">Cargando estadísticas de rendimiento...</div>
             )}
 
+            {/* Resumen por Tipología */}
+            <div className="bg-card border border-white/10 rounded-2xl overflow-hidden mt-8 mb-12">
+              <div className="p-4 bg-white/5 border-b border-white/10">
+                <h4 className="font-bold text-sm uppercase tracking-wider text-muted-foreground">Resumen de Picks por Tipología</h4>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-white/10 text-[10px] uppercase tracking-wider text-muted-foreground bg-white/5">
+                      <th className="p-4 font-medium">Tipo de Plan</th>
+                      <th className="p-4 font-medium">Picks</th>
+                      <th className="p-4 font-medium">Récord (W-L-V)</th>
+                      <th className="p-4 font-medium text-center">% Acierto</th>
+                      <th className="p-4 font-medium text-center">Yield</th>
+                      <th className="p-4 font-medium text-right">Beneficio</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pickTypes.map(pt => {
+                      const stats = performanceStats?.[pt.slug] || { totalPicks: 0, won: 0, lost: 0, voided: 0, hitRate: "0.00", yield: "0.00", profit: "0.00" };
+                      if (stats.totalPicks === 0 && pt.slug !== 'free') return null;
+                      return (
+                        <tr key={pt.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                          <td className="p-4 font-bold text-white">{pt.name}</td>
+                          <td className="p-4 text-white tabular-nums">{stats.totalPicks}</td>
+                          <td className="p-4">
+                            <div className="flex gap-2 text-xs font-bold tabular-nums">
+                              <span className="text-green-400">{stats.won}W</span>
+                              <span className="text-red-400">{stats.lost}L</span>
+                              <span className="text-gray-400">{stats.voided}V</span>
+                            </div>
+                          </td>
+                          <td className="p-4 text-white tabular-nums text-center">{stats.hitRate}%</td>
+                          <td className={`p-4 tabular-nums text-center ${Number(stats.yield) > 0 ? 'text-green-400' : Number(stats.yield) < 0 ? 'text-red-400' : 'text-white'}`}>
+                            {Number(stats.yield) > 0 ? '+' : ''}{stats.yield}%
+                          </td>
+                          <td className={`p-4 text-right tabular-nums font-bold ${Number(stats.profit) > 0 ? 'text-green-400' : Number(stats.profit) < 0 ? 'text-red-400' : 'text-white'}`}>
+                            {Number(stats.profit) > 0 ? '+' : ''}{stats.profit}U
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
             {/* Revenue Stats */}
             {selectedStatsPlan !== 'free' && (
               <>
@@ -3032,7 +3122,7 @@ export function AdminDashboard() {
                       <div className="bg-card border border-white/10 rounded-2xl p-6">
                         <h4 className="text-lg font-bold mb-6">Ingresos Mensuales (Últimos 6 meses)</h4>
                         <div className="h-[300px] w-full">
-                          <ResponsiveContainer width="100%" height="100%">
+                          <ResponsiveContainer width="100%" height={300}>
                             <BarChart data={processedRevenue}>
                               <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
                               <XAxis dataKey="month" stroke="#888" fontSize={12} tickLine={false} axisLine={false} />
@@ -3065,10 +3155,10 @@ export function AdminDashboard() {
                         <div className="bg-card border border-white/10 rounded-2xl p-6">
                           <h4 className="text-lg font-bold mb-6">Distribución de Planes Activos</h4>
                           <div className="h-[300px] w-full">
-                            <ResponsiveContainer width="100%" height="100%">
+                            <ResponsiveContainer width="100%" height={300}>
                               <PieChart>
                                 <Pie
-                                  data={revenueStats.planDistribution}
+                                  data={(revenueStats?.planDistribution || revenueStats?.distribucionPlanes || []).map((x) => ({count: x.count !== undefined ? Number(x.count) : Number(x.cantidad||0), plan_id: x.plan_id}))}
                                   cx="50%"
                                   cy="50%"
                                   innerRadius={60}
@@ -3078,7 +3168,7 @@ export function AdminDashboard() {
                                   nameKey="plan_id"
                                   label={({plan_id, percent}) => `${getPlanName(plan_id)} (${(percent * 100).toFixed(0)}%)`}
                                 >
-                                  {revenueStats.planDistribution.map((entry: any, index: number) => {
+                                  {(revenueStats?.planDistribution || revenueStats?.distribucionPlanes || []).map((entry: any, index: number) => {
                                     const colors = ['#D4AF37', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899'];
                                     return <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />;
                                   })}
@@ -3110,9 +3200,9 @@ export function AdminDashboard() {
                       <div className="bg-card border border-white/10 rounded-2xl p-6">
                         <h4 className="text-lg font-bold mb-6">Yield por Liga (Top 15)</h4>
                         <div className="h-[400px] w-full">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={advancedStats.byLeague} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                              <CartesianGrid strokeDasharray="3 3" stroke="#333" horizontal={false} />
+                          <ResponsiveContainer width="100%" height={300}>
+                            <BarChart data={(advancedStats?.byLeague || advancedStats?.porLiga || []).map((x) => ({...x, league: x.league||x.liga||""}))} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" horizontal={false} />
                               <XAxis type="number" tickFormatter={(value) => `${value}%`} stroke="#666" />
                               <YAxis dataKey="league" type="category" width={120} stroke="#666" tick={{fontSize: 12}} />
                               <RechartsTooltip 
@@ -3126,7 +3216,7 @@ export function AdminDashboard() {
                               />
                               <Legend />
                               <Bar dataKey="yield" name="Yield (%)" fill="#3b82f6" radius={[0, 4, 4, 0]}>
-                                {advancedStats.byLeague.map((entry: any, index: number) => (
+                                {(advancedStats?.byLeague || advancedStats?.porLiga || []).map((entry: any, index: number) => (
                                   <Cell key={`cell-${index}`} fill={parseFloat(entry.yield) >= 0 ? '#10b981' : '#ef4444'} />
                                 ))}
                               </Bar>
@@ -3139,9 +3229,9 @@ export function AdminDashboard() {
                       <div className="bg-card border border-white/10 rounded-2xl p-6">
                         <h4 className="text-lg font-bold mb-6">Yield por Mercado (Top 15)</h4>
                         <div className="h-[400px] w-full">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={advancedStats.byMarket} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                              <CartesianGrid strokeDasharray="3 3" stroke="#333" horizontal={false} />
+                          <ResponsiveContainer width="100%" height={300}>
+                            <BarChart data={(advancedStats?.byMarket || advancedStats?.porMercado || []).map((x) => ({...x, market: x.market||x.mercado||""}))} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" horizontal={false} />
                               <XAxis type="number" tickFormatter={(value) => `${value}%`} stroke="#666" />
                               <YAxis dataKey="market" type="category" width={120} stroke="#666" tick={{fontSize: 12}} />
                               <RechartsTooltip 
@@ -3155,7 +3245,7 @@ export function AdminDashboard() {
                               />
                               <Legend />
                               <Bar dataKey="yield" name="Yield (%)" fill="#8b5cf6" radius={[0, 4, 4, 0]}>
-                                {advancedStats.byMarket.map((entry: any, index: number) => (
+                                {(advancedStats?.byMarket || advancedStats?.porMercado || []).map((entry: any, index: number) => (
                                   <Cell key={`cell-${index}`} fill={parseFloat(entry.yield) >= 0 ? '#10b981' : '#ef4444'} />
                                 ))}
                               </Bar>
@@ -3291,6 +3381,93 @@ export function AdminDashboard() {
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+        {activeTab === "telegram" && (
+          <div className="max-w-4xl mx-auto">
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h2 className="text-2xl font-bold">Configuración de Telegram</h2>
+                <p className="text-muted-foreground text-sm mt-1">Configura el canal de Telegram para cada tipo de suscripción</p>
+              </div>
+            </div>
+
+            {pickTypesMessage.text && (
+              <div className={`p-4 rounded-xl mb-6 flex items-center gap-3 ${pickTypesMessage.type === 'success' ? 'bg-primary/20 text-primary border border-primary/50' : 'bg-destructive/20 text-destructive border border-destructive/50'}`}>
+                {pickTypesMessage.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <XCircle className="w-5 h-5" />}
+                {pickTypesMessage.text}
+              </div>
+            )}
+
+            <div className="grid gap-6">
+              {pickTypes.map((type) => (
+                <div key={type.id} className="bg-card border border-white/10 rounded-2xl p-6 hover:border-primary/30 transition-all transition-colors shadow-sm group">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <span className={`px-2.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${type.slug === 'free' ? 'bg-primary/20 text-primary' : 'bg-accent/20 text-accent'}`}>
+                          {type.name}
+                        </span>
+                        <h3 className="text-lg font-bold text-white uppercase tracking-tight">{type.name} Channel</h3>
+                      </div>
+                      <p className="text-sm text-muted-foreground mb-6">
+                        Define el ID del canal donde se enviarán los picks {type.name.toLowerCase()}.
+                      </p>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <label className="text-xs font-bold text-muted-foreground uppercase opacity-70">Channel ID</label>
+                          <input
+                            type="text"
+                            placeholder="Ej: -100123456789"
+                            defaultValue={type.telegram_channel_id}
+                            onBlur={(e) => updatePickType(type.id, { telegram_channel_id: e.target.value })}
+                            className="w-full bg-background border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary transition-all font-mono"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-xs font-bold text-muted-foreground uppercase opacity-70">Enlace de Invitación (Opcional)</label>
+                          <div className="relative">
+                            <input
+                              type="text"
+                              placeholder="https://t.me/joinchat/..."
+                              defaultValue={type.telegram_invite_link}
+                              onBlur={(e) => updatePickType(type.id, { telegram_invite_link: e.target.value })}
+                              className="w-full bg-background border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary transition-all"
+                            />
+                            {type.telegram_invite_link && (
+                              <a href={type.telegram_invite_link} target="_blank" rel="noopener noreferrer" className="absolute right-3 top-1/2 -translate-y-1/2 text-primary hover:text-primary/80">
+                                <ExternalLink className="w-4 h-4" />
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex flex-col items-center justify-center p-4 bg-primary/5 rounded-2xl border border-primary/10 min-w-[120px]">
+                      <Send className={`w-8 h-8 mb-2 ${type.telegram_channel_id ? 'text-primary' : 'text-muted-foreground opacity-30'}`} />
+                      <span className="text-[10px] font-bold text-center uppercase text-muted-foreground">
+                        {type.telegram_channel_id ? 'Conectado' : 'Sin Configurar'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-10 p-6 bg-blue-500/10 border border-blue-500/20 rounded-2xl">
+              <h3 className="flex items-center gap-2 text-blue-400 font-bold mb-3">
+                <BrainCircuit className="w-5 h-5" />
+                ¿Cómo obtener el ID del canal?
+              </h3>
+              <ul className="text-sm text-blue-200/70 space-y-2 list-disc pl-5">
+                <li>Añade tu Bot de Telegram como <strong>Administrador</strong> en el canal.</li>
+                <li>Envía un mensaje de prueba en el canal.</li>
+                <li>Usa un bot como <code className="bg-blue-500/20 px-1.5 py-0.5 rounded text-blue-300">@userinfobot</code> enviando el mensaje del canal o usa la API de Telegram.</li>
+                <li>Los IDs de canales privados suelen empezar con <code className="bg-blue-500/20 px-1.5 py-0.5 rounded text-blue-300">-100</code>.</li>
+              </ul>
             </div>
           </div>
         )}

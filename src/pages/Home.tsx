@@ -284,7 +284,7 @@ export function Home() {
                         <span className={`text-[10px] font-black uppercase tracking-[0.15em] px-2 py-0.5 rounded-md ${winner.pick_type_slug !== 'free' ? 'bg-primary text-primary-foreground' : 'bg-white/20 text-white'}`}>
                           {winner.pick_type_slug !== 'free' ? 'VIP' : 'Gratis'}
                         </span>
-                        {winner.is_parlay && (
+                        {Boolean(winner.is_parlay) && (
                           <span className="text-[10px] font-black uppercase tracking-[0.15em] px-2 py-0.5 rounded-md bg-indigo-600 text-white">
                             Parlay
                           </span>

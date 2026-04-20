@@ -297,7 +297,7 @@ export function FreePicks() {
                       <span>{new Date(pickOfTheDay.match_date.toString().replace(' ', 'T')).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</span>
                     </div>
 
-                    {pickOfTheDay.is_parlay && pickOfTheDay.selections && pickOfTheDay.selections.length > 0 && (
+                    {Boolean(pickOfTheDay.is_parlay) && pickOfTheDay.selections && pickOfTheDay.selections.length > 0 && (
                       <div className="mb-6 space-y-3">
                         {pickOfTheDay.selections.map((sel: any, idx: number) => (
                           <div key={idx} className="bg-white/5 rounded-xl p-4 border border-white/10 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -408,7 +408,7 @@ export function FreePicks() {
                           </div>
                           <h3 className="text-base font-bold mb-4 line-clamp-2 leading-tight">Parlay ({pick.selections?.length || 0} Selecciones)</h3>
                           
-                          {pick.is_parlay && pick.selections && (
+                          {Boolean(pick.is_parlay) && pick.selections && (
                             <div className="mb-4 space-y-2">
                               {pick.selections.slice(0, 3).map((sel: any, idx: number) => (
                                 <div key={idx} className="text-[10px] text-muted-foreground border-l border-white/10 pl-2">
@@ -549,7 +549,7 @@ export function FreePicks() {
                               ) : (
                                 `Parlay (${pick.selections?.length || 0} Selecciones)`
                               )}
-                              {pick.is_parlay && pick.selections && (
+                              {Boolean(pick.is_parlay) && pick.selections && (
                                 <div className="mt-2 space-y-1 font-normal">
                                   {pick.selections.map((sel: any, idx: number) => (
                                     <div key={idx} className="text-[10px] text-muted-foreground border-l border-white/10 pl-2">
