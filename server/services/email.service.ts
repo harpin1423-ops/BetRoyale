@@ -108,8 +108,8 @@ async function enviarEmail(para: string, asunto: string, html: string): Promise<
  * @returns HTML completo del email
  */
 function templateBase(contenido: string, para: string = ""): string {
-  // URL del logo guardado en public
-  const logoUrl = `${env.APP_URL}/logo_premium.png`;
+  // URL del logo guardado en public (con cache buster para asegurar frescura)
+  const logoUrl = `${env.APP_URL}/logo_premium_final.png?v=3.1`;
   
   // Link de soporte WhatsApp con mensaje predefinido
   const msjSoporte = encodeURIComponent(`Hola BetRoyale, necesito soporte para mi cuenta (${para}).`);
@@ -133,7 +133,7 @@ function templateBase(contenido: string, para: string = ""): string {
           <tr>
             <td style="padding:48px 32px 32px; text-align:center;">
               <a href="${env.APP_URL}" target="_blank" style="text-decoration:none;">
-                <img src="${logoUrl}" alt="BetRoyale Club" width="280" style="width:280px; height:auto; display:block; margin:0 auto; border-radius:50%;">
+                <img src="${logoUrl}" alt="BetRoyale Club" width="280" style="width:280px; height:auto; display:block; margin:0 auto;">
               </a>
             </td>
           </tr>
