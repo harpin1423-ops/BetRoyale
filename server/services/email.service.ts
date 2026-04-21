@@ -101,12 +101,15 @@ async function enviarEmail(para: string, asunto: string, html: string): Promise<
 
 /**
  * Template HTML base para todos los correos de BetRoyale Club.
- * Diseño oscuro, moderno y branded con el estilo de la plataforma.
+ * Diseño premium, oscuro, con el nuevo logo y estética SaaS.
  *
  * @param contenido - Contenido HTML interno del correo
  * @returns HTML completo del email
  */
 function templateBase(contenido: string): string {
+  // URL del logo guardado en public
+  const logoUrl = `${env.APP_URL}/logo_premium.jpg`;
+
   return `
 <!DOCTYPE html>
 <html lang="es">
@@ -115,37 +118,40 @@ function templateBase(contenido: string): string {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>BetRoyale Club</title>
 </head>
-<body style="margin:0; padding:0; background:#0a0a0a; font-family:'Segoe UI', Arial, sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#0a0a0a; padding: 40px 20px;">
+<body style="margin:0; padding:0; background-color:#0a0a0a; font-family:'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing:antialiased;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#0a0a0a; padding: 40px 10px;">
     <tr>
       <td align="center">
-        <table width="600" cellpadding="0" cellspacing="0" style="background:#111827; border-radius:16px; overflow:hidden; border:1px solid #1f2937;">
+        <table width="100%" maxWidth="600" cellpadding="0" cellspacing="0" style="max-width:600px; background-color:#141414; border-radius:24px; overflow:hidden; border:1px solid rgba(255,255,255,0.08); box-shadow: 0 20px 50px rgba(0,0,0,0.5);">
           
-          <!-- Header con logo -->
+          <!-- Header con Logo Premium -->
           <tr>
-            <td style="background:linear-gradient(135deg,#065f46,#0d9488); padding:32px; text-align:center;">
-              <h1 style="margin:0; color:#ffffff; font-size:28px; font-weight:800; letter-spacing:2px;">
-                👑 BETROYALE CLUB
-              </h1>
-              <p style="margin:8px 0 0; color:rgba(255,255,255,0.8); font-size:14px;">
-                Invirtiendo con Inteligencia
-              </p>
+            <td style="padding:48px 32px 32px; text-align:center;">
+              <a href="${env.APP_URL}" target="_blank" style="text-decoration:none;">
+                <img src="${logoUrl}" alt="BetRoyale Club" width="120" style="width:120px; height:auto; border-radius:50%;">
+              </a>
             </td>
           </tr>
 
           <!-- Contenido dinámico -->
           <tr>
-            <td style="padding:32px 40px; color:#e5e7eb; line-height:1.6; font-size:15px;">
+            <td style="padding:0 48px 48px; color:#ffffff; line-height:1.7; font-size:16px;">
               ${contenido}
             </td>
           </tr>
 
-          <!-- Footer -->
+          <!-- Footer con Redes y Links -->
           <tr>
-            <td style="background:#0a0a0a; padding:24px 40px; border-top:1px solid #1f2937; text-align:center;">
-              <p style="margin:0; color:#6b7280; font-size:12px;">
-                BetRoyale Club · La información proporcionada es solo para entretenimiento.<br>
-                El juego puede ser adictivo. Juega con responsabilidad.
+            <td style="background-color:#000000; padding:40px; border-top:1px solid rgba(255,255,255,0.05); text-align:center;">
+              <div style="margin-bottom:24px;">
+                <a href="${env.APP_URL}" style="color:#ffffff; text-decoration:none; font-weight:600; font-size:14px; margin:0 15px;">Sitio Web</a>
+                <a href="https://t.me/betroyaleclub" style="color:#EAB308; text-decoration:none; font-weight:600; font-size:14px; margin:0 15px;">Telegram</a>
+                <a href="https://instagram.com/betroyaleclub" style="color:#ffffff; text-decoration:none; font-weight:600; font-size:14px; margin:0 15px;">Instagram</a>
+              </div>
+              <p style="margin:0; color:#4b5563; font-size:12px; line-height:1.5;">
+                &copy; ${new Date().getFullYear()} BetRoyale Club. Todos los derechos reservados.<br>
+                Inversión deportiva inteligente.<br><br>
+                <span style="opacity:0.6;">La información proporcionada es solo para fines informativos y de entretenimiento. El juego es para mayores de 18 años. Juega con responsabilidad.</span>
               </p>
             </td>
           </tr>
@@ -163,127 +169,145 @@ function templateBase(contenido: string): string {
 
 /**
  * Envía el email de bienvenida a un nuevo usuario registrado.
- *
- * @param email - Correo del nuevo usuario
  */
 export async function enviarEmailBienvenida(email: string): Promise<void> {
-  // Definimos el asunto del correo de bienvenida
-  const asunto = "¡Bienvenido a BetRoyale Club! 👑";
+  const asunto = "Bienvenido a la Élite: BetRoyale Club 👑";
 
-  // Construimos el contenido HTML del email usando el template base
   const contenido = `
-    <h2 style="color:#34d399; margin:0 0 16px;">¡Ya eres parte del Club! 🎉</h2>
-    <p>Hola, <strong style="color:#fff;">${email}</strong></p>
-    <p>Tu cuenta en <strong style="color:#34d399;">BetRoyale Club</strong> ha sido creada exitosamente. 
-    Ya tienes acceso a nuestros <strong>Picks Gratuitos</strong> de alta calidad.</p>
-
-    <div style="background:#1f2937; border-radius:12px; padding:20px; margin:24px 0; border-left:4px solid #34d399;">
-      <h3 style="color:#34d399; margin:0 0 12px;">¿Qué puedes hacer ahora?</h3>
-      <ul style="margin:0; padding-left:20px; color:#d1d5db;">
-        <li>✅ Ver los picks gratuitos diarios</li>
-        <li>📊 Consultar las estadísticas históricas</li>
-        <li>📱 Unirte al canal de Telegram gratuito</li>
-        <li>👑 Actualizar a VIP para acceder a picks premium</li>
-      </ul>
+    <div style="text-align:center; margin-bottom:32px;">
+      <h1 style="margin:0; font-size:28px; font-weight:800; color:#fff;">¡Bienvenido al Club! 🎉</h1>
+      <p style="color:#9ca3af; margin-top:8px;">Hola, <span style="color:#ffffff;">${email}</span></p>
     </div>
 
-    <p>¿Listo para empezar a invertir con inteligencia?</p>
-    <a href="${env.APP_URL}" 
-       style="display:inline-block; background:linear-gradient(135deg,#065f46,#0d9488); color:#fff; 
-              padding:14px 32px; border-radius:8px; text-decoration:none; font-weight:700; 
-              font-size:16px; margin-top:8px;">
-      🚀 Ir al Dashboard
-    </a>
-    <br><br>
-    <p style="color:#6b7280; font-size:13px;">
-      Si no creaste esta cuenta, puedes ignorar este correo.
-    </p>
+    <p style="font-size:16px; color:#d1d5db;">Tu cuenta ha sido creada con éxito. Ahora tienes acceso a la plataforma de análisis deportivo más avanzada.</p>
+
+    <div style="background:rgba(234, 179, 8, 0.1); border-radius:16px; padding:24px; margin:32px 0; border:1px solid rgba(234, 179, 8, 0.2);">
+      <h3 style="color:#EAB308; margin:0 0 16px; font-size:18px;">Primeros pasos:</h3>
+      <div style="color:#d1d5db; font-size:15px; margin-bottom:8px;">✅ Accede a tus <strong style="color:#fff;">Picks Gratuitos</strong></div>
+      <div style="color:#d1d5db; font-size:15px; margin-bottom:8px;">📈 Revisa el historial de rendimiento</div>
+      <div style="color:#d1d5db; font-size:15px;">👑 Mejora a <strong style="color:#EAB308;">VIP</strong> para el máximo profit</div>
+    </div>
+
+    <div style="text-align:center; margin-top:40px;">
+      <a href="${env.APP_URL}" 
+         style="display:inline-block; background-color:#EAB308; color:#000000; 
+                padding:18px 40px; border-radius:12px; text-decoration:none; 
+                font-weight:800; font-size:16px; transition: all 0.3s ease;">
+        Comenzar Ahora
+      </a>
+    </div>
   `;
 
-  // Enviamos el correo usando la función genérica
   await enviarEmail(email, asunto, templateBase(contenido));
 }
 
 /**
  * Envía un correo con el link para restablecer la contraseña.
- *
- * @param email - Correo del usuario que solicitó el reset
- * @param token - Token de restablecimiento (corto tiempo de vida)
  */
-export async function enviarEmailRecuperacion(
-  email: string,
-  token: string
-): Promise<void> {
-  // Construimos la URL de reset con el token
+export async function enviarEmailRecuperacion(email: string, token: string): Promise<void> {
   const urlReset = `${env.APP_URL}/reset-password?token=${token}`;
+  const asunto = "Restablece tu contraseña — BetRoyale Club";
 
-  // Asunto del correo de recuperación
-  const asunto = "Recupera tu contraseña — BetRoyale Club";
-
-  // Contenido del correo
   const contenido = `
-    <h2 style="color:#f59e0b; margin:0 0 16px;">🔑 Recupera tu acceso</h2>
-    <p>Hola, recibimos una solicitud para restablecer la contraseña de <strong style="color:#fff;">${email}</strong>.</p>
-    <p>Haz clic en el botón para crear una nueva contraseña. 
-    Este enlace es válido por <strong>1 hora</strong>.</p>
+    <div style="text-align:center; margin-bottom:32px;">
+      <h1 style="margin:0; font-size:28px; font-weight:800; color:#fff;">Recupera tu acceso 🔑</h1>
+      <p style="color:#9ca3af; margin-top:8px;">Recibimos una solicitud para restablecer tu cuenta.</p>
+    </div>
 
-    <a href="${urlReset}" 
-       style="display:inline-block; background:linear-gradient(135deg,#d97706,#f59e0b); color:#fff; 
-              padding:14px 32px; border-radius:8px; text-decoration:none; font-weight:700; 
-              font-size:16px; margin:16px 0;">
-      🔑 Restablecer Contraseña
-    </a>
+    <p style="font-size:16px; color:#d1d5db;">Hola, para crear una nueva contraseña haz clic en el botón de abajo. Por seguridad, este enlace expirará en 60 minutos.</p>
 
-    <p style="color:#6b7280; font-size:13px; margin-top:16px;">
-      Si no solicitaste esto, ignora este correo. Tu contraseña actual seguirá siendo la misma.
+    <div style="text-align:center; margin:40px 0;">
+      <a href="${urlReset}" 
+         style="display:inline-block; background-color:#EAB308; color:#000000; 
+                padding:18px 40px; border-radius:12px; text-decoration:none; 
+                font-weight:800; font-size:16px;">
+        Restablecer Contraseña
+      </a>
+    </div>
+
+    <p style="color:#6b7280; font-size:13px; text-align:center;">
+      Si no solicitaste este cambio, puedes ignorar este correo sin problemas.
     </p>
-    <p style="color:#6b7280; font-size:12px; word-break:break-all;">
-      O copia y pega esta URL en tu navegador:<br>
-      <span style="color:#34d399;">${urlReset}</span>
-    </p>
+
+    <div style="margin-top:40px; padding-top:24px; border-top:1px solid rgba(255,255,255,0.05);">
+       <p style="color:#4b5563; font-size:12px; word-break:break-all; text-align:center;">
+        ¿El botón no funciona? Copia y pega esto:<br>
+        <span style="color:#EAB308;">${urlReset}</span>
+      </p>
+    </div>
   `;
 
   await enviarEmail(email, asunto, templateBase(contenido));
 }
 
 /**
- * Envía confirmación de activación de suscripción VIP al usuario.
- *
- * @param email   - Correo del usuario
- * @param planId  - Nombre del plan activado
- * @param hasta   - Fecha de vencimiento de la suscripción
+ * Envía un correo de confirmación de que la contraseña ha sido cambiada.
  */
-export async function enviarEmailConfirmacionVIP(
-  email: string,
-  planId: string,
-  hasta: string
-): Promise<void> {
-  const asunto = "✅ Suscripción VIP Activada — BetRoyale Club";
+export async function enviarEmailConfirmacionClave(email: string): Promise<void> {
+  const asunto = "Tu contraseña ha sido actualizada — BetRoyale Club";
 
   const contenido = `
-    <h2 style="color:#34d399; margin:0 0 16px;">🎉 ¡Ya eres VIP!</h2>
-    <p>Hola, <strong style="color:#fff;">${email}</strong></p>
-    <p>Tu suscripción <strong style="color:#34d399;">${planId}</strong> ha sido activada exitosamente.</p>
+    <div style="text-align:center; margin-bottom:32px;">
+      <h1 style="margin:0; font-size:28px; font-weight:800; color:#fff;">Seguridad Actualizada ✅</h1>
+      <p style="color:#9ca3af; margin-top:8px;">Hola, <span style="color:#ffffff;">${email}</span></p>
+    </div>
 
-    <div style="background:#1f2937; border-radius:12px; padding:20px; margin:24px 0; border-left:4px solid #fbbf24;">
-      <p style="margin:0; color:#fbbf24; font-weight:700;">
-        📅 Tu acceso VIP está activo hasta: ${hasta}
+    <p style="font-size:16px; color:#d1d5db; text-align:center;">Te informamos que la contraseña de tu cuenta ha sido modificada correctamente.</p>
+
+    <div style="background:rgba(52, 211, 153, 0.1); border-radius:16px; padding:24px; margin:32px 0; border:1px solid rgba(52, 211, 153, 0.2); text-align:center;">
+      <p style="color:#34d399; margin:0; font-weight:600;">Este cambio se realizó de forma exitosa.</p>
+    </div>
+
+    <p style="color:#9ca3af; font-size:14px; text-align:center;">
+      Si <strong>NO</strong> realizaste este cambio, por favor contacta a nuestro soporte de inmediato para proteger tu cuenta.
+    </p>
+
+    <div style="text-align:center; margin-top:40px;">
+      <a href="${env.APP_URL}/login" 
+         style="display:inline-block; border:1px solid #EAB308; color:#EAB308; 
+                padding:14px 32px; border-radius:12px; text-decoration:none; 
+                font-weight:700; font-size:15px;">
+        Entrar a mi Cuenta
+      </a>
+    </div>
+  `;
+
+  await enviarEmail(email, asunto, templateBase(contenido));
+}
+
+/**
+ * Envía confirmación de activación de suscripción VIP.
+ */
+export async function enviarEmailConfirmacionVIP(email: string, planId: string, hasta: string): Promise<void> {
+  const asunto = "¡Bienvenido a la Élite VIP! 👑 — BetRoyale Club";
+
+  const contenido = `
+    <div style="text-align:center; margin-bottom:32px;">
+      <h1 style="margin:0; font-size:28px; font-weight:800; color:#EAB308;">¡Acceso VIP Activado! 👑</h1>
+      <p style="color:#9ca3af; margin-top:8px;">Tu estatus ha sido elevado.</p>
+    </div>
+
+    <p style="font-size:16px; color:#d1d5db;">Hola, es un honor tenerte en el grupo exclusivo. Tu suscripción <strong style="color:#fff;">${planId}</strong> ya está activa.</p>
+
+    <div style="background:linear-gradient(135deg, rgba(234,179,8,0.1), rgba(0,0,0,0)); border-radius:16px; padding:24px; margin:32px 0; border:1px solid rgba(234, 179, 8, 0.3);">
+      <p style="margin:0; color:#EAB308; font-weight:700; font-size:18px;">
+        📅 Válido hasta: ${hasta}
       </p>
     </div>
 
-    <p>Ahora tienes acceso a:</p>
-    <ul style="color:#d1d5db;">
-      <li>⭐ Picks VIP con cuotas mínimas garantizadas</li>
-      <li>📊 Análisis detallado con IA por cada pick</li>
-      <li>📱 Canal exclusivo de Telegram VIP</li>
-      <li>📈 Panel de rendimiento personalizado</li>
-    </ul>
+    <p style="margin-bottom:24px; color:#fff; font-weight:600;">Tu arsenal de inversión ahora incluye:</p>
+    <div style="color:#d1d5db; font-size:15px; margin-bottom:12px;">🏆 Picks de Alta Probabilidad</div>
+    <div style="color:#d1d5db; font-size:15px; margin-bottom:12px;">📊 Análisis Profundo con Gemini IA</div>
+    <div style="color:#d1d5db; font-size:15px; margin-bottom:12px;">📱 Canal de Telegram Privado</div>
 
-    <a href="${env.APP_URL}/vip-picks" 
-       style="display:inline-block; background:linear-gradient(135deg,#b45309,#fbbf24); color:#fff; 
-              padding:14px 32px; border-radius:8px; text-decoration:none; font-weight:700; font-size:16px;">
-      👑 Ver mis Picks VIP
-    </a>
+    <div style="text-align:center; margin-top:40px;">
+      <a href="${env.APP_URL}/dashboard" 
+         style="display:inline-block; background-color:#EAB308; color:#000000; 
+                padding:18px 40px; border-radius:12px; text-decoration:none; 
+                font-weight:800; font-size:16px;">
+        Ver Picks de Hoy
+      </a>
+    </div>
   `;
 
   await enviarEmail(email, asunto, templateBase(contenido));
