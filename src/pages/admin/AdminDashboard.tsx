@@ -43,6 +43,7 @@ export function AdminDashboard() {
   const [editingPickId, setEditingPickId] = useState<number | null>(null);
   const [isSubmittingPickType, setIsSubmittingPickType] = useState(false);
   const [pickTypesMessage, setPickTypesMessage] = useState({ type: "", text: "" });
+  const [globalError, setGlobalError] = useState<string | null>(null);
   const [telegramFullConfig, setTelegramFullConfig] = useState({ telegram_channel_id: "", telegram_invite_link: "" });
 
   // Form state
@@ -141,6 +142,7 @@ export function AdminDashboard() {
   const [newlyAddedMarketId, setNewlyAddedMarketId] = useState<string | null>(null);
 
   const filteredLeagues = useMemo(() => {
+    if (!Array.isArray(leagues)) return [];
     return leagues.filter(l => 
       (!leagueCountryFilter || l.country_id?.toString() === leagueCountryFilter) && 
       (!leagueSearch || l.name.toLowerCase().includes(leagueSearch.toLowerCase()))
@@ -148,6 +150,7 @@ export function AdminDashboard() {
   }, [leagues, leagueCountryFilter, leagueSearch]);
 
   const filteredCountries = useMemo(() => {
+    if (!Array.isArray(countries)) return [];
     return countries.filter(c => 
       !countrySearch || c.name.toLowerCase().includes(countrySearch.toLowerCase())
     );
@@ -189,10 +192,13 @@ export function AdminDashboard() {
   const fetchPicks = async () => {
     try {
       const res = await fetch("/api/picks");
+      if (!res.ok) throw new Error("No se pudieron cargar los picks. Verifica la conexión a la base de datos.");
       const data = await res.json();
-      setPicks(data);
-    } catch (error) {
+      setPicks(Array.isArray(data) ? data : []);
+      setGlobalError(null);
+    } catch (error: any) {
       console.error("Error fetching picks:", error);
+      setGlobalError(error.message);
     }
   };
 
@@ -209,8 +215,9 @@ export function AdminDashboard() {
   const fetchLeagues = async () => {
     try {
       const res = await fetch("/api/leagues");
+      if (!res.ok) throw new Error("Error cargando ligas. Es posible que la base de datos no esté respondiendo.");
       const data = await res.json();
-      setLeagues(data);
+      setLeagues(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Error fetching leagues:", error);
     }
@@ -1372,7 +1379,46 @@ export function AdminDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col md:flex-row">
+    <div className="min-h-screen bg-background text-foreground font-sans selection:bg-primary/30">
+      {/* Global Error State UI */}
+      {globalError && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/95 backdrop-blur-md p-6">
+          <div className="max-w-md w-full bg-card border-2 border-destructive/50 rounded-3xl p-10 shadow-[0_0_50px_rgba(239,68,68,0.2)] text-center space-y-8 animate-in zoom-in-95 duration-300">
+            <div className="w-24 h-24 bg-destructive/10 rounded-full flex items-center justify-center mx-auto ring-8 ring-destructive/5">
+              <Activity className="w-12 h-12 text-destructive animate-pulse" />
+            </div>
+            <div className="space-y-3">
+              <h1 className="text-3xl font-black text-foreground tracking-tight">ERROR DE CONEXIÓN</h1>
+              <p className="text-muted-foreground text-lg leading-relaxed">
+                {globalError}
+              </p>
+              <div className="p-4 bg-destructive/5 rounded-2xl border border-destructive/10">
+                <p className="text-xs font-mono text-destructive/80 break-all bg-white/5 p-2 rounded">
+                  Status: Database Connection Failure (Production)
+                </p>
+              </div>
+            </div>
+            <div className="pt-4 space-y-4">
+              <button 
+                onClick={() => {
+                  setGlobalError(null);
+                  fetchPicks();
+                  fetchLeagues();
+                  fetchCountries();
+                }}
+                className="w-full flex items-center justify-center gap-3 bg-primary text-primary-foreground hover:bg-primary/90 py-5 rounded-2xl font-black text-lg transition-all hover:scale-[1.02] active:scale-95 shadow-[0_20px_40px_rgba(16,185,129,0.2)] group"
+              >
+                <Loader2 className="w-6 h-6 group-hover:rotate-180 transition-transform duration-500" />
+                REINTENTAR CONEXIÓN
+              </button>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-[0.2em] font-bold">
+                BetRoyale Club Management System v2.0
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+      <div className="min-h-screen bg-background flex flex-col md:flex-row">
       {/* Sidebar Admin */}
       <aside className="w-full md:w-64 bg-card border-r border-white/10 flex flex-col">
         <div className="p-6 border-b border-white/10">
