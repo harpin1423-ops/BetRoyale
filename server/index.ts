@@ -10,6 +10,7 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import cors from "cors";
 import path from "path";
+import helmet from "helmet";
 
 // ─── Importamos la configuración central ─────────────────────────────────────
 import { env } from "./config/env";
@@ -30,6 +31,7 @@ import paymentsRouter from "./routes/payments.routes";
 import statsRouter from "./routes/stats.routes";
 import promoCodesRouter from "./routes/promoCodes.routes";
 import pickTypesRouter from "./routes/pickTypes.routes";
+import { apiLimiter, authLimiter } from "./middleware/rateLimiter";
 
 /**
  * Crea y configura la instancia del servidor Express,
@@ -45,13 +47,34 @@ export async function startServer(): Promise<void> {
   // ── Creación de la aplicación Express ───────────────────────────────────────
   const app = express();
 
-  // ── Middlewares globales ─────────────────────────────────────────────────────
+  // ── Middlewares globales de Seguridad ──────────────────────────────────────
 
-  // CORS: permite peticiones desde cualquier origen (en prod, ajustar a dominio específico)
-  app.use(cors());
+  /** Helmet: Cabeceras de seguridad para proteger contra ataques comunes */
+  app.use(
+    helmet({
+      contentSecurityPolicy: false, // Deshabilitado para permitir recursos externos dinámicos
+      crossOriginEmbedderPolicy: false,
+    })
+  );
+
+  /** Deshabilitar cabeceras que revelan tecnología del servidor */
+  app.disable("x-powered-by");
+
+  // CORS: Restringido en producción al dominio oficial
+  const allowedOrigin =
+    env.NODE_ENV === "production" ? "https://betroyaleclub.com" : "*";
+  app.use(
+    cors({
+      origin: allowedOrigin,
+      credentials: true,
+    })
+  );
 
   // Parseador JSON: necesario para leer req.body en las rutas POST/PUT
   app.use(express.json());
+
+  // Rate Limiting: General para toda la API
+  app.use("/api", apiLimiter);
 
   // Logger: registra cada request HTTP con duración y status code
   app.use(requestLogger);
@@ -62,8 +85,8 @@ export async function startServer(): Promise<void> {
   // ── Rutas de la API ──────────────────────────────────────────────────────────
   // Cada dominio tiene su propio prefijo de ruta
 
-  /** Autenticación: registro, login, perfil y cambio de contraseña */
-  app.use("/api/auth", authRouter);
+  /** Autenticación: registro, login, perfil. Protegido con authLimiter */
+  app.use("/api/auth", authLimiter, authRouter);
 
   /** Perfil y métricas del usuario autenticado */
   app.use("/api/user", usersRouter);

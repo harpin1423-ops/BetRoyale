@@ -95,8 +95,20 @@ if (env.NODE_ENV === "production") {
 
   criticas.forEach((key) => {
     // Si la variable está vacía o usa el valor por defecto
-    if (!env[key]) {
-      console.warn(`[ENV] ⚠️  Variable de entorno faltante en producción: ${key}`);
+    const value = env[key];
+    const isDefault =
+      typeof value === "string" &&
+      (value.includes("secret") || value.includes("change-in-production"));
+
+    if (!value || isDefault) {
+      console.error(
+        `\n[SECURITY FATAL] ❌ La variable de entorno '${key}' es insegura o falta en producción.`
+      );
+      console.error(
+        `Para proteger la plataforma, el servidor NO arrancará hasta que se configure correctamente.\n`
+      );
+      process.exit(1);
     }
   });
+  console.log("🛡️  Validación de seguridad de entorno: EXITOSA");
 }
