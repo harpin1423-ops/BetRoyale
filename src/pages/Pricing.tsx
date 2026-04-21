@@ -132,7 +132,12 @@ export function Pricing() {
 
       // Force direct redirect to Mercado Pago for maximum reliability
       // The SDK modal sometimes fails to redirect back properly.
-      const paymentUrl = data.sandbox_init_point || data.init_point;
+      // Usamos la marca del backend porque el token privado es la fuente real del entorno.
+      const shouldUseSandboxCheckout = Boolean(data.is_sandbox);
+      // En sandbox usamos el link de prueba; en producción priorizamos el link real.
+      const paymentUrl = shouldUseSandboxCheckout
+        ? data.sandbox_init_point || data.init_point
+        : data.init_point || data.sandbox_init_point;
       if (paymentUrl) {
         window.location.href = paymentUrl;
       } else if (data.id) {

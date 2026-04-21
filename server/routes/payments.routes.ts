@@ -45,6 +45,9 @@ router.post("/mercadopago", authenticateToken, async (req: any, res) => {
       });
     }
 
+    // Detectamos si la credencial privada pertenece al entorno sandbox de Mercado Pago.
+    const esCredencialMercadoPagoSandbox = env.MERCADOPAGO_ACCESS_TOKEN.startsWith("TEST-");
+
     // Obtenemos la tasa de cambio USD → COP para procesar el pago en moneda local
     const tasa = await obtenerTasaCambio();
     const precioCOP = Math.round(unit_price * tasa);
@@ -130,6 +133,7 @@ router.post("/mercadopago", authenticateToken, async (req: any, res) => {
       id: resultado.id,
       init_point: resultado.init_point,             // Link de producción
       sandbox_init_point: resultado.sandbox_init_point, // Link de sandbox (test)
+      is_sandbox: esCredencialMercadoPagoSandbox,   // Marca real del entorno usado por el backend
     });
   } catch (error: any) {
     console.error("[PAYMENTS] Error creando preferencia MP:", error);
