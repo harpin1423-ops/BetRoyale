@@ -24,6 +24,7 @@ import PaymentReturn from "./pages/PaymentReturn";
 import { HistorialPicks } from "./pages/HistorialPicks";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { AlertCircle } from "lucide-react";
+import { Toaster } from "sonner";
 
 // Placeholder components for routing
 const Placeholder = ({ title }: { title: string }) => (
@@ -113,6 +114,7 @@ export default function App() {
       <BrowserRouter>
         {/* Sincroniza title, description, robots y canonical según la ruta actual. */}
         <SeoManager />
+        <Toaster richColors position="top-right" />
         <Routes>
           {/* Admin Route (No Navbar/Footer) */}
           <Route path="/admin" element={<ProtectedRoute requiredRole="admin"><AdminDashboard /></ProtectedRoute>} />
@@ -145,4 +147,3 @@ export default function App() {
     </AuthProvider>
   );
 }
-

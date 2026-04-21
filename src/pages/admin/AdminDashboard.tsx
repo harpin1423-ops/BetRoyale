@@ -7,6 +7,7 @@ import { useAuth } from "../../context/AuthContext";
 import { CountryFlag } from "../../components/CountryFlag";
 import { SearchableSelect } from "../../components/SearchableSelect";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from "recharts";
+import { toast } from "sonner";
 
 const formatPaymentMethod = (method: string) => {
   if (!method) return 'N/A';
@@ -35,14 +36,11 @@ export function AdminDashboard() {
   const [promoCodes, setPromoCodes] = useState<any[]>([]);
   const [newPromoCode, setNewPromoCode] = useState({ code: '', discount_percentage: '', max_uses: '', valid_until: '' });
   const [isLoading, setIsLoading] = useState(false);
-  const [message, setMessage] = useState({ type: "", text: "" });
   const [isSubmittingPick, setIsSubmittingPick] = useState(false);
   const [isSubmittingTracking, setIsSubmittingTracking] = useState(false);
-  const [trackingMessage, setTrackingMessage] = useState("");
   const [activeTrackingPickId, setActiveTrackingPickId] = useState<number | null>(null);
   const [editingPickId, setEditingPickId] = useState<number | null>(null);
   const [isSubmittingPickType, setIsSubmittingPickType] = useState(false);
-  const [pickTypesMessage, setPickTypesMessage] = useState({ type: "", text: "" });
   const [globalError, setGlobalError] = useState<string | null>(null);
   const [telegramFullConfig, setTelegramFullConfig] = useState({ telegram_channel_id: "", telegram_invite_link: "" });
 
@@ -63,17 +61,14 @@ export function AdminDashboard() {
 
   // Market form state
   const [marketForm, setMarketForm] = useState({ id: null as number | null, label: "", acronym: "" });
-  const [marketMessage, setMarketMessage] = useState({ type: "", text: "" });
   const [isSubmittingMarket, setIsSubmittingMarket] = useState(false);
 
   // League form state
   const [leagueForm, setLeagueForm] = useState({ id: null as number | null, name: "", country_id: "" });
-  const [leagueMessage, setLeagueMessage] = useState({ type: "", text: "" });
   const [isSubmittingLeague, setIsSubmittingLeague] = useState(false);
 
   // Country form state
   const [countryForm, setCountryForm] = useState({ id: null as number | null, name: "", flag: "" });
-  const [countryMessage, setCountryMessage] = useState({ type: "", text: "" });
   const [isSubmittingCountry, setIsSubmittingCountry] = useState(false);
 
   // Inline edit state
@@ -266,7 +261,6 @@ export function AdminDashboard() {
 
   const updatePickType = async (typeId: number, data: any) => {
     setIsSubmittingPickType(true);
-    setPickTypesMessage({ type: "", text: "" });
     try {
       // Limpiamos espacios accidentales antes de guardar IDs y enlaces de Telegram.
       const payload = Object.fromEntries(
@@ -286,7 +280,7 @@ export function AdminDashboard() {
       });
       const result = await res.json();
       if (res.ok) {
-        setPickTypesMessage({ type: "success", text: "Configuración actualizada correctamente" });
+        toast.success("Configuración actualizada correctamente");
         // Refrescamos los tipos para ver los cambios
         const typesRes = await fetch("/api/pick-types", {
           headers: { "Authorization": `Bearer ${token}` }
@@ -294,13 +288,12 @@ export function AdminDashboard() {
         const typesData = await typesRes.json();
         setPickTypes(Array.isArray(typesData) ? typesData : []);
       } else {
-        setPickTypesMessage({ type: "error", text: result.error || "Error al actualizar" });
+        toast.error(result.error || "Error al actualizar");
       }
     } catch (error) {
-      setPickTypesMessage({ type: "error", text: "Error de red al actualizar" });
+      toast.error("Error de red al actualizar");
     } finally {
       setIsSubmittingPickType(false);
-      setTimeout(() => setPickTypesMessage({ type: "", text: "" }), 3000);
     }
   };
 
@@ -339,7 +332,6 @@ export function AdminDashboard() {
    */
   const updateTelegramFullConfig = async (data: any) => {
     setIsSubmittingPickType(true);
-    setPickTypesMessage({ type: "", text: "" });
     try {
       // Limpiamos espacios accidentales antes de guardar el canal espejo.
       const payload = Object.fromEntries(
@@ -364,19 +356,17 @@ export function AdminDashboard() {
 
       // Mostramos el estado al administrador y sincronizamos la tarjeta.
       if (res.ok) {
-        setPickTypesMessage({ type: "success", text: result.message || "VIP Full actualizado correctamente" });
+        toast.success(result.message || "VIP Full actualizado correctamente");
         setTelegramFullConfig(result.config || telegramFullConfig);
       } else {
-        setPickTypesMessage({ type: "error", text: result.error || "Error al actualizar VIP Full" });
+        toast.error(result.error || "Error al actualizar VIP Full");
       }
     } catch (error) {
       // Mostramos un error de red cuando no se pudo contactar al backend.
-      setPickTypesMessage({ type: "error", text: "Error de red al actualizar VIP Full" });
+      toast.error("Error de red al actualizar VIP Full");
     } finally {
       // Cerramos el estado de envío de la tarjeta Full.
       setIsSubmittingPickType(false);
-      // Ocultamos el mensaje luego de unos segundos para no saturar el panel.
-      setTimeout(() => setPickTypesMessage({ type: "", text: "" }), 3000);
     }
   };
 
@@ -388,8 +378,6 @@ export function AdminDashboard() {
   const sendTestTelegramFullMessage = async () => {
     // Activamos el estado de guardado para evitar pruebas repetidas.
     setIsSubmittingPickType(true);
-    // Limpiamos mensajes anteriores antes de probar el canal Full.
-    setPickTypesMessage({ type: "", text: "" });
 
     try {
       // Pedimos al backend que publique un mensaje real en VIP Full.
@@ -402,19 +390,17 @@ export function AdminDashboard() {
       const result = await res.json();
 
       // Mostramos éxito o error según la respuesta del backend.
-      setPickTypesMessage(
-        res.ok
-          ? { type: "success", text: result.message || "Mensaje de prueba enviado a VIP Full" }
-          : { type: "error", text: result.error || "No se pudo enviar el mensaje a VIP Full" }
-      );
+      if (res.ok) {
+        toast.success(result.message || "Mensaje de prueba enviado a VIP Full");
+      } else {
+        toast.error(result.error || "No se pudo enviar el mensaje a VIP Full");
+      }
     } catch (error) {
       // Mostramos un error de red cuando no se pudo contactar al backend.
-      setPickTypesMessage({ type: "error", text: "Error de red al probar VIP Full" });
+      toast.error("Error de red al probar VIP Full");
     } finally {
       // Cerramos el estado de envío de la prueba Full.
       setIsSubmittingPickType(false);
-      // Ocultamos el mensaje luego de unos segundos para no saturar el panel.
-      setTimeout(() => setPickTypesMessage({ type: "", text: "" }), 4000);
     }
   };
 
@@ -426,8 +412,6 @@ export function AdminDashboard() {
   const sendTestPickTypeMessage = async (typeId: number) => {
     // Activamos el estado de guardado para deshabilitar acciones repetidas.
     setIsSubmittingPickType(true);
-    // Limpiamos mensajes anteriores antes de probar el canal.
-    setPickTypesMessage({ type: "", text: "" });
 
     try {
       // Pedimos al backend que publique un mensaje real con el bot configurado.
@@ -440,19 +424,17 @@ export function AdminDashboard() {
       const result = await res.json();
 
       // Mostramos éxito o error según la respuesta del backend.
-      setPickTypesMessage(
-        res.ok
-          ? { type: "success", text: result.message || "Mensaje de prueba enviado" }
-          : { type: "error", text: result.error || "No se pudo enviar el mensaje de prueba" }
-      );
+      if (res.ok) {
+        toast.success(result.message || "Mensaje de prueba enviado");
+      } else {
+        toast.error(result.error || "No se pudo enviar el mensaje de prueba");
+      }
     } catch (error) {
       // Mostramos un error de red cuando no se pudo contactar al backend.
-      setPickTypesMessage({ type: "error", text: "Error de red al probar Telegram" });
+      toast.error("Error de red al probar Telegram");
     } finally {
       // Cerramos el estado de envío del panel Telegram.
       setIsSubmittingPickType(false);
-      // Ocultamos el mensaje luego de unos segundos para no saturar el panel.
-      setTimeout(() => setPickTypesMessage({ type: "", text: "" }), 4000);
     }
   };
 
@@ -470,13 +452,13 @@ export function AdminDashboard() {
       if (res.ok) {
         setNewPromoCode({ code: '', discount_percentage: '', max_uses: '', valid_until: '' });
         fetchPromoCodes();
-        setMessage({ type: "success", text: "Código creado correctamente" });
+        toast.success("Código creado correctamente");
       } else {
         const data = await res.json();
-        setMessage({ type: "error", text: data.error || "Error al crear código" });
+        toast.error(data.error || "Error al crear código");
       }
     } catch (error) {
-      setMessage({ type: "error", text: "Error de conexión" });
+      toast.error("Error de conexión");
     }
   };
 
@@ -489,10 +471,10 @@ export function AdminDashboard() {
       });
       if (res.ok) {
         fetchPromoCodes();
-        setMessage({ type: "success", text: "Código eliminado" });
+        toast.success("Código eliminado");
       }
     } catch (error) {
-      setMessage({ type: "error", text: "Error al eliminar código" });
+      toast.error("Error al eliminar código");
     }
   };
 
@@ -609,9 +591,6 @@ export function AdminDashboard() {
     const { name, value, type } = e.target;
     const checked = type === 'checkbox' ? (e.target as HTMLInputElement).checked : undefined;
     
-    // Clear error message if user is typing
-    if (message.type === 'error') {
-      setMessage({ type: "", text: "" });
     }
     
     setFormData(prev => {
@@ -633,11 +612,6 @@ export function AdminDashboard() {
   };
 
   const handleSelectChange = (name: string, value: string) => {
-    // Clear error message if user is typing
-    if (message.type === 'error') {
-      setMessage({ type: "", text: "" });
-    }
-    
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
@@ -669,11 +643,6 @@ export function AdminDashboard() {
   const handleSelectionChange = (index: number, e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     
-    // Clear error message if user is typing
-    if (message.type === 'error') {
-      setMessage({ type: "", text: "" });
-    }
-    
     setFormData(prev => {
       const newSelections = [...prev.selections];
       newSelections[index] = { ...newSelections[index], [name]: value };
@@ -697,10 +666,23 @@ export function AdminDashboard() {
     }
     
     setIsSubmittingPick(true);
-    setMessage({ type: "success", text: editingPickId ? "Actualizando pick..." : "Creando pick..." });
 
     try {
       console.log("Preparing submission data...");
+      
+      // Fecha del pick o primera selección del Parlay
+      const dateToCheck = formData.is_parlay && formData.selections.length > 0 
+        ? formData.selections[0].match_time 
+        : formData.match_date;
+
+      if (dateToCheck) {
+        const year = new Date(dateToCheck).getFullYear();
+        const currentYear = new Date().getFullYear();
+        if (year > currentYear + 10 || year < 2020) {
+          throw new Error(`Fecha inválida: el año ${year} parece ser un error.`);
+        }
+      }
+
       const url = editingPickId ? `/api/picks/${editingPickId}` : "/api/picks";
       const method = editingPickId ? "PUT" : "POST";
 
@@ -729,7 +711,7 @@ export function AdminDashboard() {
         throw new Error(data.details || data.error || "Error al guardar el pick");
       }
 
-      setMessage({ type: "success", text: editingPickId ? "¡Pick actualizado exitosamente!" : "¡Pick publicado exitosamente!" });
+      toast.success(editingPickId ? "¡Pick actualizado exitosamente!" : "¡Pick publicado exitosamente!");
       
       if (!editingPickId) {
         setFormData({
@@ -767,12 +749,8 @@ export function AdminDashboard() {
         });
       }
       
-      // Auto-clear message after 3 seconds
-      setTimeout(() => {
-        setMessage(prev => prev.type === 'success' ? { type: "", text: "" } : prev);
-      }, 3000);
     } catch (error: any) {
-      setMessage({ type: "error", text: error.message });
+      toast.error(error.message);
     } finally {
       setIsSubmittingPick(false);
     }
@@ -815,7 +793,6 @@ export function AdminDashboard() {
     });
     setEditingPickId(pick.id);
     setActiveTab("new-pick");
-    setMessage({ type: "", text: "" });
   };
 
   const cancelEdit = () => {
@@ -833,7 +810,6 @@ export function AdminDashboard() {
       is_parlay: false,
       selections: []
     });
-    setMessage({ type: "", text: "" });
   };
 
   const updatePickStatus = async (id: number, status: string) => {
@@ -1003,9 +979,13 @@ export function AdminDashboard() {
         setTrackingMessage("");
         setActiveTrackingPickId(null);
         fetchPicks(); // Refresh picks to show new tracking
+        toast.success("Seguimiento añadido correctamente");
+      } else {
+        toast.error("Error al añadir seguimiento");
       }
     } catch (error) {
       console.error("Error adding tracking:", error);
+      toast.error("Error de conexión al añadir seguimiento");
     } finally {
       setIsSubmittingTracking(false);
     }
@@ -1016,7 +996,6 @@ export function AdminDashboard() {
     if (isSubmittingMarket) return;
     
     setIsSubmittingMarket(true);
-    setMarketMessage({ type: "", text: "" });
     
     try {
       const url = marketForm.id ? `/api/markets/${marketForm.id}` : "/api/markets";
@@ -1037,18 +1016,13 @@ export function AdminDashboard() {
         setTimeout(() => setNewlyAddedMarketId(null), 5000);
       }
       
-      setMarketMessage({ type: "success", text: "Mercado guardado exitosamente" });
+      toast.success("Mercado guardado exitosamente");
       setMarketForm({ id: null, label: "", acronym: "" });
       
       // Background fetch
       fetchMarkets();
-      
-      // Auto-clear message after 3 seconds
-      setTimeout(() => {
-        setMarketMessage(prev => prev.type === 'success' ? { type: "", text: "" } : prev);
-      }, 3000);
     } catch (error: any) {
-      setMarketMessage({ type: "error", text: error.message });
+      toast.error(error.message);
     } finally {
       setIsSubmittingMarket(false);
     }
@@ -1056,7 +1030,6 @@ export function AdminDashboard() {
 
   const editMarket = (market: any) => {
     setMarketForm({ id: market.id, label: market.label, acronym: market.acronym });
-    setMarketMessage({ type: "", text: "" });
   };
 
   const deleteMarket = async (id: number, name: string) => {
@@ -1086,7 +1059,6 @@ export function AdminDashboard() {
     if (isSubmittingLeague) return;
     
     setIsSubmittingLeague(true);
-    setLeagueMessage({ type: "", text: "" });
     
     console.log("Submitting league:", { name: leagueForm.name, country_id: leagueForm.country_id });
     try {
@@ -1109,18 +1081,13 @@ export function AdminDashboard() {
         setTimeout(() => setNewlyAddedLeagueId(null), 5000);
       }
       
-      setLeagueMessage({ type: "success", text: "Liga guardada exitosamente" });
+      toast.success("Liga guardada exitosamente");
       setLeagueForm({ id: null, name: "", country_id: leagueCountryFilter });
       
       // Background fetch
       fetchLeagues();
-      
-      // Auto-clear message after 3 seconds
-      setTimeout(() => {
-        setLeagueMessage(prev => prev.type === 'success' ? { type: "", text: "" } : prev);
-      }, 3000);
     } catch (error: any) {
-      setLeagueMessage({ type: "error", text: error.message });
+      toast.error(error.message);
     } finally {
       setIsSubmittingLeague(false);
     }
@@ -1130,7 +1097,6 @@ export function AdminDashboard() {
     const countryId = league.country_id?.toString() || "";
     setLeagueForm({ id: league.id, name: league.name, country_id: countryId });
     setLeagueCountryFilter(countryId);
-    setLeagueMessage({ type: "", text: "" });
   };
 
   const deleteLeague = async (id: number, name: string) => {
@@ -1163,7 +1129,6 @@ export function AdminDashboard() {
     if (isSubmittingCountry) return;
     
     setIsSubmittingCountry(true);
-    setCountryMessage({ type: "", text: "" });
     
     try {
       const url = countryForm.id ? `/api/countries/${countryForm.id}` : "/api/countries";
@@ -1185,18 +1150,13 @@ export function AdminDashboard() {
         setTimeout(() => setNewlyAddedCountryId(null), 5000);
       }
       
-      setCountryMessage({ type: "success", text: "País guardado exitosamente" });
+      toast.success("País guardado exitosamente");
       setCountryForm({ id: null, name: "", flag: "" });
       
       // Background fetch
       fetchCountries();
-      
-      // Auto-clear message after 3 seconds
-      setTimeout(() => {
-        setCountryMessage(prev => prev.type === 'success' ? { type: "", text: "" } : prev);
-      }, 3000);
     } catch (error: any) {
-      setCountryMessage({ type: "error", text: error.message });
+      toast.error(error.message);
     } finally {
       setIsSubmittingCountry(false);
     }
@@ -1204,7 +1164,6 @@ export function AdminDashboard() {
 
   const editCountry = (country: any) => {
     setCountryForm({ id: country.id, name: country.name, flag: country.flag || "" });
-    setCountryMessage({ type: "", text: "" });
   };
 
   const startInlineEditCountry = (country: any) => {
@@ -1527,14 +1486,6 @@ export function AdminDashboard() {
               )}
             </div>
             
-            <div className="h-12 mb-2">
-              {message.text && (
-                <div className={`p-4 rounded-xl ${message.type === 'success' ? 'bg-primary/20 text-primary border border-primary/50' : 'bg-destructive/20 text-destructive border border-destructive/50'}`}>
-                  {message.text}
-                </div>
-              )}
-            </div>
-
             <form 
               className="space-y-6 bg-card p-6 md:p-10 rounded-2xl border border-white/10 shadow-2xl" 
               onSubmit={(e) => {
@@ -2426,14 +2377,6 @@ export function AdminDashboard() {
                 <div className="bg-card p-6 rounded-2xl border border-white/10">
                   <h3 className="text-lg font-bold mb-4">{marketForm.id ? "Editar Mercado" : "Nuevo Mercado"}</h3>
                   
-                  <div className="h-14 mb-2">
-                    {marketMessage.text && (
-                      <div className={`p-3 rounded-lg text-sm ${marketMessage.type === 'success' ? 'bg-primary/20 text-primary border border-primary/50' : 'bg-destructive/20 text-destructive border border-destructive/50'}`}>
-                        {marketMessage.text}
-                      </div>
-                    )}
-                  </div>
-
                   <form onSubmit={handleMarketSubmit} className="space-y-4">
                     <div className="space-y-2">
                       <label className="text-sm font-medium text-muted-foreground">Etiqueta (Ej: Gana Local)</label>
@@ -2442,7 +2385,6 @@ export function AdminDashboard() {
                         value={marketForm.label} 
                         onChange={(e) => {
                           setMarketForm(prev => ({ ...prev, label: e.target.value }));
-                          if (marketMessage.type === 'error') setMarketMessage({ type: "", text: "" });
                         }} 
                         required 
                         className="w-full bg-background border border-white/10 rounded-xl px-5 py-4 text-sm text-foreground focus:outline-none focus:border-primary transition-all" 
@@ -2455,7 +2397,6 @@ export function AdminDashboard() {
                         value={marketForm.acronym} 
                         onChange={(e) => {
                           setMarketForm(prev => ({ ...prev, acronym: e.target.value }));
-                          if (marketMessage.type === 'error') setMarketMessage({ type: "", text: "" });
                         }} 
                         required 
                         className="w-full bg-background border border-white/10 rounded-xl px-5 py-4 text-sm text-foreground focus:outline-none focus:border-primary transition-all" 
@@ -2546,14 +2487,6 @@ export function AdminDashboard() {
                     )}
                   </h3>
                   
-                  <div className="h-14 mb-2">
-                    {leagueMessage.text && (
-                      <div className={`p-3 rounded-lg text-sm ${leagueMessage.type === 'success' ? 'bg-primary/20 text-primary border border-primary/50' : 'bg-destructive/20 text-destructive border border-destructive/50'}`}>
-                        {leagueMessage.text}
-                      </div>
-                    )}
-                  </div>
-
                   <form onSubmit={handleLeagueSubmit} className="space-y-4">
                     <div className="space-y-2">
                       <label className="text-sm font-medium text-muted-foreground">País</label>
@@ -2562,7 +2495,6 @@ export function AdminDashboard() {
                         onChange={(value) => {
                           setLeagueForm(prev => ({ ...prev, country_id: value }));
                           setLeagueCountryFilter(value);
-                          if (leagueMessage.type === 'error') setLeagueMessage({ type: "", text: "" });
                         }} 
                         className="w-full"
                         placeholder="Seleccionar..."
@@ -2579,7 +2511,6 @@ export function AdminDashboard() {
                         value={leagueForm.name} 
                         onChange={(e) => {
                           setLeagueForm(prev => ({ ...prev, name: e.target.value }));
-                          if (leagueMessage.type === 'error') setLeagueMessage({ type: "", text: "" });
                         }} 
                         required 
                         placeholder="Ej: Premier League"
@@ -2841,14 +2772,6 @@ export function AdminDashboard() {
                 <div className="bg-card p-6 rounded-2xl border border-white/10">
                   <h3 className="text-lg font-bold mb-4">{countryForm.id ? "Editar País" : "Nuevo País"}</h3>
                   
-                  <div className="h-14 mb-2">
-                    {countryMessage.text && (
-                      <div className={`p-3 rounded-lg text-sm ${countryMessage.type === 'success' ? 'bg-primary/20 text-primary border border-primary/50' : 'bg-destructive/20 text-destructive border border-destructive/50'}`}>
-                        {countryMessage.text}
-                      </div>
-                    )}
-                  </div>
-
                   <form onSubmit={handleCountrySubmit} className="space-y-4">
                     <div className="space-y-2">
                       <label className="text-sm font-medium text-muted-foreground">Nombre del País</label>
@@ -2857,7 +2780,6 @@ export function AdminDashboard() {
                         value={countryForm.name} 
                         onChange={(e) => {
                           setCountryForm(prev => ({ ...prev, name: e.target.value }));
-                          if (countryMessage.type === 'error') setCountryMessage({ type: "", text: "" });
                         }} 
                         required 
                         placeholder="Ej: Colombia"
@@ -2871,7 +2793,6 @@ export function AdminDashboard() {
                         value={countryForm.flag} 
                         onChange={(e) => {
                           setCountryForm(prev => ({ ...prev, flag: e.target.value }));
-                          if (countryMessage.type === 'error') setCountryMessage({ type: "", text: "" });
                         }} 
                         placeholder="Ej: 🇨🇴"
                         className="w-full bg-background border border-white/10 rounded-xl px-5 py-4 text-sm text-foreground focus:outline-none focus:border-primary transition-all" 
@@ -3636,13 +3557,6 @@ export function AdminDashboard() {
                 <p className="text-muted-foreground text-sm mt-1">Configura el canal de Telegram para cada tipo de suscripción</p>
               </div>
             </div>
-
-            {pickTypesMessage.text && (
-              <div className={`p-4 rounded-xl mb-6 flex items-center gap-3 ${pickTypesMessage.type === 'success' ? 'bg-primary/20 text-primary border border-primary/50' : 'bg-destructive/20 text-destructive border border-destructive/50'}`}>
-                {pickTypesMessage.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <XCircle className="w-5 h-5" />}
-                {pickTypesMessage.text}
-              </div>
-            )}
 
             <div className="grid gap-6">
               <div className="bg-card border border-primary/30 rounded-2xl p-6 shadow-sm group">
