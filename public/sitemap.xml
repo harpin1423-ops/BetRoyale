@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Sitemap oficial de BetRoyale Club para URLs públicas indexables. -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <!-- Página principal con máxima prioridad SEO. -->
+  <url>
+    <!-- URL canónica de la home. -->
+    <loc>https://betroyaleclub.com/</loc>
+    <!-- Frecuencia estimada de actualización de la home. -->
+    <changefreq>daily</changefreq>
+    <!-- Prioridad relativa de la home. -->
+    <priority>1.00</priority>
+  </url>
+  <!-- Página pública de picks gratuitos. -->
+  <url>
+    <!-- URL canónica de picks gratuitos. -->
+    <loc>https://betroyaleclub.com/free-picks</loc>
+    <!-- Los picks gratuitos pueden cambiar todos los días. -->
+    <changefreq>daily</changefreq>
+    <!-- Prioridad alta por intención de búsqueda. -->
+    <priority>0.95</priority>
+  </url>
+  <!-- Página comercial de planes VIP. -->
+  <url>
+    <!-- URL canónica de planes VIP. -->
+    <loc>https://betroyaleclub.com/pricing</loc>
+    <!-- Los planes pueden tener ajustes frecuentes. -->
+    <changefreq>weekly</changefreq>
+    <!-- Prioridad alta por conversión. -->
+    <priority>0.95</priority>
+  </url>
+  <!-- Página pública de estadísticas. -->
+  <url>
+    <!-- URL canónica de estadísticas. -->
+    <loc>https://betroyaleclub.com/stats</loc>
+    <!-- Las estadísticas cambian con nuevos resultados. -->
+    <changefreq>daily</changefreq>
+    <!-- Prioridad alta por transparencia y confianza. -->
+    <priority>0.90</priority>
+  </url>
+  <!-- Historial público de resultados. -->
+  <url>
+    <!-- URL canónica del historial. -->
+    <loc>https://betroyaleclub.com/historial</loc>
+    <!-- El historial se actualiza con picks resueltos. -->
+    <changefreq>daily</changefreq>
+    <!-- Prioridad alta por contenido verificable. -->
+    <priority>0.90</priority>
+  </url>
+  <!-- Página de preguntas frecuentes. -->
+  <url>
+    <!-- URL canónica de FAQ. -->
+    <loc>https://betroyaleclub.com/faq</loc>
+    <!-- FAQ cambia ocasionalmente. -->
+    <changefreq>monthly</changefreq>
+    <!-- Prioridad media-alta por intención informativa. -->
+    <priority>0.70</priority>
+  </url>
+  <!-- Página de juego responsable. -->
+  <url>
+    <!-- URL canónica de juego responsable. -->
+    <loc>https://betroyaleclub.com/responsible-gaming</loc>
+    <!-- Contenido legal con cambios poco frecuentes. -->
+    <changefreq>monthly</changefreq>
+    <!-- Prioridad media por confianza y cumplimiento. -->
+    <priority>0.60</priority>
+  </url>
+  <!-- Términos de servicio. -->
+  <url>
+    <!-- URL canónica de términos. -->
+    <loc>https://betroyaleclub.com/terms</loc>
+    <!-- Contenido legal con cambios poco frecuentes. -->
+    <changefreq>monthly</changefreq>
+    <!-- Prioridad media legal. -->
+    <priority>0.50</priority>
+  </url>
+  <!-- Política de privacidad. -->
+  <url>
+    <!-- URL canónica de privacidad. -->
+    <loc>https://betroyaleclub.com/privacy</loc>
+    <!-- Contenido legal con cambios poco frecuentes. -->
+    <changefreq>monthly</changefreq>
+    <!-- Prioridad media legal. -->
+    <priority>0.50</priority>
+  </url>
+  <!-- Política de reembolsos. -->
+  <url>
+    <!-- URL canónica de reembolsos. -->
+    <loc>https://betroyaleclub.com/refunds</loc>
+    <!-- Contenido legal con cambios poco frecuentes. -->
+    <changefreq>monthly</changefreq>
+    <!-- Prioridad media legal. -->
+    <priority>0.50</priority>
+  </url>
+</urlset>

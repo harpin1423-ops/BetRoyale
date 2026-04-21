@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Imagen social oficial de BetRoyale Club para previews Open Graph. -->
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Fondo premium oscuro de marca. -->
+  <rect width="1200" height="630" fill="#07111f"/>
+  <!-- Resplandor dorado superior para profundidad visual. -->
+  <circle cx="970" cy="90" r="260" fill="#d4af37" opacity="0.16"/>
+  <!-- Resplandor azul inferior para contraste. -->
+  <circle cx="145" cy="565" r="300" fill="#1d4ed8" opacity="0.18"/>
+  <!-- Borde exterior elegante. -->
+  <rect x="34" y="34" width="1132" height="562" rx="36" stroke="#d4af37" stroke-width="3" opacity="0.7"/>
+  <!-- Línea decorativa superior. -->
+  <path d="M92 136H1108" stroke="#d4af37" stroke-width="2" stroke-linecap="round" opacity="0.35"/>
+  <!-- Icono de trofeo minimalista. -->
+  <path d="M189 170h82v45c0 42-27 77-62 77s-62-35-62-77v-45h42Z" stroke="#d4af37" stroke-width="12" stroke-linejoin="round"/>
+  <!-- Asa izquierda del trofeo. -->
+  <path d="M147 185h-38c0 44 26 72 64 76" stroke="#d4af37" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Asa derecha del trofeo. -->
+  <path d="M271 185h38c0 44-26 72-64 76" stroke="#d4af37" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Base del trofeo. -->
+  <path d="M209 292v54M166 346h86M143 385h132" stroke="#d4af37" stroke-width="12" stroke-linecap="round"/>
+  <!-- Nombre principal de marca. -->
+  <text x="350" y="235" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="72" font-weight="800" letter-spacing="-2">BetRoyale Club</text>
+  <!-- Subtítulo SEO de alto valor. -->
+  <text x="350" y="315" fill="#d4af37" font-family="Arial, Helvetica, sans-serif" font-size="42" font-weight="700">Pronósticos Deportivos Premium</text>
+  <!-- Propuesta de valor resumida. -->
+  <text x="350" y="382" fill="#cbd5e1" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="500">Picks VIP • Picks Gratis • Estadísticas Transparentes</text>
+  <!-- Mensaje de confianza y gestión. -->
+  <text x="350" y="438" fill="#94a3b8" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="500">Análisis profesional, gestión de banca y acceso privado por Telegram.</text>
+  <!-- URL oficial. -->
+  <text x="350" y="520" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="700">betroyaleclub.com</text>
+</svg>

@@ -1,0 +1,26 @@
+# Permitimos que los buscadores recorran el contenido público.
+User-agent: *
+
+# Permitimos indexar la página principal y rutas públicas.
+Allow: /
+
+# Bloqueamos el panel administrativo.
+Disallow: /admin
+
+# Bloqueamos perfiles privados de usuario.
+Disallow: /profile
+
+# Bloqueamos la zona VIP porque requiere suscripción activa.
+Disallow: /vip-picks
+
+# Bloqueamos rutas transaccionales de pago.
+Disallow: /payment-return
+
+# Bloqueamos páginas de autenticación.
+Disallow: /login
+
+# Bloqueamos páginas de registro para evitar indexación de formularios.
+Disallow: /register
+
+# Informamos a buscadores la ubicación oficial del sitemap.
+Sitemap: https://betroyaleclub.com/sitemap.xml

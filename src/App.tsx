@@ -2,6 +2,8 @@ import React from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { Navbar } from "./components/Navbar";
 import { Footer } from "./components/Footer";
+// Importamos el gestor SEO para sincronizar títulos y metadatos por ruta.
+import { SeoManager } from "./components/SeoManager";
 import { Home } from "./pages/Home";
 import { AdminDashboard } from "./pages/admin/AdminDashboard";
 import { FreePicks } from "./pages/FreePicks";
@@ -107,6 +109,8 @@ export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
+        {/* Sincroniza title, description, robots y canonical según la ruta actual. */}
+        <SeoManager />
         <Routes>
           {/* Admin Route (No Navbar/Footer) */}
           <Route path="/admin" element={<ProtectedRoute requiredRole="admin"><AdminDashboard /></ProtectedRoute>} />
