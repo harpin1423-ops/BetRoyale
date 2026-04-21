@@ -35,6 +35,8 @@ export function AdminDashboard() {
   const [users, setUsers] = useState<any[]>([]);
   const [promoCodes, setPromoCodes] = useState<any[]>([]);
   const [newPromoCode, setNewPromoCode] = useState({ code: '', discount_percentage: '', max_uses: '', valid_until: '' });
+  const [editingPromoCodeId, setEditingPromoCodeId] = useState<number | null>(null);
+  const [isSubmittingPromoCode, setIsSubmittingPromoCode] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmittingPick, setIsSubmittingPick] = useState(false);
   const [isSubmittingTracking, setIsSubmittingTracking] = useState(false);
@@ -438,11 +440,15 @@ export function AdminDashboard() {
     }
   };
 
-  const handleCreatePromoCode = async (e: React.FormEvent) => {
+  const handleSubmitPromoCode = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmittingPromoCode(true);
     try {
-      const res = await fetch("/api/promo-codes", {
-        method: "POST",
+      const url = editingPromoCodeId ? `/api/promo-codes/${editingPromoCodeId}` : "/api/promo-codes";
+      const method = editingPromoCodeId ? "PUT" : "POST";
+
+      const res = await fetch(url, {
+        method: method,
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${token}`
@@ -451,15 +457,35 @@ export function AdminDashboard() {
       });
       if (res.ok) {
         setNewPromoCode({ code: '', discount_percentage: '', max_uses: '', valid_until: '' });
+        setEditingPromoCodeId(null);
         fetchPromoCodes();
-        toast.success("Código creado correctamente");
+        toast.success(editingPromoCodeId ? "Código actualizado correctamente" : "Código creado correctamente");
       } else {
         const data = await res.json();
-        toast.error(data.error || "Error al crear código");
+        toast.error(data.error || `Error al ${editingPromoCodeId ? 'actualizar' : 'crear'} código`);
       }
     } catch (error) {
       toast.error("Error de conexión");
+    } finally {
+      setIsSubmittingPromoCode(false);
     }
+  };
+
+  const handleEditPromoCodeInit = (promo: any) => {
+    setEditingPromoCodeId(promo.id);
+    setNewPromoCode({
+      code: promo.code,
+      discount_percentage: promo.discount_percentage.toString(),
+      max_uses: promo.max_uses ? promo.max_uses.toString() : '',
+      valid_until: promo.valid_until ? new Date(promo.valid_until).toISOString().slice(0, 16) : ''
+    });
+    // Scroll up to the form
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleCancelPromoCodeEdit = () => {
+    setEditingPromoCodeId(null);
+    setNewPromoCode({ code: '', discount_percentage: '', max_uses: '', valid_until: '' });
   };
 
   const handleDeletePromoCode = async (id: number) => {
@@ -3434,8 +3460,8 @@ export function AdminDashboard() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               <div className="lg:col-span-1">
                 <div className="bg-card border border-white/10 rounded-2xl p-6">
-                  <h3 className="text-lg font-bold mb-6">Nuevo Cupón</h3>
-                  <form onSubmit={handleCreatePromoCode} className="space-y-4">
+                  <h3 className="text-lg font-bold mb-6">{editingPromoCodeId ? "Editar Cupón" : "Nuevo Cupón"}</h3>
+                  <form onSubmit={handleSubmitPromoCode} className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-muted-foreground mb-2">Código</label>
                       <input
@@ -3443,7 +3469,7 @@ export function AdminDashboard() {
                         required
                         value={newPromoCode.code}
                         onChange={(e) => setNewPromoCode({ ...newPromoCode, code: e.target.value.toUpperCase() })}
-                        className="w-full bg-background border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-primary/50 uppercase"
+                        className="w-full bg-background border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-primary/50 uppercase font-mono"
                         placeholder="EJ: VIP50"
                       />
                     </div>
@@ -3457,7 +3483,7 @@ export function AdminDashboard() {
                         value={newPromoCode.discount_percentage}
                         onChange={(e) => setNewPromoCode({ ...newPromoCode, discount_percentage: e.target.value })}
                         className="w-full bg-background border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-primary/50"
-                        placeholder="Ej: 20"
+                        placeholder="Ej: 100"
                       />
                     </div>
                     <div>
@@ -3468,7 +3494,7 @@ export function AdminDashboard() {
                         value={newPromoCode.max_uses}
                         onChange={(e) => setNewPromoCode({ ...newPromoCode, max_uses: e.target.value })}
                         className="w-full bg-background border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-primary/50"
-                        placeholder="Ej: 100"
+                        placeholder="Ej: 10"
                       />
                     </div>
                     <div>
@@ -3480,12 +3506,31 @@ export function AdminDashboard() {
                         className="w-full bg-background border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-primary/50"
                       />
                     </div>
-                    <button
-                      type="submit"
-                      className="w-full bg-primary text-primary-foreground font-bold py-3 rounded-lg hover:bg-primary/90 transition-colors"
-                    >
-                      Crear Cupón
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        type="submit"
+                        disabled={isSubmittingPromoCode}
+                        className="flex-1 bg-primary text-primary-foreground font-bold py-3 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
+                      >
+                        {isSubmittingPromoCode ? (
+                          <div className="flex items-center justify-center gap-2">
+                            <Activity className="h-4 w-4 animate-spin" />
+                            <span>Procesando...</span>
+                          </div>
+                        ) : (
+                          editingPromoCodeId ? "Guardar Cambios" : "Crear Cupón"
+                        )}
+                      </button>
+                      {editingPromoCodeId && (
+                        <button
+                          type="button"
+                          onClick={handleCancelPromoCodeEdit}
+                          className="px-4 bg-white/10 text-white font-bold py-3 rounded-lg hover:bg-white/20 transition-colors"
+                        >
+                          X
+                        </button>
+                      )}
+                    </div>
                   </form>
                 </div>
               </div>
@@ -3518,17 +3563,26 @@ export function AdminDashboard() {
                               </span>
                               {promo.max_uses ? ` / ${promo.max_uses}` : ' (Ilimitado)'}
                             </td>
-                            <td className="p-4 text-muted-foreground">
+                            <td className="p-4 text-muted-foreground text-xs">
                               {promo.valid_until ? new Date(promo.valid_until).toLocaleString() : 'Nunca'}
                             </td>
                             <td className="p-4 text-right">
-                              <button
-                                onClick={() => handleDeletePromoCode(promo.id)}
-                                className="p-2 text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
-                                title="Eliminar cupón"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
+                              <div className="flex justify-end gap-2">
+                                <button
+                                  onClick={() => handleEditPromoCodeInit(promo)}
+                                  className="p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                                  title="Editar cupón"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeletePromoCode(promo.id)}
+                                  className="p-2 text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
+                                  title="Eliminar cupón"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))}

@@ -130,6 +130,13 @@ export function Pricing() {
         throw new Error(data.error || "Error al crear la preferencia de pago");
       }
 
+      // ─── CASO ESPECIAL: Activación Directa (Cupón 100%) ──────────────────
+      if (data.direct_activation) {
+        alert("¡Felicidades! Tu suscripción VIP ha sido activada exitosamente.");
+        navigate('/dashboard');
+        return;
+      }
+
       // Force direct redirect to Mercado Pago for maximum reliability
       // The SDK modal sometimes fails to redirect back properly.
       // Usamos la marca del backend porque el token privado es la fuente real del entorno.

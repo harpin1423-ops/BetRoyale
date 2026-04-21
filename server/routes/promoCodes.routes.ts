@@ -76,6 +76,38 @@ router.delete("/:id", authenticateToken, requireAdmin, async (req, res) => {
   }
 });
 
+// ─── PUT /api/promo-codes/:id ────────────────────────────────────────────────
+/**
+ * Actualiza un código promocional existente.
+ * Solo administradores.
+ */
+router.put("/:id", authenticateToken, requireAdmin, async (req, res) => {
+  const { code, discount_percentage, max_uses, valid_until } = req.body;
+  const { id } = req.params;
+
+  try {
+    await pool.query(
+      `UPDATE promo_codes 
+       SET code = ?, discount_percentage = ?, max_uses = ?, valid_until = ?
+       WHERE id = ?`,
+      [
+        code.toUpperCase(),
+        discount_percentage,
+        max_uses || null,
+        valid_until || null,
+        id
+      ]
+    );
+    return res.json({ success: true, message: "Código promocional actualizado" });
+  } catch (error: any) {
+    if (error.code === "ER_DUP_ENTRY") {
+      return res.status(400).json({ error: "El código ya existe" });
+    }
+    console.error("[PROMOS] Error actualizando código:", error);
+    return res.status(500).json({ error: "Error al actualizar código de descuento" });
+  }
+});
+
 // ─── POST /api/promo-codes/validate ──────────────────────────────────────────
 /**
  * Valida un código promocional ingresado por el usuario.

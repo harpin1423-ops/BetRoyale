@@ -52,6 +52,37 @@ router.post("/mercadopago", authenticateToken, async (req: any, res) => {
     const tasa = await obtenerTasaCambio();
     const precioCOP = Math.round(unit_price * tasa);
 
+    // ─── CASO ESPECIAL: Suscripción Gratuita (Cupón 100%) ───────────────────
+    if (precioCOP <= 0) {
+      console.log(`[PAYMENTS] Procesando suscripción gratuita para usuario ${req.user.id}`);
+      
+      await activarSuscripcion({
+        userId: req.user.id.toString(),
+        planId,
+        period: period || "mensual",
+        amount: 0,
+        currency: "COP",
+        paymentMethod: "promo_code_100",
+        promoCode,
+      });
+
+      // Enviamos email de confirmación
+      const [filaUsuario]: any = await pool.query(
+        "SELECT email, vip_until FROM users WHERE id = ?",
+        [req.user.id]
+      );
+      if (filaUsuario[0]) {
+        const hasta = new Date(filaUsuario[0].vip_until).toLocaleDateString("es-ES");
+        enviarEmailConfirmacionVIP(filaUsuario[0].email, planId, hasta).catch(console.error);
+      }
+
+      return res.json({
+        success: true,
+        message: "Suscripción gratuita activada exitosamente",
+        direct_activation: true
+      });
+    }
+
     // Verificamos que el APP_URL esté configurado (necesario para las URLs de retorno)
     if (!env.APP_URL) {
       throw new Error("APP_URL no configurado en las variables de entorno");
