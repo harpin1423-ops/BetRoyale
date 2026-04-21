@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="BetRoyale Club">
+  <rect width="1024" height="1024" rx="220" fill="#07111f"/>
+  <circle cx="512" cy="512" r="378" fill="#0f1f38" stroke="#d4af37" stroke-width="34"/>
+  <path fill="#d4af37" d="M321 245h382v82h-74v77c0 85-47 158-116 196v82h125v83H386v-83h125v-82c-69-38-116-111-116-196v-77h-74v-82Zm157 82v77c0 61 39 113 89 113s89-52 89-113v-77H478Zm-196 42h80v64c-58-4-106-51-116-114h36v50Zm480 0v-50h36c-10 63-58 110-116 114v-64h80Z"/>
+  <path fill="#ffffff" d="M352 820h320v58H352z" opacity=".92"/>
+</svg>
