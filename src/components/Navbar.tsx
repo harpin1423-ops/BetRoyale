@@ -20,6 +20,8 @@ export function Navbar() {
           <Link to="/free-picks" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Free Picks</Link>
           <Link to="/stats" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Estadísticas</Link>
           <Link to="/pricing" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Planes VIP</Link>
+          {/* Enlace público de contacto para soporte comercial y operativo. */}
+          <Link to="/contact" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Contacto</Link>
           
           {(user?.role === 'vip' || user?.role === 'admin') && (
             <Link to="/vip-picks" className="text-sm font-bold text-primary flex items-center gap-1 hover:text-primary/80 transition-colors">
@@ -62,6 +64,8 @@ export function Navbar() {
           <Link to="/free-picks" className="text-sm font-medium text-muted-foreground hover:text-foreground">Free Picks</Link>
           <Link to="/stats" className="text-sm font-medium text-muted-foreground hover:text-foreground">Estadísticas</Link>
           <Link to="/pricing" className="text-sm font-medium text-muted-foreground hover:text-foreground">Planes VIP</Link>
+          {/* Enlace público de contacto disponible también en menú móvil. */}
+          <Link to="/contact" className="text-sm font-medium text-muted-foreground hover:text-foreground">Contacto</Link>
           
           {(user?.role === 'vip' || user?.role === 'admin') && (
             <Link to="/vip-picks" className="text-sm font-bold text-primary flex items-center gap-2">

@@ -19,6 +19,8 @@ import { PrivacyPolicy } from "./pages/legal/PrivacyPolicy";
 import { RefundPolicy } from "./pages/legal/RefundPolicy";
 import { ResponsibleGaming } from "./pages/legal/ResponsibleGaming";
 import { FAQ } from "./pages/FAQ";
+// Importamos la página pública de contacto para soporte oficial.
+import { Contact } from "./pages/Contact";
 import Profile from "./pages/Profile";
 import PaymentReturn from "./pages/PaymentReturn";
 import { HistorialPicks } from "./pages/HistorialPicks";
@@ -127,6 +129,8 @@ export default function App() {
           <Route path="/historial" element={<PublicLayout><HistorialPicks /></PublicLayout>} />
           <Route path="/pricing" element={<PublicLayout><Pricing /></PublicLayout>} />
           <Route path="/faq" element={<PublicLayout><FAQ /></PublicLayout>} />
+          {/* Ruta pública para contacto oficial por WhatsApp y correo. */}
+          <Route path="/contact" element={<PublicLayout><Contact /></PublicLayout>} />
           <Route path="/terms" element={<PublicLayout><TermsOfService /></PublicLayout>} />
           <Route path="/privacy" element={<PublicLayout><PrivacyPolicy /></PublicLayout>} />
           <Route path="/refunds" element={<PublicLayout><RefundPolicy /></PublicLayout>} />

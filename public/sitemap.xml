@@ -55,6 +55,15 @@
     <!-- Prioridad media-alta por intención informativa. -->
     <priority>0.70</priority>
   </url>
+  <!-- Página pública de contacto y soporte. -->
+  <url>
+    <!-- URL canónica de contacto. -->
+    <loc>https://betroyaleclub.com/contact</loc>
+    <!-- Contacto cambia ocasionalmente. -->
+    <changefreq>monthly</changefreq>
+    <!-- Prioridad media-alta por búsquedas de soporte de marca. -->
+    <priority>0.75</priority>
+  </url>
   <!-- Página de juego responsable. -->
   <url>
     <!-- URL canónica de juego responsable. -->

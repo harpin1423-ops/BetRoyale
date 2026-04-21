@@ -78,6 +78,15 @@ const SEO_BY_PATH: Record<string, SeoRouteConfig> = {
     // Permitimos indexación de FAQ.
     robots: "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
   },
+  // SEO de contacto y soporte.
+  "/contact": {
+    // Título de contacto con intención transaccional y soporte.
+    title: "Contacto y Soporte | WhatsApp BetRoyale Club",
+    // Descripción de contacto para resultados de búsqueda.
+    description: "Contacta a BetRoyale Club por WhatsApp o correo para soporte de pagos, planes VIP, acceso a Telegram, cuenta y pronósticos deportivos.",
+    // Permitimos indexación de contacto para búsquedas de soporte de marca.
+    robots: "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  },
   // SEO de términos legales.
   "/terms": {
     // Título de términos de servicio.
