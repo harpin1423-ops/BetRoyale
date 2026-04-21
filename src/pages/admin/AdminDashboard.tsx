@@ -1605,32 +1605,32 @@ export function AdminDashboard() {
                       <table className="w-full text-left border-collapse">
                         <thead>
                           <tr className="bg-white/5 border-b border-white/10">
-                            <th className="px-4 py-4 text-[10px] font-black text-primary uppercase tracking-[0.2em] w-[180px]">País</th>
-                            <th className="px-4 py-4 text-[10px] font-black text-primary uppercase tracking-[0.2em] w-[220px]">Liga</th>
-                            <th className="px-4 py-4 text-[10px] font-black text-primary uppercase tracking-[0.2em]">Evento / Partido</th>
-                            <th className="px-4 py-4 text-[10px] font-black text-primary uppercase tracking-[0.2em] w-[200px]">Fecha</th>
-                            <th className="px-4 py-4 text-[10px] font-black text-primary uppercase tracking-[0.2em] w-[240px]">Mercado</th>
-                            <th className="px-4 py-4 text-[10px] font-black text-primary uppercase tracking-[0.2em] w-[100px] text-center">Cuota</th>
-                            <th className="px-4 py-4 text-[10px] font-black text-primary uppercase tracking-[0.2em] w-[50px]"></th>
+                            <th className="px-5 py-5 text-xs font-black text-primary uppercase tracking-[0.2em] w-[220px]">País</th>
+                            <th className="px-5 py-5 text-xs font-black text-primary uppercase tracking-[0.2em] w-[260px]">Liga</th>
+                            <th className="px-5 py-5 text-xs font-black text-primary uppercase tracking-[0.2em]">Evento / Partido</th>
+                            <th className="px-5 py-5 text-xs font-black text-primary uppercase tracking-[0.2em] w-[220px]">Fecha</th>
+                            <th className="px-5 py-5 text-xs font-black text-primary uppercase tracking-[0.2em] w-[300px]">Mercado</th>
+                            <th className="px-5 py-5 text-xs font-black text-primary uppercase tracking-[0.2em] w-[120px] text-center">Cuota</th>
+                            <th className="px-5 py-5 text-xs font-black text-primary uppercase tracking-[0.2em] w-[60px]"></th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-white/5">
                           {formData.selections.map((sel, index) => (
                             <tr key={index} className="hover:bg-white/[0.02] transition-colors">
-                              <td className="px-4 py-6">
+                              <td className="px-5 py-8">
                                 <SearchableSelect
                                   size="sm"
                                   options={countries.map(c => ({
                                     value: c.id,
                                     label: c.name,
-                                    icon: <CountryFlag countryCode={c.flag} className="w-4 h-3" />
+                                    icon: <CountryFlag countryCode={c.flag} className="w-5 h-4" />
                                   }))}
                                   value={sel.country_id}
                                   onChange={(val) => handleSelectionChange(index, { target: { name: 'country_id', value: val } } as any)}
                                   placeholder="País"
                                 />
                               </td>
-                              <td className="px-4 py-6">
+                              <td className="px-5 py-8">
                                 <SearchableSelect
                                   size="sm"
                                   options={leagues
@@ -1646,7 +1646,7 @@ export function AdminDashboard() {
                                   disabled={!sel.country_id}
                                 />
                               </td>
-                              <td className="px-4 py-6">
+                              <td className="px-5 py-8">
                                 <input 
                                   type="text" 
                                   name="match_name" 
@@ -1654,20 +1654,20 @@ export function AdminDashboard() {
                                   onChange={(e) => handleSelectionChange(index, e)} 
                                   required 
                                   placeholder="Ej: Madrid vs City" 
-                                  className="w-full bg-background/50 border border-white/10 rounded-xl px-4 py-2 text-xs focus:outline-none focus:border-primary transition-all font-bold text-foreground" 
+                                  className="w-full bg-background/50 border border-white/10 rounded-xl px-5 py-3 text-sm focus:outline-none focus:border-primary transition-all font-bold text-foreground" 
                                 />
                               </td>
-                              <td className="px-4 py-6">
+                              <td className="px-5 py-8">
                                 <input 
                                   type="datetime-local" 
                                   name="match_time" 
                                   value={sel.match_time} 
                                   onChange={(e) => handleSelectionChange(index, e)} 
                                   required 
-                                  className="w-full bg-background/50 border border-white/10 rounded-xl px-3 py-2 text-[10px] focus:outline-none focus:border-primary transition-all text-foreground" 
+                                  className="w-full bg-background/50 border border-white/10 rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-primary transition-all text-foreground" 
                                 />
                               </td>
-                              <td className="px-4 py-6">
+                              <td className="px-5 py-8">
                                 <SearchableSelect
                                   size="sm"
                                   options={markets.map(p => ({
@@ -1680,7 +1680,7 @@ export function AdminDashboard() {
                                   placeholder="Mercado"
                                 />
                               </td>
-                              <td className="px-4 py-6">
+                              <td className="px-5 py-8">
                                 <input 
                                   type="number" 
                                   name="odds" 
@@ -1689,17 +1689,17 @@ export function AdminDashboard() {
                                   required 
                                   step="0.01" 
                                   placeholder="1.85" 
-                                  className="w-full bg-background/50 border border-white/10 rounded-xl px-2 py-2 text-xs font-black text-primary focus:outline-none focus:border-primary transition-all text-center" 
+                                  className="w-full bg-background/50 border border-white/10 rounded-xl px-3 py-3 text-sm font-black text-primary focus:outline-none focus:border-primary transition-all text-center" 
                                 />
                               </td>
-                              <td className="px-4 py-6 text-center">
+                              <td className="px-5 py-8 text-center">
                                 <button 
                                   type="button" 
                                   onClick={() => removeSelection(index)}
-                                  className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-all"
+                                  className="p-3 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-all"
                                   title="Quitar selección"
                                 >
-                                  <X className="w-4 h-4" />
+                                  <X className="w-5 h-5" />
                                 </button>
                               </td>
                             </tr>

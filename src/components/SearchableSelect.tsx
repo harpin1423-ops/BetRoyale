@@ -155,7 +155,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
                   key={option.value}
                   onClick={() => handleSelect(option)}
                   className={cn(
-                    "px-4 py-3 text-sm flex items-center justify-between cursor-pointer transition-colors",
+                    "px-5 py-4 text-[15px] flex items-center justify-between cursor-pointer transition-colors",
                     value?.toString() === option.value.toString() 
                       ? "bg-primary/20 text-primary font-bold" 
                       : "text-foreground/70 hover:bg-white/5"
@@ -188,7 +188,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
         onClick={() => !disabled && setIsOpen(!isOpen)}
         className={cn(
           "w-full bg-background border border-white/10 rounded-2xl flex items-center justify-between cursor-pointer transition-all hover:border-white/20",
-          size === "sm" ? "px-3 py-2 text-xs rounded-xl" : "px-5 py-4 text-sm",
+          size === "sm" ? "px-4 py-3 text-sm rounded-xl" : "px-5 py-4 text-sm",
           isOpen && "border-primary ring-4 ring-primary/10",
           disabled && "opacity-50 cursor-not-allowed grayscale",
           !selectedOption && "text-muted-foreground/30"
