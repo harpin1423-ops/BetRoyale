@@ -144,8 +144,9 @@ export function AdminDashboard() {
   const filteredLeagues = useMemo(() => {
     if (!Array.isArray(leagues)) return [];
     return leagues.filter(l => 
+      l && 
       (!leagueCountryFilter || l.country_id?.toString() === leagueCountryFilter) && 
-      (!leagueSearch || l.name.toLowerCase().includes(leagueSearch.toLowerCase()))
+      (!leagueSearch || (l.name || "").toLowerCase().includes(leagueSearch.toLowerCase()))
     );
   }, [leagues, leagueCountryFilter, leagueSearch]);
 
@@ -206,9 +207,10 @@ export function AdminDashboard() {
     try {
       const res = await fetch("/api/markets");
       const data = await res.json();
-      setMarkets(data);
+      setMarkets(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Error fetching markets:", error);
+      setMarkets([]);
     }
   };
 
@@ -227,9 +229,10 @@ export function AdminDashboard() {
     try {
       const res = await fetch("/api/countries");
       const data = await res.json();
-      setCountries(data);
+      setCountries(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Error fetching countries:", error);
+      setCountries([]);
     }
   };
 
@@ -241,9 +244,10 @@ export function AdminDashboard() {
         }
       });
       const data = await res.json();
-      setUsers(data);
+      setUsers(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Error fetching users:", error);
+      setUsers([]);
     }
   };
 
@@ -253,9 +257,10 @@ export function AdminDashboard() {
         headers: { "Authorization": `Bearer ${token}` }
       });
       const data = await res.json();
-      setPromoCodes(data);
+      setPromoCodes(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Error fetching promo codes:", error);
+      setPromoCodes([]);
     }
   };
 
@@ -499,9 +504,10 @@ export function AdminDashboard() {
       }
       const perfRes = await fetch(`/api/stats/performance${query}`);
       const perfData = await perfRes.json();
-      setPerformanceStats(perfData);
+      setPerformanceStats(perfData && typeof perfData === 'object' && !perfData.error ? perfData : null);
     } catch (error) {
       console.error("Error fetching performance stats:", error);
+      setPerformanceStats(null);
     }
   };
 
@@ -515,9 +521,10 @@ export function AdminDashboard() {
         headers: { "Authorization": `Bearer ${token}` }
       });
       const revData = await revRes.json();
-      setRevenueStats(revData);
+      setRevenueStats(revData && typeof revData === 'object' && !revData.error ? revData : null);
     } catch (error) {
       console.error("Error fetching revenue stats:", error);
+      setRevenueStats(null);
     }
   };
 
@@ -531,9 +538,10 @@ export function AdminDashboard() {
         headers: { "Authorization": `Bearer ${token}` }
       });
       const advData = await advRes.json();
-      setAdvancedStats(advData);
+      setAdvancedStats(advData && typeof advData === 'object' && !advData.error ? advData : null);
     } catch (error) {
       console.error("Error fetching advanced stats:", error);
+      setAdvancedStats(null);
     }
   };
 
@@ -1567,7 +1575,7 @@ export function AdminDashboard() {
                       <label className="text-xs font-black text-primary uppercase tracking-[0.2em]">País</label>
                       <CustomSelect name="country_id" value={formData.country_id} onChange={handleSelectChange} className="w-full">
                         <option value="">Seleccionar...</option>
-                        {countries.map(c => (
+                        {Array.isArray(countries) && countries.map(c => (
                           <option key={c.id} value={c.id}>{c.name}</option>
                         ))}
                       </CustomSelect>
@@ -1861,8 +1869,7 @@ export function AdminDashboard() {
                   onChange={(e) => setPickFilterType(e.target.value)}
                   className="bg-background border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-primary/50"
                 >
-                  <option value="">Todos los tipos</option>
-                  {pickTypes.map(pt => (
+                  {Array.isArray(pickTypes) && pickTypes.map(pt => (
                     <option key={pt.id} value={pt.id}>{pt.name}</option>
                   ))}
                 </select>
@@ -3203,7 +3210,7 @@ export function AdminDashboard() {
                     className="w-32"
                   >
                     <option value="all">Todos los Planes</option>
-                    {pickTypes.map(pt => (
+                    {Array.isArray(pickTypes) && pickTypes.map(pt => (
                       <option key={pt.id} value={pt.slug}>{pt.name}</option>
                     ))}
                   </CustomSelect>
@@ -3805,6 +3812,7 @@ export function AdminDashboard() {
           </div>
         </div>
       )}
+    </div>
     </div>
   );
 }
