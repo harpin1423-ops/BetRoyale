@@ -722,7 +722,8 @@ export function formatResultadoParlayParaTelegram(
   let mensaje = `<b>${encabezado} ${emoji}</b>\n`;
   mensaje += `🏷️ <b>Plan:</b> ${plan}\n`;
   mensaje += `🎫 <b>Cuota Total:</b> ⭐ <b>${odds}</b>\n`;
-  mensaje += `💰 <b>Resultado:</b> <b>${unidadesResultado}</b>\n\n`;
+  // Mostramos la utilidad neta como Profit para que el dato financiero sea inequívoco.
+  mensaje += `💵 <b>Profit:</b> <b>${unidadesResultado}</b>\n\n`;
   mensaje += `📅 <b>Mes ${mes}:</b> ${unidadesMes}\n`;
   mensaje += `📈 <b>Yield:</b> ${yieldMes}\n`;
   mensaje += `🏁 <b>Récord:</b> ${metricas.won}G - ${metricas.lost}P`;
