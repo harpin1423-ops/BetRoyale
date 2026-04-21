@@ -3,6 +3,8 @@ import type { ReactNode } from "react";
 import { TrendingUp, Activity, Target, CheckCircle2, XCircle, MinusCircle, Calendar, BarChart3, Trophy, CheckCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import { motion } from "motion/react";
 import { CountryFlag } from "../components/CountryFlag";
+import { PickTimeInfo } from "../components/PickTimeInfo";
+import { parseBetRoyaleDate } from "../lib/time";
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   LineChart, Line, AreaChart, Area, Legend, Cell
@@ -46,7 +48,8 @@ export function Stats() {
     if (timeframe !== "all") {
       const now = new Date();
       filtered = filtered.filter(pick => {
-        const pickDate = new Date(pick.match_date);
+        const pickDate = parseBetRoyaleDate(pick.match_date);
+        if (!pickDate) return false;
         if (timeframe === "this-year") {
           return pickDate.getFullYear() === now.getFullYear();
         }
@@ -119,7 +122,7 @@ export function Stats() {
 
     // Agrupar por mes
     const grouped = filteredPicks.reduce((acc: any, pick) => {
-      const date = new Date(pick.match_date);
+      const date = parseBetRoyaleDate(pick.match_date) || new Date(pick.match_date);
       const monthKey = format(date, 'yyyy-MM');
       
       if (!acc[monthKey]) {
@@ -513,7 +516,8 @@ export function Stats() {
               // Filtro de periodo
               if (timeframe !== 'all') {
                 const now = new Date();
-                const pickDate = new Date(pick.match_date);
+                const pickDate = parseBetRoyaleDate(pick.match_date);
+                if (!pickDate) return false;
                 const { subMonths } = { subMonths: (d: Date, n: number) => { const r = new Date(d); r.setMonth(r.getMonth() - n); return r; } };
                 if (timeframe === 'this-year' && pickDate.getFullYear() !== now.getFullYear()) return false;
                 if (timeframe === 'this-month' && (pickDate.getMonth() !== now.getMonth() || pickDate.getFullYear() !== now.getFullYear())) return false;
@@ -530,7 +534,7 @@ export function Stats() {
 
             // Ordenamos de más reciente a más antiguo
             const sortedAll = [...filteredAll].sort(
-              (a, b) => new Date(b.match_date).getTime() - new Date(a.match_date).getTime()
+              (a, b) => (parseBetRoyaleDate(b.match_date)?.getTime() || 0) - (parseBetRoyaleDate(a.match_date)?.getTime() || 0)
             );
 
             const totalPages = Math.ceil(sortedAll.length / HISTORY_PER_PAGE);
@@ -591,9 +595,6 @@ export function Stats() {
                     <div className="space-y-3">
                       {paginated.map(pick => {
                         const cfg = statusConfig[pick.status] || statusConfig['pending'];
-                        const matchDate = new Date(pick.match_date);
-                        const dateStr = matchDate.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
-                        const timeStr = matchDate.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
                         const profitLabel = pick.status === 'won'
                           ? `+${((Number(pick.odds) - 1) * Number(pick.stake)).toFixed(2)} U`
                           : pick.status === 'lost'
@@ -639,7 +640,7 @@ export function Stats() {
                                   )}
                                   <span className="flex items-center gap-1">
                                     <Calendar className="w-3 h-3" />
-                                    {dateStr} · {timeStr}
+                                    <PickTimeInfo value={pick.match_date} compact />
                                   </span>
                                 </div>
                               </div>

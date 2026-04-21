@@ -1,9 +1,11 @@
 import { useState, useEffect, useMemo } from "react";
-import { Calendar, TrendingUp, CheckCircle, XCircle, Clock, MinusCircle, Trophy, Activity, ChevronRight, Filter, DollarSign, Send } from "lucide-react";
+import { TrendingUp, CheckCircle, XCircle, Clock, MinusCircle, Trophy, Activity, ChevronRight, Filter, DollarSign, Send } from "lucide-react";
 import { getPickDisplay } from "../lib/constants";
 import { getLocalizedStatus } from "../lib/utils";
 import { CountryFlag } from "../components/CountryFlag";
 import { useAuth } from "../context/AuthContext";
+import { PickTimeInfo } from "../components/PickTimeInfo";
+import { formatBetRoyaleDate, parseBetRoyaleDate } from "../lib/time";
 
 export function FreePicks() {
   const [picks, setPicks] = useState<any[]>([]);
@@ -53,7 +55,8 @@ export function FreePicks() {
     
     const now = new Date();
     return picks.filter(pick => {
-      const pickDate = new Date(pick.match_date);
+      const pickDate = parseBetRoyaleDate(pick.match_date);
+      if (!pickDate) return false;
       if (dateFilter === "today") {
         return pickDate.toDateString() === now.toDateString();
       }
@@ -277,9 +280,7 @@ export function FreePicks() {
                             <div className="flex items-center gap-2 mb-2">
                               {pickOfTheDay.country_flag && <CountryFlag code={pickOfTheDay.country_flag} />}
                               <div className="text-sm font-bold text-primary uppercase tracking-wider">{pickOfTheDay.league_name || pickOfTheDay.league}</div>
-                              <div className="text-[10px] text-muted-foreground bg-white/5 px-1.5 py-0.5 rounded flex items-center gap-1 ml-2">
-                                <Clock className="w-2.5 h-2.5" /> {new Date(pickOfTheDay.match_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                              </div>
+                              <PickTimeInfo value={pickOfTheDay.match_date} compact showDate={false} className="ml-2" />
                             </div>
                             <h3 className="text-2xl md:text-3xl font-bold leading-tight">{pickOfTheDay.match_name}</h3>
                           </>
@@ -295,10 +296,7 @@ export function FreePicks() {
                       {getStatusBadge(pickOfTheDay.status)}
                     </div>
                     
-                    <div className="flex items-center gap-3 text-sm text-muted-foreground mb-8 bg-black/20 inline-flex px-4 py-2 rounded-lg">
-                      <Calendar className="w-4 h-4 text-primary" />
-                      <span>{new Date(pickOfTheDay.match_date.toString().replace(' ', 'T')).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</span>
-                    </div>
+                    <PickTimeInfo value={pickOfTheDay.match_date} className="mb-8" />
 
                     {Boolean(pickOfTheDay.is_parlay) && pickOfTheDay.selections && pickOfTheDay.selections.length > 0 && (
                       <div className="mb-6 space-y-3">
@@ -307,14 +305,7 @@ export function FreePicks() {
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-1">
                                 <div className="text-[10px] font-bold text-primary uppercase tracking-wider">{sel.league_name || 'Liga'}</div>
-                                <div className="text-[10px] text-muted-foreground bg-white/5 px-1.5 py-0.5 rounded flex items-center gap-1">
-                                  <Clock className="w-2.5 h-2.5" /> 
-                                  {sel.match_time ? (
-                                    new Date(sel.match_time.replace(' ', 'T')).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                                  ) : (
-                                    new Date(pickOfTheDay.match_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                                  )}
-                                </div>
+                                <PickTimeInfo value={sel.match_time || pickOfTheDay.match_date} compact showDate={false} />
                               </div>
                               <div className="font-bold text-white">{sel.match_name}</div>
                             </div>
@@ -383,7 +374,7 @@ export function FreePicks() {
                   <div key={pick.id} className="min-w-[300px] md:min-w-[350px] max-w-[350px] bg-card border border-white/10 rounded-2xl overflow-hidden hover:border-white/30 transition-colors snap-start flex flex-col">
                     <div className="bg-white/5 p-4 border-b border-white/10 flex justify-between items-center">
                       <div className="text-xs text-muted-foreground">
-                        {new Date(pick.match_date).toLocaleDateString('es-ES', { month: 'short', day: 'numeric' })}
+                        {formatBetRoyaleDate(pick.match_date)}
                       </div>
                       {getStatusBadge(pick.status)}
                     </div>
@@ -529,9 +520,7 @@ export function FreePicks() {
                         return (
                           <tr key={pick.id} className="bg-white/5 hover:bg-white/10 transition-colors">
                             <td className="px-6 py-4 text-primary/80 font-mono text-xs whitespace-nowrap">
-                              {new Date(pick.match_date.toString().replace(' ', 'T')).toLocaleString(undefined, {
-                                year: 'numeric', month: 'short', day: 'numeric'
-                              })}
+                              {formatBetRoyaleDate(pick.match_date)}
                             </td>
                             <td className="px-6 py-4">
                               <div className="flex items-center gap-2">
@@ -545,9 +534,7 @@ export function FreePicks() {
                               {!pick.is_parlay ? (
                                 <div className="flex flex-col">
                                   <span>{pick.match_name}</span>
-                                  <span className="text-[10px] text-muted-foreground font-normal flex items-center gap-1 mt-1">
-                                    <Clock className="w-2.5 h-2.5" /> {new Date(pick.match_date.toString().replace(' ', 'T')).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                  </span>
+                                  <PickTimeInfo value={pick.match_date} compact showDate={false} className="mt-1" />
                                 </div>
                               ) : (
                                 `Parlay (${pick.selections?.length || 0} Selecciones)`
@@ -557,9 +544,7 @@ export function FreePicks() {
                                   {pick.selections.map((sel: any, idx: number) => (
                                     <div key={idx} className="text-[10px] text-muted-foreground border-l border-white/10 pl-2">
                                       <span className="font-bold text-primary/70">{sel.match_name}</span>
-                                      <span className="ml-1 opacity-60">
-                                        ({sel.match_time ? new Date(sel.match_time.toString().replace(' ', 'T')).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}) : new Date(pick.match_date.toString().replace(' ', 'T')).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})})
-                                      </span>
+                                      <PickTimeInfo value={sel.match_time || pick.match_date} compact showDate={false} className="ml-1" />
                                       <span className="mx-1">-</span>
                                       {sel.market_label || sel.pick} ({sel.odds})
                                     </div>
