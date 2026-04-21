@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Search, ChevronDown, Check, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../lib/utils';
@@ -32,6 +33,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [coords, setCoords] = useState({ top: 0, left: 0, width: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -50,6 +52,17 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
     );
   }, [options, searchQuery]);
 
+  const updateCoords = useCallback(() => {
+    if (containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      setCoords({
+        top: rect.bottom + window.scrollY,
+        left: rect.left + window.scrollX,
+        width: rect.width
+      });
+    }
+  }, []);
+
   // Cerrar al hacer click fuera
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -61,20 +74,112 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Enfocar el input cuando se abre
+  // Enfocar el input cuando se abre y actualizar posición
   useEffect(() => {
-    if (isOpen && inputRef.current) {
-      setTimeout(() => inputRef.current?.focus(), 100);
-    }
-    if (!isOpen) {
+    if (isOpen) {
+      updateCoords();
+      if (inputRef.current) {
+        setTimeout(() => inputRef.current?.focus(), 100);
+      }
+      
+      // Escuchar scroll y resize para reposicionar
+      window.addEventListener('scroll', updateCoords, true);
+      window.addEventListener('resize', updateCoords);
+      
+      return () => {
+        window.removeEventListener('scroll', updateCoords, true);
+        window.removeEventListener('resize', updateCoords);
+      };
+    } else {
       setSearchQuery("");
     }
-  }, [isOpen]);
+  }, [isOpen, updateCoords]);
 
   const handleSelect = (option: SearchableOption) => {
     onChange(option.value.toString());
     setIsOpen(false);
   };
+
+  const dropdownMenu = (
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          transition={{ duration: 0.15, ease: "easeOut" }}
+          className="fixed z-[9999] mt-1 bg-slate-900 border border-white/10 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden"
+          style={{
+            top: coords.top - window.scrollY,
+            left: coords.left - window.scrollX,
+            width: coords.width
+          }}
+        >
+          {/* Search Input */}
+          <div className="p-3 border-b border-white/5 bg-white/5">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <input
+                ref={inputRef}
+                type="text"
+                placeholder="Buscar..."
+                className="w-full bg-background/50 border border-white/10 rounded-xl pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-primary transition-all"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && filteredOptions.length > 0) {
+                    e.preventDefault();
+                    handleSelect(filteredOptions[0]);
+                  }
+                  if (e.key === 'Escape') {
+                    setIsOpen(false);
+                  }
+                }}
+              />
+              {searchQuery && (
+                <button 
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Options List */}
+          <div className="max-h-60 overflow-y-auto py-2 custom-scrollbar">
+            {filteredOptions.length > 0 ? (
+              filteredOptions.map((option) => (
+                <div
+                  key={option.value}
+                  onClick={() => handleSelect(option)}
+                  className={cn(
+                    "px-4 py-3 text-sm flex items-center justify-between cursor-pointer transition-colors",
+                    value?.toString() === option.value.toString() 
+                      ? "bg-primary/20 text-primary font-bold" 
+                      : "text-foreground/70 hover:bg-white/5"
+                  )}
+                >
+                  <div className="flex items-center gap-3 truncate">
+                    {option.icon}
+                    <span className="truncate">{option.label}</span>
+                  </div>
+                  {value?.toString() === option.value.toString() && (
+                    <Check className="w-4 h-4 shrink-0" />
+                  )}
+                </div>
+              ))
+            ) : (
+              <div className="px-4 py-8 text-center text-muted-foreground text-sm">
+                No se encontraron resultados
+              </div>
+            )}
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
 
   return (
     <div className={cn("relative w-full", className)} ref={containerRef}>
@@ -110,80 +215,8 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
         />
       )}
 
-      {/* Dropdown Panel */}
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.15, ease: "easeOut" }}
-            className="absolute z-50 mt-2 w-full bg-slate-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden"
-          >
-            {/* Search Input */}
-            <div className="p-3 border-b border-white/5 bg-white/5">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <input
-                  ref={inputRef}
-                  type="text"
-                  placeholder="Buscar..."
-                  className="w-full bg-background/50 border border-white/10 rounded-xl pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-primary transition-all"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && filteredOptions.length > 0) {
-                      e.preventDefault();
-                      handleSelect(filteredOptions[0]);
-                    }
-                    if (e.key === 'Escape') {
-                      setIsOpen(false);
-                    }
-                  }}
-                />
-                {searchQuery && (
-                  <button 
-                    onClick={() => setSearchQuery("")}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Options List */}
-            <div className="max-h-60 overflow-y-auto py-2 custom-scrollbar">
-              {filteredOptions.length > 0 ? (
-                filteredOptions.map((option) => (
-                  <div
-                    key={option.value}
-                    onClick={() => handleSelect(option)}
-                    className={cn(
-                      "px-4 py-3 text-sm flex items-center justify-between cursor-pointer transition-colors",
-                      value?.toString() === option.value.toString() 
-                        ? "bg-primary/20 text-primary font-bold" 
-                        : "text-foreground/70 hover:bg-white/5"
-                    )}
-                  >
-                    <div className="flex items-center gap-3 truncate">
-                      {option.icon}
-                      <span className="truncate">{option.label}</span>
-                    </div>
-                    {value?.toString() === option.value.toString() && (
-                      <Check className="w-4 h-4 shrink-0" />
-                    )}
-                  </div>
-                ))
-              ) : (
-                <div className="px-4 py-8 text-center text-muted-foreground text-sm">
-                  No se encontraron resultados
-                </div>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Portal Dropdown */}
+      {createPortal(dropdownMenu, document.body)}
     </div>
   );
 };
