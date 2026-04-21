@@ -5,7 +5,7 @@
  * - requireAdmin: verifica que el usuario autenticado sea admin.
  */
 
-import { Request, Response, NextFunction } from "express";
+import { Request as ExpressRequest, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { env } from "../config/env";
 
@@ -13,7 +13,7 @@ import { env } from "../config/env";
  * Extiende la interfaz Request de Express para incluir el usuario decodificado.
  * Esto permite acceder a req.user en los route handlers con tipado.
  */
-export interface AuthRequest extends Request {
+export interface AuthRequest extends ExpressRequest {
   user?: {
     /** ID único del usuario en la base de datos */
     id: number;
