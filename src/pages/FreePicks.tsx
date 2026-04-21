@@ -18,13 +18,16 @@ export function FreePicks() {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        // Enviamos token solo si existe; el backend igual devuelve el canal gratis sin sesión.
+        const authHeaders = token ? { "Authorization": `Bearer ${token}` } : {};
+
         const [picksRes, tgRes] = await Promise.all([
           fetch("/api/picks"),
-          fetch("/api/user/telegram-links", { headers: { "Authorization": `Bearer ${token}` } })
+          fetch("/api/user/telegram-links", { headers: authHeaders })
         ]);
 
         const picksData = await picksRes.json();
-        const tgData = await tgRes.json();
+        const tgData = tgRes.ok ? await tgRes.json() : { free: "#" };
 
         // Filtramos solo los picks gratuitos para esta página
         const freePicks = picksData.filter((p: any) => p.pick_type_slug === 'free');

@@ -6,11 +6,97 @@
  */
 
 import { Router } from "express";
+import jwt from "jsonwebtoken";
 import { pool } from "../config/database";
+import { env } from "../config/env";
 import { authenticateToken, requireAdmin } from "../middleware/auth";
+import { obtenerTelegramFullConfig } from "../services/settings.service";
+import { ResultadoInviteVip, obtenerOCrearInviteVip } from "../services/telegramInvites.service";
 
 // Creamos el router para todas las rutas relacionadas con usuarios
 const router = Router();
+
+/**
+ * Genera links privados para los canales VIP que corresponden a sus planes activos.
+ *
+ * @param userId - ID del usuario autenticado que recibirá links únicos.
+ * @param planesActivos - Slugs de suscripciones activas del usuario.
+ * @returns Lista de links VIP temporales listos para mostrar en frontend.
+ */
+async function generarLinksVipPrivados(
+  userId: number,
+  planesActivos: string[]
+): Promise<ResultadoInviteVip[]> {
+  // Detectamos el plan global que debería usar el canal espejo VIP Full.
+  const tieneTodosLosPlanes = planesActivos.includes("all_plans");
+
+  // Si tiene Todos los Planes, intentamos generar un único link al canal VIP Full.
+  if (tieneTodosLosPlanes) {
+    // Leemos el Channel ID global del canal Full desde DB o .env.
+    const fullConfig = await obtenerTelegramFullConfig();
+
+    // Generamos un link privado temporal para el canal espejo Full.
+    const inviteFull = await obtenerOCrearInviteVip({
+      userId,
+      planId: "all_plans",
+      channelId: fullConfig.telegram_channel_id,
+      name: "BetRoyale VIP Full",
+    });
+
+    // Si el canal Full está listo, devolvemos solo ese link para evitar canales duplicados.
+    if (inviteFull) {
+      return [inviteFull];
+    }
+  }
+
+  // Si no hay Full o el usuario tiene planes individuales, resolvemos canales por pick_type.
+  const slugs = tieneTodosLosPlanes
+    ? []
+    : planesActivos.filter((planId) => planId !== "all_plans");
+
+  // Construimos la consulta para todos los VIP o solo los slugs activos.
+  const query = tieneTodosLosPlanes
+    ? `SELECT name, slug, telegram_channel_id
+       FROM pick_types
+       WHERE slug <> 'free'
+         AND telegram_channel_id IS NOT NULL
+         AND telegram_channel_id <> ''
+       ORDER BY id ASC`
+    : `SELECT name, slug, telegram_channel_id
+       FROM pick_types
+       WHERE slug IN (${slugs.map(() => "?").join(",")})
+         AND telegram_channel_id IS NOT NULL
+         AND telegram_channel_id <> ''
+       ORDER BY id ASC`;
+
+  // Si no hay slugs individuales, no hay canales que generar.
+  if (!tieneTodosLosPlanes && slugs.length === 0) {
+    return [];
+  }
+
+  // Consultamos los canales configurados para los planes pagos.
+  const [filasVip]: any = await pool.query(query, slugs);
+
+  // Creamos links temporales uno por uno para aislar errores de Telegram por canal.
+  const links: ResultadoInviteVip[] = [];
+  for (const canal of filasVip) {
+    // Generamos o reutilizamos el link privado del usuario para este canal.
+    const invite = await obtenerOCrearInviteVip({
+      userId,
+      planId: canal.slug,
+      channelId: canal.telegram_channel_id,
+      name: canal.name,
+    });
+
+    // Solo mostramos canales donde Telegram aceptó crear un link privado.
+    if (invite) {
+      links.push(invite);
+    }
+  }
+
+  // Devolvemos los links seguros generados para planes pagos.
+  return links;
+}
 
 // ─── GET /api/user/profile ───────────────────────────────────────────────────
 /**
@@ -78,27 +164,68 @@ router.put("/bankroll", authenticateToken, async (req: any, res) => {
  * Devuelve los enlaces de invitación a los canales de Telegram
  * a los que el usuario tiene acceso según sus suscripciones activas.
  */
-router.get("/telegram-links", authenticateToken, async (req: any, res) => {
+router.get("/telegram-links", async (req: any, res) => {
   try {
-    // Obtenemos los planes activos del usuario con su link de Telegram
-    const [suscripcionesActivas]: any = await pool.query(
-      `SELECT pt.name, pt.telegram_invite_link 
-       FROM user_subscriptions us
-       JOIN pick_types pt ON us.plan_id = pt.slug
-       WHERE us.user_id = ? AND us.expires_at > NOW()`,
-      [req.user.id]
+    // Preparamos la lista de canales VIP que recibirá el usuario.
+    let canalesVip: any[] = [];
+
+    // Extraemos el token de forma opcional para permitir que visitantes vean el canal gratis.
+    const authHeader = req.headers["authorization"];
+
+    // El token viene como Bearer <token>; valores vacíos o "null" se ignoran.
+    const token = authHeader && authHeader.split(" ")[1];
+
+    // Inicializamos el usuario opcional como null para responder solo free cuando no hay sesión.
+    let userId: number | null = null;
+
+    // Intentamos verificar el token si existe; un token inválido no rompe el canal gratis.
+    if (token && token !== "null" && token !== "undefined") {
+      try {
+        // Decodificamos el JWT con la misma clave del middleware de autenticación.
+        const decoded = jwt.verify(token, env.JWT_SECRET) as any;
+
+        // Guardamos el id del usuario autenticado para resolver sus canales VIP.
+        userId = decoded.id;
+      } catch (error) {
+        // Dejamos la ruta como pública para free y omitimos los canales VIP.
+        userId = null;
+      }
+    }
+
+    // Si hay usuario autenticado, resolvemos sus canales VIP activos.
+    if (userId) {
+      // Obtenemos los slugs activos del usuario para resolver canales por plan.
+      const [planesActivosRows]: any = await pool.query(
+        `SELECT DISTINCT plan_id
+         FROM user_subscriptions
+         WHERE user_id = ? AND expires_at > NOW()`,
+        [userId]
+      );
+
+      // Convertimos las suscripciones en una lista simple de slugs.
+      const planesActivos = planesActivosRows.map((s: any) => s.plan_id);
+
+      // Para planes pagos generamos links privados, temporales y de un solo ingreso.
+      canalesVip = await generarLinksVipPrivados(userId, planesActivos);
+    }
+
+    // Buscamos primero el link gratuito administrado desde pick_types.
+    const [filasFree]: any = await pool.query(
+      "SELECT telegram_invite_link FROM pick_types WHERE slug = 'free' LIMIT 1"
     );
 
-    // El enlace gratuito está disponible para todos los usuarios
-    const enlaceGratuito = process.env.TELEGRAM_FREE_INVITE_LINK || "#";
+    // El enlace gratuito queda disponible para visitantes y usuarios sin VIP.
+    const enlaceGratuito =
+      filasFree[0]?.telegram_invite_link || env.TELEGRAM_FREE_INVITE_LINK || "#";
 
     return res.json({
       /** Enlace al canal gratuito de Telegram */
       free: enlaceGratuito,
       /** Lista de canales VIP a los que tiene acceso */
-      vip: suscripcionesActivas.map((s: any) => ({
+      vip: canalesVip.map((s: any) => ({
         name: s.name,
-        link: s.telegram_invite_link,
+        link: s.link || s.telegram_invite_link,
+        expires_at: s.expires_at || null,
       })),
     });
   } catch (error) {

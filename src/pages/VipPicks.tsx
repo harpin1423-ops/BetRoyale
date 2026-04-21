@@ -12,7 +12,7 @@ export function VipPicks() {
   const [planSettings, setPlanSettings] = useState<any[]>([]);
   const [activePlanId, setActivePlanId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [telegramLinks, setTelegramLinks] = useState<{ free: string, vip: { name: string, link: string }[] }>({ free: "#", vip: [] });
+  const [telegramLinks, setTelegramLinks] = useState<{ free: string, vip: { name: string, link: string, expires_at?: string | null }[] }>({ free: "#", vip: [] });
   const { token, user } = useAuth();
   
   const [initialBank, setInitialBank] = useState<number>(1000);
@@ -22,24 +22,28 @@ export function VipPicks() {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        // Preparamos headers autenticados para endpoints que dependen del usuario.
+        const authHeaders = token ? { "Authorization": `Bearer ${token}` } : {};
+
         const [picksRes, typesRes, settingsRes, tgRes] = await Promise.all([
-          fetch("/api/picks", { headers: { "Authorization": `Bearer ${token}` } }),
-          fetch("/api/pick-types"),
-          fetch("/api/user/plan-settings", { headers: { "Authorization": `Bearer ${token}` } }),
-          fetch("/api/user/telegram-links", { headers: { "Authorization": `Bearer ${token}` } })
+          fetch("/api/picks", { headers: authHeaders }),
+          fetch("/api/pick-types", { headers: authHeaders }),
+          fetch("/api/user/plan-settings", { headers: authHeaders }),
+          fetch("/api/user/telegram-links", { headers: authHeaders })
         ]);
 
-        const picksData = await picksRes.json();
-        const typesData = await typesRes.json();
-        const settingsData = await settingsRes.json();
-        const tgData = await tgRes.json();
+        // Usamos arreglos seguros si algún endpoint responde error.
+        const picksData = picksRes.ok ? await picksRes.json() : [];
+        const typesData = typesRes.ok ? await typesRes.json() : [];
+        const settingsData = settingsRes.ok ? await settingsRes.json() : [];
+        const tgData = tgRes.ok ? await tgRes.json() : { free: "#", vip: [] };
 
-        const vipPicks = picksData.filter((p: any) => p.pick_type_slug !== 'free');
+        const vipPicks = Array.isArray(picksData) ? picksData.filter((p: any) => p.pick_type_slug !== 'free') : [];
         setPicks(vipPicks);
         
-        const vipTypes = typesData.filter((t: any) => t.slug !== 'free');
+        const vipTypes = Array.isArray(typesData) ? typesData.filter((t: any) => t.slug !== 'free') : [];
         setPickTypes(vipTypes);
-        setPlanSettings(settingsData);
+        setPlanSettings(Array.isArray(settingsData) ? settingsData : []);
         setTelegramLinks(tgData);
 
         if (vipTypes.length > 0 && activePlanId === null) {
@@ -313,7 +317,14 @@ export function VipPicks() {
                   rel="noopener noreferrer"
                   className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-5 py-2.5 rounded-xl font-bold transition-all shadow-lg shadow-blue-500/20"
                 >
-                  Canal {vip.name}
+                  <span>
+                    <span className="block">Canal {vip.name}</span>
+                    {vip.expires_at && (
+                      <span className="block text-[10px] font-medium text-blue-100/80">
+                        Link privado, expira en 24h
+                      </span>
+                    )}
+                  </span>
                 </a>
               ))}
             </div>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import type { ReactNode } from "react";
 import { TrendingUp, Activity, Target, CheckCircle2, XCircle, MinusCircle, Calendar, BarChart3, Trophy, CheckCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import { motion } from "motion/react";
 import { CountryFlag } from "../components/CountryFlag";
@@ -535,7 +536,7 @@ export function Stats() {
             const totalPages = Math.ceil(sortedAll.length / HISTORY_PER_PAGE);
             const paginated = sortedAll.slice((historyPage - 1) * HISTORY_PER_PAGE, historyPage * HISTORY_PER_PAGE);
 
-            const statusConfig: Record<string, { label: string; color: string; bg: string; border: string; icon: React.ReactNode }> = {
+            const statusConfig: Record<string, { label: string; color: string; bg: string; border: string; icon: ReactNode }> = {
               won:        { label: 'Ganado',   color: 'text-green-400',   bg: 'bg-green-400/10',   border: 'border-green-400/25',   icon: <CheckCircle  className="w-4 h-4 text-green-400" /> },
               lost:       { label: 'Perdido',  color: 'text-red-400',     bg: 'bg-red-400/10',     border: 'border-red-400/25',     icon: <XCircle      className="w-4 h-4 text-red-400" /> },
               void:       { label: 'Anulado',  color: 'text-gray-400',    bg: 'bg-gray-400/10',    border: 'border-gray-400/25',    icon: <MinusCircle  className="w-4 h-4 text-gray-400" /> },

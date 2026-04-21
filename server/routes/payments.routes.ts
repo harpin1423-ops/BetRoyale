@@ -38,6 +38,13 @@ router.post("/mercadopago", authenticateToken, async (req: any, res) => {
   } = req.body;
 
   try {
+    // Validamos la credencial privada antes de llamar a Mercado Pago para evitar errores crudos.
+    if (!env.MERCADOPAGO_ACCESS_TOKEN.trim()) {
+      return res.status(503).json({
+        error: "Mercado Pago no está configurado. Falta MERCADOPAGO_ACCESS_TOKEN en el servidor.",
+      });
+    }
+
     // Obtenemos la tasa de cambio USD → COP para procesar el pago en moneda local
     const tasa = await obtenerTasaCambio();
     const precioCOP = Math.round(unit_price * tasa);
@@ -50,6 +57,9 @@ router.post("/mercadopago", authenticateToken, async (req: any, res) => {
     // Limpiamos la URL de la app (eliminamos slash final si existe)
     const appUrl = env.APP_URL.replace(/\/$/, "");
 
+    // Detectamos si la app está en una URL pública compatible con redirecciones de MP.
+    const esAppUrlPublica = /^https:\/\//i.test(appUrl) && !/localhost|127\.0\.0\.1/i.test(appUrl);
+
     // Creamos la referencia externa que MP nos devolverá en el webhook
     // Formato: sub:userId:planId:period[:promoCode]
     const referenciaExterna = `sub:${req.user.id}:${planId}:${period}${
@@ -59,46 +69,58 @@ router.post("/mercadopago", authenticateToken, async (req: any, res) => {
     // Obtenemos el cliente de Mercado Pago con el token más reciente
     const mpClient = getMercadoPagoClient();
 
+    // Armamos el cuerpo base de la preferencia de pago.
+    const preferenceBody: any = {
+      /** Items del pago */
+      items: [
+        {
+          id: planId,
+          title: title || `Suscripción VIP ${planId}`,
+          description: description || `Plan ${planId} - ${period}`,
+          quantity: Number(quantity) || 1,
+          unit_price: precioCOP,       // En COP
+          currency_id: "COP",          // Moneda colombiana
+        },
+      ],
+      /** Email del comprador (prellenado en el formulario de MP) */
+      payer: { email: req.user.email },
+      /** Configuración de métodos de pago */
+      payment_methods: {
+        excluded_payment_types: [],
+        excluded_payment_methods: [],
+        installments: 12,              // Hasta 12 cuotas
+      },
+      /** Referencia que nos llega en el webhook para identificar el pago */
+      external_reference: referenciaExterna,
+      /** Modo binario: solo aprobado o rechazado, sin estado pendiente */
+      binary_mode: true,
+      /** Texto en el estado de cuenta del usuario */
+      statement_descriptor: "BETROYALE VIP",
+    };
+
+    // En producción/deploy público sí activamos webhook y retorno automático.
+    if (esAppUrlPublica) {
+      // URL a la que MP envía las notificaciones automáticas.
+      preferenceBody.notification_url = `${appUrl}/api/payments/webhook`;
+
+      // URLs de retorno tras el pago.
+      preferenceBody.back_urls = {
+        success: `${appUrl}/payment-return`,
+        failure: `${appUrl}/payment-return`,
+        pending: `${appUrl}/payment-return`,
+      };
+
+      // Redirige automáticamente si el pago es aprobado.
+      preferenceBody.auto_return = "approved";
+    } else {
+      // En localhost MP rechaza auto_return; dejamos checkout usable para pruebas manuales.
+      console.warn("[PAYMENTS] APP_URL local detectado; creando preferencia sin auto_return/webhook.");
+    }
+
     // Creamos la preferencia de pago en MP
     const preferenceClient = new Preference(mpClient);
     const resultado = await preferenceClient.create({
-      body: {
-        /** Items del pago */
-        items: [
-          {
-            id: planId,
-            title: title || `Suscripción VIP ${planId}`,
-            description: description || `Plan ${planId} - ${period}`,
-            quantity: Number(quantity) || 1,
-            unit_price: precioCOP,       // En COP
-            currency_id: "COP",          // Moneda colombiana
-          },
-        ],
-        /** Email del comprador (prellenado en el formulario de MP) */
-        payer: { email: req.user.email },
-        /** Configuración de métodos de pago */
-        payment_methods: {
-          excluded_payment_types: [],
-          excluded_payment_methods: [],
-          installments: 12,              // Hasta 12 cuotas
-        },
-        /** Referencia que nos llega en el webhook para identificar el pago */
-        external_reference: referenciaExterna,
-        /** URL a la que MP envía las notificaciones automáticas */
-        notification_url: `${appUrl}/api/payments/webhook`,
-        /** URLs de retorno tras el pago */
-        back_urls: {
-          success: `${appUrl}/payment-return`,
-          failure: `${appUrl}/payment-return`,
-          pending: `${appUrl}/payment-return`,
-        },
-        /** Redirige automáticamente si el pago es aprobado */
-        auto_return: "approved",
-        /** Modo binario: solo aprobado o rechazado, sin estado pendiente */
-        binary_mode: true,
-        /** Texto en el estado de cuenta del usuario */
-        statement_descriptor: "BETROYALE VIP",
-      },
+      body: preferenceBody,
     });
 
     console.log(`[PAYMENTS] Preferencia creada: ${resultado.id} | Plan: ${planId} | Usuario: ${req.user.id}`);
@@ -111,6 +133,20 @@ router.post("/mercadopago", authenticateToken, async (req: any, res) => {
     });
   } catch (error: any) {
     console.error("[PAYMENTS] Error creando preferencia MP:", error);
+
+    // Detectamos rechazos de autorización de Mercado Pago para mostrar un mensaje accionable.
+    const esErrorAutorizacionMp =
+      error?.status === 401 ||
+      error?.status === 403 ||
+      error?.code === "PA_UNAUTHORIZED_RESULT_FROM_POLICIES";
+
+    // Evitamos enviar al usuario mensajes internos tipo PolicyAgent/UNAUTHORIZED.
+    if (esErrorAutorizacionMp) {
+      return res.status(503).json({
+        error: "Mercado Pago rechazó la credencial configurada. Revisa MERCADOPAGO_ACCESS_TOKEN.",
+      });
+    }
+
     return res.status(500).json({
       error: error.message || "Error al crear pago con Mercado Pago",
     });

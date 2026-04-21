@@ -43,6 +43,7 @@ export function AdminDashboard() {
   const [editingPickId, setEditingPickId] = useState<number | null>(null);
   const [isSubmittingPickType, setIsSubmittingPickType] = useState(false);
   const [pickTypesMessage, setPickTypesMessage] = useState({ type: "", text: "" });
+  const [telegramFullConfig, setTelegramFullConfig] = useState({ telegram_channel_id: "", telegram_invite_link: "" });
 
   // Form state
   const [formData, setFormData] = useState({
@@ -255,21 +256,31 @@ export function AdminDashboard() {
     setIsSubmittingPickType(true);
     setPickTypesMessage({ type: "", text: "" });
     try {
+      // Limpiamos espacios accidentales antes de guardar IDs y enlaces de Telegram.
+      const payload = Object.fromEntries(
+        Object.entries(data).map(([key, value]) => [
+          key,
+          typeof value === "string" ? value.trim() : value
+        ])
+      );
+
       const res = await fetch(`/api/pick-types/${typeId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${token}`
         },
-        body: JSON.stringify(data)
+        body: JSON.stringify(payload)
       });
       const result = await res.json();
       if (res.ok) {
         setPickTypesMessage({ type: "success", text: "Configuración actualizada correctamente" });
         // Refrescamos los tipos para ver los cambios
-        const typesRes = await fetch("/api/pick-types");
+        const typesRes = await fetch("/api/pick-types", {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
         const typesData = await typesRes.json();
-        setPickTypes(typesData);
+        setPickTypes(Array.isArray(typesData) ? typesData : []);
       } else {
         setPickTypesMessage({ type: "error", text: result.error || "Error al actualizar" });
       }
@@ -278,6 +289,158 @@ export function AdminDashboard() {
     } finally {
       setIsSubmittingPickType(false);
       setTimeout(() => setPickTypesMessage({ type: "", text: "" }), 3000);
+    }
+  };
+
+  /**
+   * Carga la configuración global del canal espejo VIP Full.
+   *
+   * @returns Promesa que actualiza el estado local del panel.
+   */
+  const fetchTelegramFullConfig = async () => {
+    try {
+      // Pedimos la configuración global que no pertenece a un tipo de pick.
+      const res = await fetch("/api/pick-types/telegram-full", {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+
+      // Parseamos la respuesta del backend para llenar la tarjeta Full.
+      const data = await res.json();
+
+      // Solo usamos la respuesta cuando el backend devuelve un objeto válido.
+      if (res.ok) {
+        setTelegramFullConfig({
+          telegram_channel_id: data.telegram_channel_id || "",
+          telegram_invite_link: data.telegram_invite_link || ""
+        });
+      }
+    } catch (error) {
+      // Dejamos el panel usable aunque la configuración global no cargue.
+      console.error("Error fetching Telegram Full config:", error);
+    }
+  };
+
+  /**
+   * Actualiza la configuración global del canal espejo VIP Full.
+   *
+   * @param data - Campos de Telegram que se deben guardar para VIP Full.
+   */
+  const updateTelegramFullConfig = async (data: any) => {
+    setIsSubmittingPickType(true);
+    setPickTypesMessage({ type: "", text: "" });
+    try {
+      // Limpiamos espacios accidentales antes de guardar el canal espejo.
+      const payload = Object.fromEntries(
+        Object.entries(data).map(([key, value]) => [
+          key,
+          typeof value === "string" ? value.trim() : value
+        ])
+      );
+
+      // Persistimos la configuración Full en el backend.
+      const res = await fetch("/api/pick-types/telegram-full", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      // Parseamos el resultado para reflejar el estado guardado.
+      const result = await res.json();
+
+      // Mostramos el estado al administrador y sincronizamos la tarjeta.
+      if (res.ok) {
+        setPickTypesMessage({ type: "success", text: result.message || "VIP Full actualizado correctamente" });
+        setTelegramFullConfig(result.config || telegramFullConfig);
+      } else {
+        setPickTypesMessage({ type: "error", text: result.error || "Error al actualizar VIP Full" });
+      }
+    } catch (error) {
+      // Mostramos un error de red cuando no se pudo contactar al backend.
+      setPickTypesMessage({ type: "error", text: "Error de red al actualizar VIP Full" });
+    } finally {
+      // Cerramos el estado de envío de la tarjeta Full.
+      setIsSubmittingPickType(false);
+      // Ocultamos el mensaje luego de unos segundos para no saturar el panel.
+      setTimeout(() => setPickTypesMessage({ type: "", text: "" }), 3000);
+    }
+  };
+
+  /**
+   * Envía un mensaje de prueba al canal espejo VIP Full.
+   *
+   * @returns Promesa que muestra el resultado del envío en el panel.
+   */
+  const sendTestTelegramFullMessage = async () => {
+    // Activamos el estado de guardado para evitar pruebas repetidas.
+    setIsSubmittingPickType(true);
+    // Limpiamos mensajes anteriores antes de probar el canal Full.
+    setPickTypesMessage({ type: "", text: "" });
+
+    try {
+      // Pedimos al backend que publique un mensaje real en VIP Full.
+      const res = await fetch("/api/pick-types/telegram-full/test", {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+
+      // Parseamos la respuesta para mostrar el resultado al administrador.
+      const result = await res.json();
+
+      // Mostramos éxito o error según la respuesta del backend.
+      setPickTypesMessage(
+        res.ok
+          ? { type: "success", text: result.message || "Mensaje de prueba enviado a VIP Full" }
+          : { type: "error", text: result.error || "No se pudo enviar el mensaje a VIP Full" }
+      );
+    } catch (error) {
+      // Mostramos un error de red cuando no se pudo contactar al backend.
+      setPickTypesMessage({ type: "error", text: "Error de red al probar VIP Full" });
+    } finally {
+      // Cerramos el estado de envío de la prueba Full.
+      setIsSubmittingPickType(false);
+      // Ocultamos el mensaje luego de unos segundos para no saturar el panel.
+      setTimeout(() => setPickTypesMessage({ type: "", text: "" }), 4000);
+    }
+  };
+
+  /**
+   * Envía un mensaje de prueba al canal Telegram configurado para un plan.
+   *
+   * @param typeId - ID del tipo de pick que se probará desde el panel admin.
+   */
+  const sendTestPickTypeMessage = async (typeId: number) => {
+    // Activamos el estado de guardado para deshabilitar acciones repetidas.
+    setIsSubmittingPickType(true);
+    // Limpiamos mensajes anteriores antes de probar el canal.
+    setPickTypesMessage({ type: "", text: "" });
+
+    try {
+      // Pedimos al backend que publique un mensaje real con el bot configurado.
+      const res = await fetch(`/api/pick-types/${typeId}/test-telegram`, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+
+      // Parseamos la respuesta para mostrar el resultado al administrador.
+      const result = await res.json();
+
+      // Mostramos éxito o error según la respuesta del backend.
+      setPickTypesMessage(
+        res.ok
+          ? { type: "success", text: result.message || "Mensaje de prueba enviado" }
+          : { type: "error", text: result.error || "No se pudo enviar el mensaje de prueba" }
+      );
+    } catch (error) {
+      // Mostramos un error de red cuando no se pudo contactar al backend.
+      setPickTypesMessage({ type: "error", text: "Error de red al probar Telegram" });
+    } finally {
+      // Cerramos el estado de envío del panel Telegram.
+      setIsSubmittingPickType(false);
+      // Ocultamos el mensaje luego de unos segundos para no saturar el panel.
+      setTimeout(() => setPickTypesMessage({ type: "", text: "" }), 4000);
     }
   };
 
@@ -421,6 +584,7 @@ export function AdminDashboard() {
     };
     
     fetchPickTypes();
+    fetchTelegramFullConfig();
     fetchMarkets();
     fetchCountries();
     fetchLeagues();
@@ -3401,6 +3565,72 @@ export function AdminDashboard() {
             )}
 
             <div className="grid gap-6">
+              <div className="bg-card border border-primary/30 rounded-2xl p-6 shadow-sm group">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-2">
+                      <span className="px-2.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-primary/20 text-primary">
+                        Espejo VIP
+                      </span>
+                      <h3 className="text-lg font-bold text-white uppercase tracking-tight">VIP Full Channel</h3>
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-6">
+                      Recibe automáticamente cada pick VIP publicado en Cuota 2+, 3+, 4+ y 5+.
+                    </p>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-muted-foreground uppercase opacity-70">Channel ID</label>
+                        <input
+                          type="text"
+                          placeholder="Ej: -100123456789"
+                          value={telegramFullConfig.telegram_channel_id}
+                          onChange={(e) => setTelegramFullConfig(prev => ({ ...prev, telegram_channel_id: e.target.value }))}
+                          onBlur={(e) => updateTelegramFullConfig({ telegram_channel_id: e.target.value })}
+                          className="w-full bg-background border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary transition-all font-mono"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-muted-foreground uppercase opacity-70">Enlace de Invitación (Opcional)</label>
+                        <div className="relative">
+                          <input
+                            type="text"
+                            placeholder="https://t.me/joinchat/..."
+                            value={telegramFullConfig.telegram_invite_link}
+                            onChange={(e) => setTelegramFullConfig(prev => ({ ...prev, telegram_invite_link: e.target.value }))}
+                            onBlur={(e) => updateTelegramFullConfig({ telegram_invite_link: e.target.value })}
+                            className="w-full bg-background border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary transition-all"
+                          />
+                          {telegramFullConfig.telegram_invite_link && (
+                            <a href={telegramFullConfig.telegram_invite_link} target="_blank" rel="noopener noreferrer" className="absolute right-3 top-1/2 -translate-y-1/2 text-primary hover:text-primary/80">
+                              <ExternalLink className="w-4 h-4" />
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col items-center justify-center p-4 bg-primary/5 rounded-2xl border border-primary/20 min-w-[120px]">
+                    <Send className={`w-8 h-8 mb-2 ${telegramFullConfig.telegram_channel_id ? 'text-primary' : 'text-muted-foreground opacity-30'}`} />
+                    <span className="text-[10px] font-bold text-center uppercase text-muted-foreground">
+                      {telegramFullConfig.telegram_channel_id ? 'Conectado' : 'Sin Configurar'}
+                    </span>
+                    {/* Botón de prueba para confirmar que el canal espejo VIP Full recibe mensajes. */}
+                    <button
+                      type="button"
+                      onClick={sendTestTelegramFullMessage}
+                      disabled={!telegramFullConfig.telegram_channel_id || isSubmittingPickType}
+                      className="mt-3 inline-flex items-center gap-2 rounded-lg border border-primary/30 px-3 py-2 text-[11px] font-bold uppercase text-primary transition-colors hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      {/* Indicador visual mientras el backend habla con Telegram. */}
+                      {isSubmittingPickType ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
+                      Probar
+                    </button>
+                  </div>
+                </div>
+              </div>
+
               {pickTypes.map((type) => (
                 <div key={type.id} className="bg-card border border-white/10 rounded-2xl p-6 hover:border-primary/30 transition-all transition-colors shadow-sm group">
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -3451,6 +3681,17 @@ export function AdminDashboard() {
                       <span className="text-[10px] font-bold text-center uppercase text-muted-foreground">
                         {type.telegram_channel_id ? 'Conectado' : 'Sin Configurar'}
                       </span>
+                      {/* Botón de prueba para confirmar que BotFather/token/canal están bien conectados. */}
+                      <button
+                        type="button"
+                        onClick={() => sendTestPickTypeMessage(type.id)}
+                        disabled={!type.telegram_channel_id || isSubmittingPickType}
+                        className="mt-3 inline-flex items-center gap-2 rounded-lg border border-primary/30 px-3 py-2 text-[11px] font-bold uppercase text-primary transition-colors hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        {/* Indicador visual mientras el backend habla con Telegram. */}
+                        {isSubmittingPickType ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
+                        Probar
+                      </button>
                     </div>
                   </div>
                 </div>

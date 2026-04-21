@@ -56,6 +56,12 @@ export const env = {
   /** Enlace de invitación al canal gratuito de Telegram */
   TELEGRAM_FREE_INVITE_LINK: process.env.TELEGRAM_FREE_INVITE_LINK || "#",
 
+  /** ID del canal espejo que recibe todos los picks VIP */
+  TELEGRAM_FULL_CHANNEL_ID: process.env.TELEGRAM_FULL_CHANNEL_ID || "",
+
+  /** Enlace de invitación al canal VIP Full */
+  TELEGRAM_FULL_INVITE_LINK: process.env.TELEGRAM_FULL_INVITE_LINK || "",
+
   // ─── Email (Nodemailer) ──────────────────────────────────────────────────────
   /** Host SMTP para envío de correos (ej: smtp.gmail.com) */
   SMTP_HOST: process.env.SMTP_HOST || "",

@@ -325,6 +325,33 @@ export async function initDB(): Promise<void> {
       )
     `);
 
+    // ── 13. Tabla: app_settings ─────────────────────────────────────────────
+    // Configuraciones globales del panel que no pertenecen a una entidad normal.
+    await conexion.query(`
+      CREATE TABLE IF NOT EXISTS app_settings (
+        setting_key   VARCHAR(100) PRIMARY KEY,
+        setting_value TEXT,
+        updated_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      )
+    `);
+
+    // ── 14. Tabla: telegram_user_invites ────────────────────────────────────
+    // Guarda links privados temporales para canales VIP de usuarios pagos.
+    await conexion.query(`
+      CREATE TABLE IF NOT EXISTS telegram_user_invites (
+        id          INT AUTO_INCREMENT PRIMARY KEY,
+        user_id     INT NOT NULL,
+        plan_id     VARCHAR(50) NOT NULL,
+        channel_id  VARCHAR(255) NOT NULL,
+        invite_link VARCHAR(512) NOT NULL,
+        expires_at  DATETIME NOT NULL,
+        created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY unique_user_plan_channel (user_id, plan_id, channel_id),
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      )
+    `);
+
     // ── Sembrar ligas y países iniciales ─────────────────────────────────────
     for (const { pais, ligas } of LIGAS_INICIALES) {
       try {
