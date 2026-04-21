@@ -402,9 +402,9 @@ router.put("/password", authenticateToken, async (req: any, res) => {
   const { currentPassword, newPassword } = req.body;
 
   try {
-    // Obtenemos el hash actual de la contraseña del usuario
+    // Obtenemos el hash actual y el email para la notificación
     const [filas] = await pool.query(
-      "SELECT password_hash FROM users WHERE id = ?",
+      "SELECT password_hash, email FROM users WHERE id = ?",
       [req.user.id]
     );
     const usuarios = filas as any[];
@@ -438,8 +438,8 @@ router.put("/password", authenticateToken, async (req: any, res) => {
       "../services/email.service.js"
     );
 
-    // Intentamos enviar el correo de confirmación (es asíncrono, no bloqueamos la respuesta)
-    enviarEmailConfirmacionClave(usuario.email).catch((err) =>
+    // Intentamos enviar el correo de confirmación (es asíncrono)
+    enviarEmailConfirmacionClave(usuarios[0].email).catch((err) =>
       console.error("[EMAIL] Error enviando confirmación de clave:", err)
     );
 
