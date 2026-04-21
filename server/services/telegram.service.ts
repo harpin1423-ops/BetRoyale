@@ -73,6 +73,28 @@ interface SeleccionTelegram {
   odds?: number | string;
 }
 
+/**
+ * <summary>
+ * Métricas mensuales usadas en el resumen corto de resultados de parlays.
+ * </summary>
+ */
+export interface MetricasMensualesTelegram {
+  /** Nombre corto del mes calculado para el resumen. */
+  label: string;
+  /** Profit neto acumulado en unidades durante el mes. */
+  profit: number;
+  /** Yield mensual calculado sobre unidades apostadas. */
+  yield: number;
+  /** Total de unidades apostadas en el mes. */
+  totalStaked: number;
+  /** Cantidad de picks ganados en el mes. */
+  won: number;
+  /** Cantidad de picks perdidos en el mes. */
+  lost: number;
+  /** Cantidad de picks nulos en el mes. */
+  voids: number;
+}
+
 // ─── Funciones ───────────────────────────────────────────────────────────────
 
 /**
@@ -263,12 +285,14 @@ function formatStake(value: unknown): string {
 }
 
 /**
+ * <summary>
  * Calcula profit neto en unidades según estado, cuota y stake.
+ * </summary>
  *
  * @param pick - Pick con cuota, stake y estado.
- * @returns Profit neto formateado en unidades.
+ * @returns Profit neto en unidades.
  */
-function formatProfit(pick: PickParaTelegram): string {
+function calcularProfitNeto(pick: PickParaTelegram): number {
   // Convertimos valores numéricos desde MySQL o JSON.
   const odds = Number(pick.odds) || 1;
   const stake = Number(pick.stake) || 0;
@@ -280,11 +304,56 @@ function formatProfit(pick: PickParaTelegram): string {
   if (pick.status === "half-won") profit = (stake / 2) * (odds - 1);
   if (pick.status === "half-lost") profit = -(stake / 2);
 
-  // Los nulos no afectan el profit y se muestran como 0.00u.
-  const sign = profit > 0 ? "+" : "";
+  // Devolvemos el valor numérico para reutilizarlo en distintos formatos.
+  return profit;
+}
 
-  // Devolvemos formato corto y consistente para el canal.
-  return `${sign}${profit.toFixed(2)}u`;
+/**
+ * <summary>
+ * Formatea unidades con signo explícito cuando son positivas.
+ * </summary>
+ *
+ * @param value - Cantidad de unidades que se mostrarán.
+ * @returns Texto corto tipo "+3.71u" o "-1.00u".
+ */
+function formatUnidades(value: number): string {
+  // Calculamos el signo solo para valores positivos.
+  const sign = value > 0 ? "+" : "";
+
+  // Devolvemos siempre dos decimales para métricas financieras.
+  return `${sign}${value.toFixed(2)}u`;
+}
+
+/**
+ * <summary>
+ * Formatea un porcentaje con signo explícito cuando es positivo.
+ * </summary>
+ *
+ * @param value - Porcentaje que se mostrará.
+ * @returns Texto corto tipo "+12.50%" o "-8.00%".
+ */
+function formatPorcentaje(value: number): string {
+  // Calculamos el signo solo para porcentajes positivos.
+  const sign = value > 0 ? "+" : "";
+
+  // Devolvemos siempre dos decimales para consistencia visual.
+  return `${sign}${value.toFixed(2)}%`;
+}
+
+/**
+ * <summary>
+ * Calcula profit neto en unidades según estado, cuota y stake.
+ * </summary>
+ *
+ * @param pick - Pick con cuota, stake y estado.
+ * @returns Profit neto formateado en unidades.
+ */
+function formatProfit(pick: PickParaTelegram): string {
+  // Calculamos el profit usando la regla centralizada.
+  const profit = calcularProfitNeto(pick);
+
+  // Los nulos no afectan el profit y se muestran como 0.00u.
+  return formatUnidades(profit);
 }
 
 /**
@@ -606,6 +675,70 @@ export function formatPickParaTelegram(
   }
   mensaje += `\n<b>BetRoyale Club</b> - <i>Invirtiendo con Inteligencia</i>`;
 
+  return mensaje;
+}
+
+/**
+ * <summary>
+ * Formatea un resultado corto y llamativo cuando un parlay se gana o se pierde.
+ * </summary>
+ *
+ * @param pick - Parlay actualizado con estado final.
+ * @param metricas - Métricas mensuales del plan después de guardar el resultado.
+ * @returns Mensaje HTML corto listo para Telegram.
+ */
+export function formatResultadoParlayParaTelegram(
+  pick: PickParaTelegram,
+  metricas: MetricasMensualesTelegram
+): string {
+  // Detectamos si el parlay cerró en positivo o negativo.
+  const esGanado = pick.status === "won";
+
+  // Elegimos un encabezado directo para que el usuario identifique el resultado al instante.
+  const encabezado = esGanado ? "PARLAY GANADO" : "PARLAY PERDIDO";
+
+  // Elegimos emoji principal según el resultado final.
+  const emoji = esGanado ? "✅🔥" : "❌📉";
+
+  // Escapamos el plan antes de insertarlo en HTML.
+  const plan = escapeTelegramHtml(pick.pick_type_name || "BetRoyale");
+
+  // Escapamos la cuota total del parlay.
+  const odds = escapeTelegramHtml(pick.odds);
+
+  // Calculamos las unidades ganadas o perdidas por este parlay.
+  const unidadesResultado = formatUnidades(calcularProfitNeto(pick));
+
+  // Formateamos el acumulado mensual de unidades.
+  const unidadesMes = formatUnidades(metricas.profit);
+
+  // Formateamos el yield mensual del plan.
+  const yieldMes = formatPorcentaje(metricas.yield);
+
+  // Escapamos el mes visible para mantener seguro el HTML.
+  const mes = escapeTelegramHtml(metricas.label);
+
+  // Construimos un mensaje corto, claro y con números clave.
+  let mensaje = `<b>${encabezado} ${emoji}</b>\n`;
+  mensaje += `🏷️ <b>Plan:</b> ${plan}\n`;
+  mensaje += `🎫 <b>Cuota Total:</b> ⭐ <b>${odds}</b>\n`;
+  mensaje += `💰 <b>Resultado:</b> <b>${unidadesResultado}</b>\n\n`;
+  mensaje += `📅 <b>Mes ${mes}:</b> ${unidadesMes}\n`;
+  mensaje += `📈 <b>Yield:</b> ${yieldMes}\n`;
+  mensaje += `🏁 <b>Récord:</b> ${metricas.won}G - ${metricas.lost}P`;
+
+  // Mostramos nulos solo cuando existen para mantener el mensaje compacto.
+  if (metricas.voids > 0) {
+    mensaje += ` - ${metricas.voids}N`;
+  }
+
+  // Cerramos la línea de récord.
+  mensaje += `\n`;
+
+  // Añadimos una firma breve consistente con el resto de mensajes.
+  mensaje += `\n<b>BetRoyale Club</b> - <i>Invirtiendo con Inteligencia</i>`;
+
+  // Devolvemos el HTML final para Telegram.
   return mensaje;
 }
 

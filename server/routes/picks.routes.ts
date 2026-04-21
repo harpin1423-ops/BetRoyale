@@ -9,7 +9,8 @@ import { Router } from "express";
 import { pool } from "../config/database.js";
 import { env } from "../config/env.js";
 import { authenticateToken, requireAdmin } from "../middleware/auth.js";
-import { sendTelegramMessage, formatPickParaTelegram, formatSeguimientoParaTelegram } from "../services/telegram.service.js";
+// Importamos utilidades de Telegram para publicar picks, seguimientos y resultados cortos de parlays.
+import { sendTelegramMessage, formatPickParaTelegram, formatSeguimientoParaTelegram, formatResultadoParlayParaTelegram, type MetricasMensualesTelegram } from "../services/telegram.service.js";
 import { obtenerTelegramFullConfig } from "../services/settings.service.js";
 
 // Creamos el router para las rutas de picks
@@ -211,6 +212,204 @@ async function obtenerCanalesTelegramParaPick(pick: any): Promise<string[]> {
 
   // Eliminamos valores vacíos antes de intentar enviar mensajes.
   return Array.from(canales).filter(Boolean);
+}
+
+/**
+ * <summary>
+ * Convierte una fecha guardada en MySQL como UTC en un objeto Date seguro.
+ * </summary>
+ * @param value - Fecha del pick recibida desde MySQL.
+ * @returns Fecha parseada como instante UTC.
+ */
+function parseFechaUtc(value: any): Date {
+  // Si MySQL ya entregó un Date, usamos ese instante directamente.
+  if (value instanceof Date) {
+    return value;
+  }
+
+  // Normalizamos espacios de MySQL para que Date pueda interpretar la cadena.
+  const text = String(value || "").trim().replace(" ", "T");
+
+  // Detectamos si la fecha ya incluye zona horaria explícita.
+  const hasTimezone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(text);
+
+  // Agregamos segundos cuando la cadena viene de datetime-local.
+  const normalized = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(text) ? `${text}:00` : text;
+
+  // MySQL guarda match_date en UTC, así que agregamos Z si no hay zona.
+  return new Date(hasTimezone ? normalized : `${normalized}Z`);
+}
+
+/**
+ * <summary>
+ * Convierte un Date a formato DATETIME UTC compatible con MySQL.
+ * </summary>
+ * @param value - Fecha absoluta que se guardará como texto UTC.
+ * @returns Fecha tipo "YYYY-MM-DD HH:mm:ss".
+ */
+function formatMysqlUtc(value: Date): string {
+  // Usamos ISO y quitamos milisegundos/zona para comparar contra DATETIME.
+  return value.toISOString().slice(0, 19).replace("T", " ");
+}
+
+/**
+ * <summary>
+ * Calcula el rango UTC del mes colombiano al que pertenece un pick.
+ * </summary>
+ * @param value - Fecha del pick usada como referencia del mes.
+ * @returns Rango UTC y etiqueta corta del mes.
+ */
+function obtenerRangoMesColombia(value: any): { inicioUtc: string; finUtc: string; label: string } {
+  // Parseamos la fecha del pick como instante UTC.
+  const fecha = parseFechaUtc(value);
+
+  // Extraemos año y mes desde la zona horaria de Colombia.
+  const partes = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Bogota",
+    year: "numeric",
+    month: "2-digit",
+  }).formatToParts(fecha);
+
+  // Obtenemos el año visible en Colombia.
+  const year = Number(partes.find((part) => part.type === "year")?.value || fecha.getUTCFullYear());
+
+  // Obtenemos el mes visible en Colombia.
+  const month = Number(partes.find((part) => part.type === "month")?.value || fecha.getUTCMonth() + 1);
+
+  // Construimos el primer día del mes en horario Colombia.
+  const inicioColombia = new Date(`${year}-${String(month).padStart(2, "0")}-01T00:00:00-05:00`);
+
+  // Calculamos el primer día del mes siguiente en horario Colombia.
+  const siguienteYear = month === 12 ? year + 1 : year;
+
+  // Calculamos el número del mes siguiente.
+  const siguienteMonth = month === 12 ? 1 : month + 1;
+
+  // Construimos el inicio del mes siguiente en horario Colombia.
+  const finColombia = new Date(`${siguienteYear}-${String(siguienteMonth).padStart(2, "0")}-01T00:00:00-05:00`);
+
+  // Formateamos el mes para mostrarlo en Telegram.
+  const label = new Intl.DateTimeFormat("es-CO", {
+    timeZone: "America/Bogota",
+    month: "short",
+    year: "numeric",
+  }).format(fecha);
+
+  // Devolvemos rango convertido a UTC para MySQL y etiqueta visual.
+  return {
+    inicioUtc: formatMysqlUtc(inicioColombia),
+    finUtc: formatMysqlUtc(finColombia),
+    label,
+  };
+}
+
+/**
+ * <summary>
+ * Calcula unidades, yield y récord mensual del plan de un pick.
+ * </summary>
+ * @param pick - Pick ya actualizado que define plan y mes de cálculo.
+ * @returns Métricas mensuales listas para formatear en Telegram.
+ */
+async function calcularMetricasMensualesParaPick(pick: any): Promise<MetricasMensualesTelegram> {
+  // Calculamos el rango mensual en horario Colombia, comparado como UTC en MySQL.
+  const rango = obtenerRangoMesColombia(pick.match_date);
+
+  // Consultamos el rendimiento mensual del mismo plan después de actualizar el pick.
+  const [rows]: any = await pool.query(
+    `SELECT
+       COALESCE(SUM(CASE
+         WHEN status = 'won' THEN stake * (odds - 1)
+         WHEN status = 'lost' THEN -stake
+         WHEN status = 'half-won' THEN (stake / 2) * (odds - 1)
+         WHEN status = 'half-lost' THEN -(stake / 2)
+         ELSE 0
+       END), 0) AS profit,
+       COALESCE(SUM(CASE
+         WHEN status IN ('won', 'lost', 'half-won', 'half-lost') THEN stake
+         ELSE 0
+       END), 0) AS total_staked,
+       COALESCE(SUM(CASE WHEN status = 'won' THEN 1 ELSE 0 END), 0) AS won,
+       COALESCE(SUM(CASE WHEN status = 'lost' THEN 1 ELSE 0 END), 0) AS lost,
+       COALESCE(SUM(CASE WHEN status = 'void' THEN 1 ELSE 0 END), 0) AS voids
+     FROM picks
+     WHERE pick_type_id = ?
+       AND match_date >= ?
+       AND match_date < ?
+       AND status IN ('won', 'lost', 'half-won', 'half-lost', 'void')`,
+    [pick.pick_type_id, rango.inicioUtc, rango.finUtc]
+  );
+
+  // Tomamos la primera fila agregada de MySQL.
+  const fila = rows[0] || {};
+
+  // Normalizamos el profit acumulado.
+  const profit = Number(fila.profit) || 0;
+
+  // Normalizamos el total apostado.
+  const totalStaked = Number(fila.total_staked) || 0;
+
+  // Calculamos yield mensual sobre unidades apostadas.
+  const yieldMensual = totalStaked > 0 ? (profit / totalStaked) * 100 : 0;
+
+  // Devolvemos métricas numéricas para el formatter de Telegram.
+  return {
+    label: rango.label,
+    profit,
+    yield: yieldMensual,
+    totalStaked,
+    won: Number(fila.won) || 0,
+    lost: Number(fila.lost) || 0,
+    voids: Number(fila.voids) || 0,
+  };
+}
+
+/**
+ * <summary>
+ * Indica si un pick debe usar el mensaje corto especial para resultado de parlay.
+ * </summary>
+ * @param pick - Pick actualizado con estado y bandera de parlay.
+ * @returns true cuando es parlay ganado o perdido.
+ */
+function debeUsarMensajeResultadoParlay(pick: any): boolean {
+  // Normalizamos la bandera de parlay porque MySQL puede devolver 0/1.
+  const esParlay = Boolean(Number(pick.is_parlay) || pick.is_parlay === true);
+
+  // Solo ganados y perdidos usan el formato corto pedido para parlays.
+  return esParlay && ["won", "lost"].includes(String(pick.status));
+}
+
+/**
+ * <summary>
+ * Notifica por Telegram el resultado actualizado de un pick.
+ * </summary>
+ * @param pickId - ID del pick que acaba de cambiar de estado.
+ */
+async function notificarResultadoPickPorTelegram(pickId: string | number): Promise<void> {
+  // Cargamos el pick actualizado con nombres legibles para Telegram.
+  const pick = await obtenerPickParaTelegram(pickId);
+
+  // Si el pick no existe, no hay nada que notificar.
+  if (!pick) {
+    return;
+  }
+
+  // Resolvemos los canales configurados para el plan del pick y VIP Full.
+  const channelIds = await obtenerCanalesTelegramParaPick(pick);
+
+  // Si no hay canales configurados, evitamos llamar a Telegram.
+  if (channelIds.length === 0) {
+    return;
+  }
+
+  // Calculamos métricas solo para el formato corto de parlays ganados/perdidos.
+  const mensaje = debeUsarMensajeResultadoParlay(pick)
+    ? formatResultadoParlayParaTelegram(pick, await calcularMetricasMensualesParaPick(pick))
+    : formatPickParaTelegram(pick, true);
+
+  // Publicamos el resultado en cada canal correspondiente.
+  for (const channelId of channelIds) {
+    await sendTelegramMessage(channelId, mensaje);
+  }
 }
 
 
@@ -495,21 +694,8 @@ router.patch("/bulk/status", authenticateToken, requireAdmin, async (req, res) =
     // Notificamos cada pick actualizado sin bloquear la respuesta si Telegram falla.
     for (const pickId of pickIds) {
       try {
-        // Cargamos el pick con su nuevo estado y textos legibles.
-        const pick = await obtenerPickParaTelegram(pickId);
-
-        // Resolvemos los canales configurados para ese plan y VIP Full.
-        const channelIds = pick ? await obtenerCanalesTelegramParaPick(pick) : [];
-
-        // Enviamos la actualización solo cuando existen canales configurados.
-        if (pick && channelIds.length > 0) {
-          const mensaje = formatPickParaTelegram(pick, true);
-
-          // Publicamos el resultado en todos los canales correspondientes.
-          for (const channelId of channelIds) {
-            await sendTelegramMessage(channelId, mensaje);
-          }
-        }
+        // Enviamos el resultado con formato normal o parlay corto según corresponda.
+        await notificarResultadoPickPorTelegram(pickId);
       } catch (tgErr) {
         // El error de Telegram no debe revertir la actualización masiva.
         console.error("[PICKS] Error de Telegram en actualización masiva:", tgErr);
@@ -543,21 +729,8 @@ router.patch("/:id/status", authenticateToken, requireAdmin, async (req, res) =>
 
     // Notificamos el cambio de resultado por Telegram
     try {
-      // Cargamos el pick actualizado con nombres legibles para Telegram.
-      const pick = await obtenerPickParaTelegram(id);
-
-      // Resolvemos los canales configurados para el plan del pick y VIP Full.
-      const channelIds = pick ? await obtenerCanalesTelegramParaPick(pick) : [];
-
-      // Enviamos la actualización solo cuando existen canales configurados.
-      if (pick && channelIds.length > 0) {
-        const mensaje = formatPickParaTelegram(pick, true);
-
-        // Publicamos el resultado en cada canal correspondiente.
-        for (const channelId of channelIds) {
-          await sendTelegramMessage(channelId, mensaje);
-        }
-      }
+      // Enviamos el resultado con formato normal o parlay corto según corresponda.
+      await notificarResultadoPickPorTelegram(id);
     } catch (tgErr) {
       console.error("[PICKS] Error de Telegram actualizando estado:", tgErr);
     }
