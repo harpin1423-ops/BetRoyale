@@ -92,6 +92,8 @@ async function enviarEmail(para: string, asunto: string, html: string): Promise<
       response: error.response,
       stack: error.stack
     });
+    // RE-LANZAMOS el error para que la ruta de la API pueda detectarlo
+    throw error;
   }
 }
 
