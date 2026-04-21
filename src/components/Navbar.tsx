@@ -1,7 +1,11 @@
 import { Link } from "react-router-dom";
-import { Trophy, Menu, X, User, Lock } from "lucide-react";
+// Importamos solo los iconos de navegación porque el logo visual usa el asset oficial.
+import { Menu, X, User, Lock } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
+
+// Ruta pública del logo oficial con fondo sólido para evitar transparencias no deseadas.
+const BRAND_LOGO_SRC = "/icon-512.png";
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -10,8 +14,10 @@ export function Navbar() {
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-white/10 bg-background/80 backdrop-blur-md">
       <div className="container mx-auto flex h-16 items-center justify-between px-4 md:px-6">
-        <Link to="/" className="flex items-center gap-2">
-          <Trophy className="h-6 w-6 text-primary" />
+        <Link to="/" className="flex items-center gap-3" aria-label="BetRoyale Club">
+          {/* Logo oficial de BetRoyale Club con fondo sólido. */}
+          <img src={BRAND_LOGO_SRC} alt="BetRoyale Club" className="h-10 w-10 rounded-md object-cover shadow-[0_0_18px_rgba(212,175,55,0.18)]" />
+          {/* Texto de marca visible para mantener legibilidad en tamaños pequeños. */}
           <span className="font-display text-xl font-bold tracking-tight">BetRoyale Club</span>
         </Link>
         

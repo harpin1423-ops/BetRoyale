@@ -1,5 +1,7 @@
-import { Trophy } from "lucide-react";
 import { Link } from "react-router-dom";
+
+// Ruta pública del logo oficial con fondo sólido para mantener consistencia visual.
+const BRAND_LOGO_SRC = "/icon-512.png";
 
 export function Footer() {
   return (
@@ -7,8 +9,10 @@ export function Footer() {
       <div className="container mx-auto px-4 md:px-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div className="space-y-4">
-            <Link to="/" className="flex items-center gap-2">
-              <Trophy className="h-6 w-6 text-primary" />
+            <Link to="/" className="flex items-center gap-3" aria-label="BetRoyale Club">
+              {/* Logo oficial de BetRoyale Club usado también en el encabezado. */}
+              <img src={BRAND_LOGO_SRC} alt="BetRoyale Club" className="h-11 w-11 rounded-md object-cover shadow-[0_0_18px_rgba(212,175,55,0.16)]" />
+              {/* Texto de marca junto al logo para lectura clara. */}
               <span className="font-display text-xl font-bold tracking-tight">BetRoyale Club</span>
             </Link>
             <p className="text-sm text-muted-foreground leading-relaxed">
