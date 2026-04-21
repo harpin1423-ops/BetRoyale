@@ -54,3 +54,19 @@ export const registerLimiter = rateLimit({
     error: "Demasiados registros desde esta IP. Inténtalo más tarde.",
   },
 });
+
+/**
+ * Limitador para solicitudes de recuperación de contraseña.
+ * Permite 5 solicitudes cada 15 minutos por IP.
+ */
+export const passwordResetLimiter = rateLimit({
+  // Ventana corta para evitar abuso del formulario y envío masivo de correos.
+  windowMs: 15 * 60 * 1000,
+  // Límite prudente para usuarios reales que solicitan recuperación.
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: "Demasiadas solicitudes de recuperación. Inténtalo más tarde.",
+  },
+});

@@ -269,6 +269,22 @@ export async function initDB(): Promise<void> {
       });
     }
 
+    // ── 8.1. Tabla: password_reset_tokens ───────────────────────────────────
+    // Tokens hasheados para recuperación segura de contraseña.
+    await conexion.query(`
+      CREATE TABLE IF NOT EXISTS password_reset_tokens (
+        id          INT AUTO_INCREMENT PRIMARY KEY,
+        user_id     INT NOT NULL,
+        token_hash  VARCHAR(128) NOT NULL UNIQUE,
+        expires_at  DATETIME NOT NULL,
+        used_at     DATETIME DEFAULT NULL,
+        created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        INDEX idx_password_reset_user (user_id),
+        INDEX idx_password_reset_expires (expires_at)
+      )
+    `);
+
     // ── 9. Tabla: user_plan_settings ─────────────────────────────────────────
     // Bankroll personalizado por usuario y tipo de pick
     await conexion.query(`

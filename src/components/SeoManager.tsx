@@ -132,6 +132,15 @@ const SEO_BY_PATH: Record<string, SeoRouteConfig> = {
     // Bloqueamos indexación de páginas de sesión.
     robots: "noindex, nofollow",
   },
+  // Evitamos indexar recuperación de contraseña.
+  "/reset-password": {
+    // Título de restablecimiento de contraseña.
+    title: "Restablecer Contraseña | BetRoyale Club",
+    // Descripción de restablecimiento de contraseña.
+    description: "Crea una nueva contraseña segura para tu cuenta de BetRoyale Club.",
+    // Bloqueamos indexación de enlaces con token.
+    robots: "noindex, nofollow",
+  },
   // Evitamos indexar retorno de pago.
   "/payment-return": {
     // Título de retorno de pago.

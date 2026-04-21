@@ -12,6 +12,8 @@ import { Pricing } from "./pages/Pricing";
 import { VipPicks } from "./pages/VipPicks";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+// Importamos la página pública para crear una nueva contraseña desde email.
+import ResetPassword from "./pages/ResetPassword";
 import { TermsOfService } from "./pages/legal/TermsOfService";
 import { PrivacyPolicy } from "./pages/legal/PrivacyPolicy";
 import { RefundPolicy } from "./pages/legal/RefundPolicy";
@@ -129,6 +131,8 @@ export default function App() {
           <Route path="/responsible-gaming" element={<PublicLayout><ResponsibleGaming /></PublicLayout>} />
           <Route path="/login" element={<PublicLayout><Login /></PublicLayout>} />
           <Route path="/register" element={<PublicLayout><Register /></PublicLayout>} />
+          {/* Ruta pública usada por el enlace seguro de recuperación de contraseña */}
+          <Route path="/reset-password" element={<PublicLayout><ResetPassword /></PublicLayout>} />
           
           {/* Protected Routes */}
           <Route path="/profile" element={<ProtectedRoute><PublicLayout><Profile /></PublicLayout></ProtectedRoute>} />

@@ -8,16 +8,73 @@
 
 import { Router } from "express";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import { pool } from "../config/database.js";
 import { env } from "../config/env.js";
 import { authenticateToken } from "../middleware/auth.js";
 // Importamos límites específicos para login y registro sin afectar /auth/me.
-import { loginLimiter, registerLimiter } from "../middleware/rateLimiter.js";
-import { enviarEmailBienvenida } from "../services/email.service.js";
+import { loginLimiter, passwordResetLimiter, registerLimiter } from "../middleware/rateLimiter.js";
+import { enviarEmailBienvenida, enviarEmailRecuperacion } from "../services/email.service.js";
 
 // Creamos el router de Express para agrupar las rutas de autenticación
 const router = Router();
+
+// Tiempo de validez para enlaces de recuperación de contraseña.
+const PASSWORD_RESET_TTL_MINUTES = 60;
+
+/**
+ * Normaliza correos para evitar duplicados por mayúsculas o espacios.
+ *
+ * @param email - Correo recibido desde el formulario.
+ * @returns Correo normalizado para consultas y persistencia.
+ */
+function normalizarEmail(email: string): string {
+  // Convertimos cualquier valor recibido a string, quitamos espacios y usamos minúsculas.
+  return String(email || "").trim().toLowerCase();
+}
+
+/**
+ * Genera un token aleatorio seguro para recuperación de contraseña.
+ *
+ * @returns Token hexadecimal que solo se envía al email del usuario.
+ */
+function generarTokenRecuperacion(): string {
+  // Usamos 32 bytes aleatorios para producir un token difícil de adivinar.
+  return crypto.randomBytes(32).toString("hex");
+}
+
+/**
+ * Hashea el token de recuperación antes de guardarlo o buscarlo en DB.
+ *
+ * @param token - Token crudo recibido por email o querystring.
+ * @returns Hash SHA-256 hexadecimal del token.
+ */
+function hashearTokenRecuperacion(token: string): string {
+  // Guardamos solo el hash para que una filtración de DB no exponga links válidos.
+  return crypto.createHash("sha256").update(token).digest("hex");
+}
+
+/**
+ * Calcula la fecha de expiración para un token de recuperación.
+ *
+ * @returns Fecha futura de expiración en UTC.
+ */
+function calcularExpiracionRecuperacion(): Date {
+  // Sumamos el tiempo de vida configurado al momento actual.
+  return new Date(Date.now() + PASSWORD_RESET_TTL_MINUTES * 60 * 1000);
+}
+
+/**
+ * Formatea una fecha JS como DATETIME compatible con MySQL.
+ *
+ * @param fecha - Fecha que se escribirá en base de datos.
+ * @returns Fecha en formato YYYY-MM-DD HH:mm:ss.
+ */
+function formatearFechaMysql(fecha: Date): string {
+  // Usamos UTC para mantener consistencia con las demás fechas del backend.
+  return fecha.toISOString().slice(0, 19).replace("T", " ");
+}
 
 // ─── POST /api/auth/register ─────────────────────────────────────────────────
 /**
@@ -141,6 +198,159 @@ router.post("/login", loginLimiter, async (req, res) => {
   } catch (error) {
     console.error("[AUTH] Error en login:", error);
     return res.status(500).json({ error: "Error en el servidor" });
+  }
+});
+
+// ─── POST /api/auth/forgot-password ─────────────────────────────────────────
+/**
+ * Solicita un enlace seguro para restablecer la contraseña.
+ */
+router.post("/forgot-password", passwordResetLimiter, async (req, res) => {
+  // Extraemos el correo del cuerpo de la petición.
+  const { email } = req.body;
+
+  // Normalizamos el correo para consulta consistente.
+  const emailNormalizado = normalizarEmail(email);
+
+  // Validamos que se haya enviado un correo usable.
+  if (!emailNormalizado) {
+    return res.status(400).json({ error: "Email requerido" });
+  }
+
+  try {
+    // Buscamos el usuario sin revelar si existe o no en la respuesta.
+    const [filas] = await pool.query(
+      "SELECT id, email FROM users WHERE email = ? LIMIT 1",
+      [emailNormalizado]
+    );
+
+    // Convertimos el resultado a arreglo para trabajar con seguridad.
+    const usuarios = filas as any[];
+
+    // Si el correo existe, generamos token y enviamos email.
+    if (usuarios.length > 0) {
+      // Tomamos el usuario encontrado por email.
+      const usuario = usuarios[0];
+
+      // Generamos el token crudo que recibirá el usuario por email.
+      const token = generarTokenRecuperacion();
+
+      // Guardamos solo el hash del token en base de datos.
+      const tokenHash = hashearTokenRecuperacion(token);
+
+      // Calculamos la expiración del enlace de recuperación.
+      const expiresAt = formatearFechaMysql(calcularExpiracionRecuperacion());
+
+      // Invalidamos tokens anteriores pendientes de este usuario.
+      await pool.query(
+        "UPDATE password_reset_tokens SET used_at = UTC_TIMESTAMP() WHERE user_id = ? AND used_at IS NULL",
+        [usuario.id]
+      );
+
+      // Persistimos el nuevo token hasheado.
+      await pool.query(
+        `INSERT INTO password_reset_tokens (user_id, token_hash, expires_at)
+         VALUES (?, ?, ?)`,
+        [usuario.id, tokenHash, expiresAt]
+      );
+
+      // Enviamos el correo con el link de recuperación.
+      await enviarEmailRecuperacion(usuario.email, token);
+    }
+
+    // Respondemos siempre igual para evitar enumeración de emails.
+    return res.json({
+      success: true,
+      message: "Si el email está registrado, recibirás instrucciones para recuperar tu contraseña.",
+    });
+  } catch (error) {
+    console.error("[AUTH] Error solicitando recuperación:", error);
+    return res.status(500).json({ error: "Error procesando la solicitud" });
+  }
+});
+
+// ─── POST /api/auth/reset-password ──────────────────────────────────────────
+/**
+ * Restablece la contraseña usando un token válido y no usado.
+ */
+router.post("/reset-password", passwordResetLimiter, async (req, res) => {
+  // Extraemos token y nueva contraseña desde el formulario.
+  const { token, password } = req.body;
+
+  // Normalizamos el token recibido desde la URL.
+  const tokenNormalizado = String(token || "").trim();
+
+  // Validamos formato del token para evitar consultas innecesarias.
+  if (!/^[a-f0-9]{64}$/i.test(tokenNormalizado)) {
+    return res.status(400).json({ error: "El enlace de recuperación no es válido" });
+  }
+
+  // Validamos una longitud mínima coherente con el resto del sistema.
+  if (!password || String(password).length < 6) {
+    return res.status(400).json({ error: "La nueva contraseña debe tener al menos 6 caracteres" });
+  }
+
+  // Hasheamos el token recibido para compararlo con DB.
+  const tokenHash = hashearTokenRecuperacion(tokenNormalizado);
+
+  // Reservamos una conexión para actualizar token y contraseña de forma atómica.
+  const conexion = await pool.getConnection();
+
+  try {
+    // Iniciamos transacción para no dejar tokens activos si falla la actualización.
+    await conexion.beginTransaction();
+
+    // Buscamos un token vigente, no usado y no expirado.
+    const [filasToken]: any = await conexion.query(
+      `SELECT id, user_id
+       FROM password_reset_tokens
+       WHERE token_hash = ?
+         AND used_at IS NULL
+         AND expires_at > UTC_TIMESTAMP()
+       LIMIT 1`,
+      [tokenHash]
+    );
+
+    // Si no existe token válido, revertimos y respondemos error controlado.
+    if (filasToken.length === 0) {
+      await conexion.rollback();
+      return res.status(400).json({ error: "El enlace expiró o ya fue usado" });
+    }
+
+    // Tomamos el registro del token válido.
+    const resetToken = filasToken[0];
+
+    // Hasheamos la nueva contraseña con bcrypt.
+    const passwordHash = await bcrypt.hash(String(password), 10);
+
+    // Actualizamos la contraseña del usuario dueño del token.
+    await conexion.query(
+      "UPDATE users SET password_hash = ? WHERE id = ?",
+      [passwordHash, resetToken.user_id]
+    );
+
+    // Marcamos todos los tokens pendientes de ese usuario como usados.
+    await conexion.query(
+      "UPDATE password_reset_tokens SET used_at = UTC_TIMESTAMP() WHERE user_id = ? AND used_at IS NULL",
+      [resetToken.user_id]
+    );
+
+    // Confirmamos la transacción completa.
+    await conexion.commit();
+
+    // Respondemos éxito sin iniciar sesión automáticamente por seguridad.
+    return res.json({
+      success: true,
+      message: "Contraseña actualizada correctamente. Ya puedes iniciar sesión.",
+    });
+  } catch (error) {
+    // Revertimos cualquier cambio parcial si ocurre un error inesperado.
+    await conexion.rollback();
+    console.error("[AUTH] Error restableciendo contraseña:", error);
+    return res.status(500).json({ error: "Error restableciendo la contraseña" });
+  } finally {
+    // Liberamos la conexión dedicada.
+    conexion.release();
   }
 });
 
