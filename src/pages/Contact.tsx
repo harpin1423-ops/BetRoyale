@@ -87,18 +87,20 @@ export function Contact() {
               target="_blank"
               // Protegemos la nueva pestaña contra acceso al opener.
               rel="noreferrer"
-              // Estilos visuales de tarjeta accionable.
-              className="group rounded-lg border border-primary/30 bg-primary/10 p-6 transition-all hover:-translate-y-0.5 hover:border-primary/60 hover:bg-primary/15 md:p-8"
+              // Estilos visuales de tarjeta accionable con acento de WhatsApp.
+              className="group rounded-lg border border-emerald-400/30 bg-emerald-400/10 p-6 transition-all hover:-translate-y-0.5 hover:border-emerald-400/60 hover:bg-emerald-400/15 md:p-8"
             >
               {/* Fila superior del canal. */}
               <div className="flex items-start justify-between gap-4">
-                {/* Icono principal del canal. */}
-                <div className="flex h-12 w-12 items-center justify-center rounded-md bg-primary text-primary-foreground shadow-[0_0_25px_rgba(212,175,55,0.22)]">
+                {/* Icono principal del canal con estilo visual de WhatsApp. */}
+                <div className="relative flex h-16 w-16 items-center justify-center rounded-full bg-[#25D366] text-white shadow-[0_0_35px_rgba(37,211,102,0.32)] ring-4 ring-emerald-400/15">
                   {/* Icono de mensajería directa. */}
-                  <MessageCircle className="h-6 w-6" />
+                  <MessageCircle className="h-8 w-8" />
+                  {/* Punto visual para reforzar estado disponible. */}
+                  <span className="absolute -right-1 -top-1 h-5 w-5 rounded-full border-2 border-background bg-emerald-200" />
                 </div>
                 {/* Icono de salida externa. */}
-                <ExternalLink className="h-5 w-5 text-primary/80 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                <ExternalLink className="h-5 w-5 text-emerald-300 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
               </div>
               {/* Nombre del canal. */}
               <h2 className="mt-6 text-2xl font-black text-white">WhatsApp Soporte</h2>
@@ -107,9 +109,9 @@ export function Contact() {
                 La vía más rápida para casos de pago, acceso VIP, canales de Telegram o soporte urgente de cuenta.
               </p>
               {/* Dato visible del contacto. */}
-              <p className="mt-5 font-mono text-lg font-bold text-primary">{WHATSAPP_DISPLAY}</p>
+              <p className="mt-5 font-mono text-lg font-bold text-emerald-300">{WHATSAPP_DISPLAY}</p>
               {/* Botón textual dentro de la tarjeta. */}
-              <span className="mt-6 inline-flex items-center gap-2 text-sm font-bold text-primary">
+              <span className="mt-6 inline-flex items-center gap-2 text-sm font-bold text-emerald-300">
                 {/* Texto de acción. */}
                 Escribir por WhatsApp
                 {/* Flecha de continuidad. */}

@@ -1,5 +1,20 @@
+// Importamos React y useState para manejar el acordeón de preguntas frecuentes.
 import React, { useState } from 'react';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+// Importamos iconos para acordeón, WhatsApp, correo y acciones.
+import { ArrowRight, ChevronDown, ChevronUp, Mail, MessageCircle } from 'lucide-react';
+
+// Número oficial de WhatsApp usado por soporte inmediato.
+const WHATSAPP_NUMBER = "573150730901";
+// Número visible en formato internacional para soporte.
+const WHATSAPP_DISPLAY = "+57 315 073 0901";
+// Correo oficial de soporte para casos que requieren más detalle.
+const SUPPORT_EMAIL = "soporte@betroyaleclub.com";
+// Mensaje prellenado para acelerar la atención desde preguntas frecuentes.
+const WHATSAPP_MESSAGE = encodeURIComponent("Hola BetRoyale Club, tengo una duda y necesito soporte inmediato.");
+// URL final de WhatsApp para contacto directo.
+const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER}?text=${WHATSAPP_MESSAGE}`;
+// URL final de correo con asunto predefinido.
+const SUPPORT_MAILTO = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("Soporte BetRoyale Club")}`;
 
 const faqs = [
   {
@@ -36,6 +51,11 @@ const faqs = [
   }
 ];
 
+/**
+ * <summary>
+ * Renderiza la página de preguntas frecuentes con soporte inmediato al final.
+ * </summary>
+ */
 export function FAQ() {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
 
@@ -83,17 +103,54 @@ export function FAQ() {
         ))}
       </div>
       
-      <div className="mt-12 text-center bg-primary/10 border border-primary/20 rounded-2xl p-8">
-        <h3 className="text-xl font-bold mb-2">¿Aún tienes dudas?</h3>
-        <p className="text-muted-foreground mb-6">
-          Nuestro equipo de soporte está disponible para ayudarte con cualquier otra pregunta.
+      {/* Bloque final de soporte inmediato con WhatsApp como canal principal. */}
+      <div className="mt-12 overflow-hidden rounded-lg border border-emerald-400/25 bg-emerald-400/10 p-6 text-center md:p-8">
+        {/* Icono visual de WhatsApp con color reconocible. */}
+        <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-[#25D366] text-white shadow-[0_0_35px_rgba(37,211,102,0.28)] ring-4 ring-emerald-400/15">
+          {/* Icono de conversación directa para representar WhatsApp. */}
+          <MessageCircle className="h-8 w-8" />
+        </div>
+        {/* Título de soporte inmediato. */}
+        <h3 className="text-xl font-black text-white">¿Aún tienes dudas?</h3>
+        {/* Texto de orientación para elegir el canal correcto. */}
+        <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-muted-foreground md:text-base">
+          Escríbenos por WhatsApp para soporte inmediato sobre pagos, membresías VIP, acceso a Telegram o problemas con tu cuenta.
         </p>
-        <a 
-          href="mailto:soporte@betroyaleclub.com" 
-          className="inline-flex items-center justify-center px-6 py-3 bg-primary text-white font-medium rounded-lg hover:bg-primary/90 transition-colors"
-        >
-          Contactar Soporte
-        </a>
+        {/* Número visible para reforzar confianza. */}
+        <p className="mt-4 font-mono text-sm font-bold text-emerald-300">{WHATSAPP_DISPLAY}</p>
+        {/* Acciones principales del bloque de soporte. */}
+        <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
+          {/* Botón principal hacia WhatsApp. */}
+          <a
+            // URL directa con mensaje prellenado.
+            href={WHATSAPP_URL}
+            // Abrimos WhatsApp en una pestaña nueva.
+            target="_blank"
+            // Protegemos la nueva pestaña.
+            rel="noreferrer"
+            // Estilos del botón principal de soporte inmediato.
+            className="inline-flex items-center justify-center gap-2 rounded-md bg-[#25D366] px-6 py-3 text-sm font-black text-white transition-colors hover:bg-[#1fb85a]"
+          >
+            {/* Icono del botón principal. */}
+            <MessageCircle className="h-5 w-5" />
+            {/* Texto del botón principal. */}
+            Soporte inmediato por WhatsApp
+            {/* Flecha visual de acción. */}
+            <ArrowRight className="h-4 w-4" />
+          </a>
+          {/* Botón secundario hacia correo. */}
+          <a
+            // URL mailto con asunto.
+            href={SUPPORT_MAILTO}
+            // Estilos del botón secundario.
+            className="inline-flex items-center justify-center gap-2 rounded-md border border-white/10 bg-white/5 px-6 py-3 text-sm font-bold text-white transition-colors hover:border-primary/40 hover:bg-white/10"
+          >
+            {/* Icono de correo para alternativa de soporte. */}
+            <Mail className="h-5 w-5 text-primary" />
+            {/* Texto del botón secundario. */}
+            Enviar correo
+          </a>
+        </div>
       </div>
     </div>
   );
