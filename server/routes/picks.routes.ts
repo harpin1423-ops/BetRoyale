@@ -216,51 +216,6 @@ async function obtenerCanalesTelegramParaPick(pick: any): Promise<string[]> {
 
 /**
  * <summary>
- * Obtiene todos los canales VIP pagos para publicar resultados generales de parlays.
- * </summary>
- * @returns Lista de Channel IDs VIP configurados, incluyendo VIP Full, sin duplicados.
- */
-async function obtenerCanalesTelegramVipParaResultados(): Promise<string[]> {
-  // Usamos Set para no duplicar envíos cuando un canal está repetido en la configuración.
-  const canales = new Set<string>();
-
-  // Consultamos todos los tipos de pick pagos que tengan canal de Telegram configurado.
-  const [tipos]: any = await pool.query(
-    `SELECT telegram_channel_id
-     FROM pick_types
-     WHERE slug <> 'free'
-       AND telegram_channel_id IS NOT NULL
-       AND telegram_channel_id <> ''`
-  );
-
-  // Agregamos cada canal VIP configurado desde el panel admin.
-  tipos.forEach((tipo: any) => {
-    // Normalizamos espacios accidentales del Channel ID.
-    const channelId = String(tipo.telegram_channel_id || "").trim();
-
-    // Solo agregamos IDs no vacíos.
-    if (channelId) {
-      canales.add(channelId);
-    }
-  });
-
-  // Cargamos la configuración global del canal VIP Full.
-  const fullConfig = await obtenerTelegramFullConfig();
-
-  // Normalizamos el Channel ID de VIP Full.
-  const fullChannelId = String(fullConfig.telegram_channel_id || "").trim();
-
-  // Agregamos VIP Full cuando esté configurado.
-  if (fullChannelId) {
-    canales.add(fullChannelId);
-  }
-
-  // Devolvemos una lista limpia de canales VIP pagos.
-  return Array.from(canales).filter(Boolean);
-}
-
-/**
- * <summary>
  * Convierte una fecha guardada en MySQL como UTC en un objeto Date seguro.
  * </summary>
  * @param value - Fecha del pick recibida desde MySQL.
@@ -447,10 +402,8 @@ async function notificarResultadoPickPorTelegram(pickId: string | number): Promi
   // Detectamos si aplica el resultado corto de parlay VIP.
   const usaMensajeParlayVip = debeUsarMensajeResultadoParlay(pick);
 
-  // En parlays VIP ganados/perdidos publicamos en todos los canales VIP; en lo demás se respeta el canal del plan.
-  const channelIds = usaMensajeParlayVip
-    ? await obtenerCanalesTelegramVipParaResultados()
-    : await obtenerCanalesTelegramParaPick(pick);
+  // Publicamos solo en el canal del plan y en VIP Full si está configurado como espejo.
+  const channelIds = await obtenerCanalesTelegramParaPick(pick);
 
   // Si no hay canales configurados, evitamos llamar a Telegram.
   if (channelIds.length === 0) {
