@@ -1513,7 +1513,7 @@ export function AdminDashboard() {
       {/* Main Content */}
       <main className="flex-1 p-6 md:p-10 overflow-y-auto">
         {activeTab === "new-pick" && (
-          <div className="max-w-4xl mx-auto">
+          <div className="w-full">
             <div className="flex items-center justify-between mb-2">
               <h2 className="text-2xl font-bold">{editingPickId ? "Editar Pick" : "Publicar Nuevo Pick"}</h2>
               {editingPickId && (
@@ -2417,7 +2417,7 @@ export function AdminDashboard() {
           </div>
         )})()}
         {activeTab === "markets" && (
-          <div className="max-w-4xl mx-auto">
+          <div className="w-full">
             <h2 className="text-2xl font-bold mb-2">Gestionar Mercados</h2>
             
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -2533,7 +2533,7 @@ export function AdminDashboard() {
         </div>
       )}
       {activeTab === "leagues" && (
-          <div className="max-w-4xl mx-auto">
+          <div className="w-full">
             <h2 className="text-2xl font-bold mb-2">Gestionar Ligas</h2>
             
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -2832,7 +2832,7 @@ export function AdminDashboard() {
         </div>
       )}
       {activeTab === "countries" && (
-          <div className="max-w-4xl mx-auto">
+          <div className="w-full">
             <h2 className="text-2xl font-bold mb-2">Gestionar Países</h2>
             
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -3224,7 +3224,7 @@ export function AdminDashboard() {
           );
 
           return (
-          <div className="max-w-6xl mx-auto">
+          <div className="w-full">
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6">
               <h2 className="text-2xl font-bold">Estadísticas y Rendimiento</h2>
               
@@ -3507,7 +3507,7 @@ export function AdminDashboard() {
         })()}
 
         {activeTab === "promo-codes" && (
-          <div className="max-w-6xl mx-auto">
+          <div className="w-full">
             <div className="flex items-center justify-between mb-8">
               <h2 className="text-2xl font-bold">Gestión de Cupones</h2>
             </div>
@@ -3629,7 +3629,7 @@ export function AdminDashboard() {
           </div>
         )}
         {activeTab === "telegram" && (
-          <div className="max-w-4xl mx-auto">
+          <div className="w-full">
             <div className="flex items-center justify-between mb-8">
               <div>
                 <h2 className="text-2xl font-bold">Configuración de Telegram</h2>
