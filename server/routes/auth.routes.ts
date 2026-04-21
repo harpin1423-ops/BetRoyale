@@ -12,6 +12,8 @@ import jwt from "jsonwebtoken";
 import { pool } from "../config/database.js";
 import { env } from "../config/env.js";
 import { authenticateToken } from "../middleware/auth.js";
+// Importamos límites específicos para login y registro sin afectar /auth/me.
+import { loginLimiter, registerLimiter } from "../middleware/rateLimiter.js";
 import { enviarEmailBienvenida } from "../services/email.service.js";
 
 // Creamos el router de Express para agrupar las rutas de autenticación
@@ -23,7 +25,8 @@ const router = Router();
  * Valida que el email no esté duplicado, hashea la contraseña con bcrypt
  * y devuelve un JWT listo para usar.
  */
-router.post("/register", async (req, res) => {
+// Limitamos registros sin bloquear las demás rutas de autenticación.
+router.post("/register", registerLimiter, async (req, res) => {
   // Extraemos email y contraseña del cuerpo de la petición
   const { email, password } = req.body;
 
@@ -83,7 +86,8 @@ router.post("/register", async (req, res) => {
  * Autentica a un usuario existente y devuelve un JWT.
  * Verifica el email y la contraseña hasheada con bcrypt.
  */
-router.post("/login", async (req, res) => {
+// Limitamos intentos fallidos de login para proteger contra fuerza bruta.
+router.post("/login", loginLimiter, async (req, res) => {
   // Extraemos las credenciales del cuerpo de la petición
   const { email, password } = req.body;
 

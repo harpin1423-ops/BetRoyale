@@ -8,11 +8,12 @@ import rateLimit from "express-rate-limit";
 
 /**
  * Limitador general para toda la API.
- * Permite 100 peticiones cada 15 minutos por IP.
+ * Permite 1000 peticiones cada 15 minutos por IP.
  */
 export const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 100, // Límite de 100 peticiones por ventana
+  // Permitimos navegación normal, polling de paneles y uso de admin sin bloquear usuarios reales.
+  max: 1000,
   standardHeaders: true, // Retorna info en headers 'RateLimit-*'
   legacyHeaders: false, // Deshabilita headers 'X-RateLimit-*'
   message: {
@@ -21,15 +22,35 @@ export const apiLimiter = rateLimit({
 });
 
 /**
- * Limitador estricto para rutas sensibles (Login y Registro).
- * Permite solo 10 intentos cada hora por IP.
+ * Limitador estricto para intentos de login.
+ * Permite 20 intentos fallidos cada 15 minutos por IP.
  */
-export const authLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hora
-  max: 10, // Límite de 10 intentos
+export const loginLimiter = rateLimit({
+  // Ventana corta para frenar fuerza bruta sin bloquear el uso normal demasiado tiempo.
+  windowMs: 15 * 60 * 1000,
+  // Límite de intentos fallidos por ventana.
+  max: 20,
+  // Los logins exitosos no deben consumir el cupo del usuario legítimo.
+  skipSuccessfulRequests: true,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
     error: "Demasiados intentos de acceso sospechosos. Esta IP ha sido restringida temporalmente.",
+  },
+});
+
+/**
+ * Limitador estricto para creación de cuentas.
+ * Permite 10 registros cada hora por IP.
+ */
+export const registerLimiter = rateLimit({
+  // Usamos una ventana más larga porque el registro es una acción menos frecuente.
+  windowMs: 60 * 60 * 1000,
+  // Límite de cuentas creadas o intentadas por IP.
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: "Demasiados registros desde esta IP. Inténtalo más tarde.",
   },
 });

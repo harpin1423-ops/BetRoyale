@@ -32,7 +32,7 @@ import statsRouter from "./routes/stats.routes.js";
 import promoCodesRouter from "./routes/promoCodes.routes.js";
 import pickTypesRouter from "./routes/pickTypes.routes.js";
 import telegramRouter from "./routes/telegram.routes.js";
-import { apiLimiter, authLimiter } from "./middleware/rateLimiter.js";
+import { apiLimiter } from "./middleware/rateLimiter.js";
 
 /**
  * Crea y configura la instancia del servidor Express,
@@ -47,6 +47,9 @@ export async function startServer(): Promise<void> {
 
   // ── Creación de la aplicación Express ───────────────────────────────────────
   const app = express();
+
+  // Confiamos en el primer proxy para que el rate limit use la IP real en Hostinger.
+  app.set("trust proxy", 1);
 
   // ── Middlewares globales de Seguridad ──────────────────────────────────────
 
@@ -86,8 +89,8 @@ export async function startServer(): Promise<void> {
   // ── Rutas de la API ──────────────────────────────────────────────────────────
   // Cada dominio tiene su propio prefijo de ruta
 
-  /** Autenticación: registro, login, perfil. Protegido con authLimiter */
-  app.use("/api/auth", authLimiter, authRouter);
+  /** Autenticación: registro, login, perfil. Los límites sensibles viven por ruta */
+  app.use("/api/auth", authRouter);
 
   /** Perfil y métricas del usuario autenticado */
   app.use("/api/user", usersRouter);
