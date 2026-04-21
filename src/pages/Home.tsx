@@ -66,10 +66,24 @@ export function Home() {
         const picksData = await picksRes.json();
         const statsData = await statsRes.json();
         const monthlyData = await monthlyRes.json();
+
+        // Normalizamos los puntos mensuales porque producción puede devolver "mes" y la gráfica usa "month".
+        const normalizedMonthlyData = Array.isArray(monthlyData)
+          ? monthlyData.map((point: any) => ({
+              // Conservamos la clave principal que usa el eje X.
+              month: point.month || point.mes,
+              // Conservamos la clave legacy que devuelve el backend para compatibilidad.
+              mes: point.mes || point.month,
+              // Convertimos yield a número para que Recharts pueda dibujar la línea.
+              yield: Number(point.yield) || 0,
+              // Convertimos profit a número para mantener tooltips y futuros cálculos estables.
+              profit: Number(point.profit) || 0,
+            }))
+          : [];
         
         setPicks(picksData);
         setAllStats(statsData);
-        setMonthlyYield(monthlyData);
+        setMonthlyYield(normalizedMonthlyData);
 
         // Calculate won today
         const today = new Date().toISOString().split('T')[0];
@@ -468,8 +482,13 @@ export function Home() {
                       tickLine={false}
                       axisLine={false}
                       tickFormatter={(val) => {
+                        // Evitamos romper el render si llega un valor vacío desde datos antiguos.
+                        if (!val) return "";
+                        // Separamos el formato YYYY-MM para mostrarlo en español compacto.
                         const [year, month] = val.split('-');
+                        // Nombres cortos de meses para el eje X.
                         const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+                        // Mostramos mes y año corto en el gráfico.
                         return `${months[parseInt(month) - 1]} ${year.slice(2)}`;
                       }}
                     />
@@ -491,6 +510,10 @@ export function Home() {
                       strokeWidth={3}
                       fillOpacity={1} 
                       fill="url(#colorYield)" 
+                      /* Punto visible para que un único mes con datos no se vea como gráfico vacío. */
+                      dot={{ r: 5, fill: "#f27d26", stroke: "#0b1220", strokeWidth: 2 }}
+                      /* Punto destacado al pasar el cursor sobre el gráfico. */
+                      activeDot={{ r: 7, fill: "#f27d26", stroke: "#ffffff", strokeWidth: 2 }}
                     />
                   </AreaChart>
                 </ResponsiveContainer>

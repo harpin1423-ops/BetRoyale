@@ -121,7 +121,7 @@ router.get("/performance", async (req, res) => {
  */
 router.get("/monthly-yield", async (_req, res) => {
   try {
-    // Agrupamos picks por mes y calculamos profit y total staked por mes
+    // Agrupamos picks por mes y calculamos profit y total staked por mes dentro de los últimos 6 meses calendario
     const [filas]: any = await pool.query(`
       SELECT 
         DATE_FORMAT(match_date, '%Y-%m') AS mes,
@@ -136,18 +136,52 @@ router.get("/monthly-yield", async (_req, res) => {
         END) AS total_staked
       FROM picks
       WHERE status IN ('won', 'lost', 'void')
+        AND match_date >= DATE_SUB(DATE_FORMAT(CURDATE(), '%Y-%m-01'), INTERVAL 5 MONTH)
       GROUP BY mes
-      ORDER BY mes DESC
-      LIMIT 6
+      ORDER BY mes ASC
     `);
 
-    // Invertimos el orden para que el más antiguo esté primero (para el gráfico)
-    const dataMensual = filas.reverse().map((fila: any) => {
-      const profit = Number(fila.profit) || 0;
-      const totalStaked = Number(fila.total_staked) || 0;
+    // Indexamos las filas por mes para rellenar meses sin picks con valores en cero
+    const filasPorMes = new Map<string, any>(filas.map((fila: any) => [String(fila.mes), fila]));
+
+    // Tomamos el primer día del mes actual para construir meses consistentes sin saltos por día/hora
+    const fechaBase = new Date();
+
+    // Fijamos el día en 1 para evitar que meses cortos salten de forma inesperada
+    fechaBase.setDate(1);
+
+    // Creamos los últimos 6 meses en orden ascendente para que el gráfico siempre tenga eje X visible
+    const mesesRecientes = Array.from({ length: 6 }, (_valor, indice) => {
+      // Calculamos el mes correspondiente desde el más antiguo hasta el actual
+      const fecha = new Date(fechaBase.getFullYear(), fechaBase.getMonth() - (5 - indice), 1);
+
+      // Formateamos el año con 4 dígitos
+      const anio = fecha.getFullYear();
+
+      // Formateamos el mes con 2 dígitos
+      const mes = String(fecha.getMonth() + 1).padStart(2, "0");
+
+      // Devolvemos el formato YYYY-MM requerido por el frontend
+      return `${anio}-${mes}`;
+    });
+
+    // Convertimos cada mes a un punto de gráfico compatible con frontend actual y versiones anteriores
+    const dataMensual = mesesRecientes.map((mes) => {
+      // Recuperamos la fila real del mes si existe
+      const fila = filasPorMes.get(mes);
+
+      // Normalizamos el profit para evitar strings/null desde MySQL
+      const profit = Number(fila?.profit) || 0;
+
+      // Normalizamos el total apostado para evitar división por cero o strings/null desde MySQL
+      const totalStaked = Number(fila?.total_staked) || 0;
+
+      // Devolvemos un punto estable para Recharts
       return {
         /** Mes en formato YYYY-MM */
-        mes: fila.mes,
+        mes,
+        /** Alias usado por el eje X de la home */
+        month: mes,
         /** Yield del mes en porcentaje */
         yield: totalStaked > 0
           ? Number(((profit / totalStaked) * 100).toFixed(2))
