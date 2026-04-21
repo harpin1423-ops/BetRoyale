@@ -1605,9 +1605,9 @@ export function AdminDashboard() {
                       <table className="w-full text-left border-collapse">
                         <thead>
                           <tr className="bg-white/5 border-b border-white/10">
-                            <th className="px-5 py-5 text-xs font-black text-primary uppercase tracking-[0.2em] w-[220px]">País</th>
-                            <th className="px-5 py-5 text-xs font-black text-primary uppercase tracking-[0.2em] w-[260px]">Liga</th>
-                            <th className="px-5 py-5 text-xs font-black text-primary uppercase tracking-[0.2em]">Evento / Partido</th>
+                            <th className="px-5 py-5 text-xs font-black text-primary uppercase tracking-[0.2em] w-[150px]">País</th>
+                            <th className="px-5 py-5 text-xs font-black text-primary uppercase tracking-[0.2em] w-[220px]">Liga</th>
+                            <th className="px-5 py-5 text-xs font-black text-primary uppercase tracking-[0.2em] min-w-[300px]">Evento / Partido</th>
                             <th className="px-5 py-5 text-xs font-black text-primary uppercase tracking-[0.2em] w-[220px]">Fecha</th>
                             <th className="px-5 py-5 text-xs font-black text-primary uppercase tracking-[0.2em] w-[300px]">Mercado</th>
                             <th className="px-5 py-5 text-xs font-black text-primary uppercase tracking-[0.2em] w-[120px] text-center">Cuota</th>
