@@ -1988,7 +1988,7 @@ export function AdminDashboard() {
                                 {pick.league_name || pick.league}
                               </div>
                             )}
-                            {pick.is_parlay && pick.selections && (
+                            {Boolean(pick.is_parlay) && pick.selections && (
                               <div className="mt-2 space-y-1">
                                 {pick.selections.map((sel: any, idx: number) => (
                                   <div key={idx} className="text-[10px] text-muted-foreground border-l border-white/10 pl-2">
