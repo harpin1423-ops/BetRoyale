@@ -1,10 +1,23 @@
 import React from "react";
 
-export const CountryFlag = ({ code }: { code: string | any }) => {
-  const codeStr = String(code || "").trim().toLowerCase();
+/**
+ * Props compatibles con los usos históricos del componente de bandera.
+ */
+type CountryFlagProps = {
+  /** Código ISO principal del país. */
+  code?: string | any;
+  /** Alias heredado usado por algunos selects del panel admin. */
+  countryCode?: string | any;
+  /** Clases visuales opcionales para ajustar tamaño en contextos concretos. */
+  className?: string;
+};
+
+export const CountryFlag = ({ code, countryCode, className = "" }: CountryFlagProps) => {
+  // Permitimos code y countryCode para mantener compatibilidad con pantallas existentes.
+  const codeStr = String(code || countryCode || "").trim().toLowerCase();
   
   const renderContinentIcon = () => (
-    <div className="w-5 h-4 rounded-sm bg-[#1e40af] flex items-center justify-center overflow-hidden border border-white/10 shadow-sm">
+    <div className={`w-5 h-4 rounded-sm bg-[#1e40af] flex items-center justify-center overflow-hidden border border-white/10 shadow-sm ${className}`}>
       <svg 
         viewBox="0 0 24 24" 
         fill="none" 
@@ -32,7 +45,7 @@ export const CountryFlag = ({ code }: { code: string | any }) => {
       src={`https://cdn.jsdelivr.net/gh/lipis/flag-icons/flags/4x3/${codeStr}.svg`} 
       width="20"
       alt={codeStr}
-      className="inline-block rounded-sm"
+      className={`inline-block rounded-sm ${className}`}
       referrerPolicy="no-referrer"
     />
   );

@@ -539,6 +539,8 @@ export function formatPickParaTelegram(
   const plan = escapeTelegramHtml(pick.pick_type_name || "BetRoyale");
   const { fecha, hora } = formatFechaHoraColombia(pick.match_date, "utc");
   const webUrl = escapeTelegramHtml(getPickWebUrl(pick));
+  // Detectamos parlays para evitar repetir una hora general que no representa todas las selecciones.
+  const esParlay = Boolean(pick.is_parlay && pick.selections?.length);
 
   // Construimos el cuerpo del mensaje con los datos del pick
   let mensaje = encabezado;
@@ -546,13 +548,17 @@ export function formatPickParaTelegram(
   mensaje += `🏆 <b>Evento:</b> ${matchName}\n`;
   mensaje += `🌍 <b>Liga:</b> ${league || "No definida"}\n`;
   mensaje += `📅 <b>Fecha:</b> ${fecha}\n`;
-  mensaje += `🕒 <b>Hora:</b> ${hora}\n`;
+  // En parlays omitimos la hora principal porque cada selección tiene su propio horario.
+  if (!esParlay) {
+    mensaje += `🕒 <b>Hora:</b> ${hora}\n`;
+  }
   mensaje += `🎯 <b>Pronóstico:</b> ${pickValue}\n`;
-  mensaje += `📈 <b>Cuota:</b> ${odds}\n`;
+  // Resaltamos la cuota principal para que sea el dato visual dominante del pick.
+  mensaje += `📈 <b>Cuota${esParlay ? " Total" : ""}:</b> ⭐ <b>${odds}</b>\n`;
   mensaje += `💰 <b>Stake:</b> ${stake}\n`;
 
   // Si el pick es parlay, mostramos cada selección con su propia liga, mercado y hora.
-  if (pick.is_parlay && pick.selections?.length) {
+  if (esParlay) {
     mensaje += `\n<b>Selecciones del parlay:</b>\n`;
     pick.selections.forEach((selection, index) => {
       const selectionMatch = escapeTelegramHtml(selection.match_name || `Selección ${index + 1}`);
@@ -571,9 +577,10 @@ export function formatPickParaTelegram(
       mensaje += `${index + 1}. <b>${selectionMatch}</b>\n`;
       mensaje += `   🌍 ${selectionLeague || "Liga no definida"}\n`;
       if (selectionDateTime) {
-        mensaje += `   📅 ${selectionDateTime.fecha} · 🕒 ${selectionDateTime.hora}\n`;
+        mensaje += `   📅 ${selectionDateTime.fecha}\n`;
+        mensaje += `   🕒 ${selectionDateTime.hora}\n`;
       }
-      mensaje += `   🎯 ${selectionMarket}${selectionOdds ? ` @ ${selectionOdds}` : ""}\n`;
+      mensaje += `   🎯 ${selectionMarket}${selectionOdds ? ` @ ⭐ <b>${selectionOdds}</b>` : ""}\n`;
     });
   }
 

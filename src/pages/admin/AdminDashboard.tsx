@@ -41,6 +41,8 @@ export function AdminDashboard() {
   const [isSubmittingPick, setIsSubmittingPick] = useState(false);
   const [isSubmittingTracking, setIsSubmittingTracking] = useState(false);
   const [activeTrackingPickId, setActiveTrackingPickId] = useState<number | null>(null);
+  // Guardamos el mensaje de seguimiento temporal que se publica en Telegram.
+  const [trackingMessage, setTrackingMessage] = useState("");
   const [editingPickId, setEditingPickId] = useState<number | null>(null);
   const [isSubmittingPickType, setIsSubmittingPickType] = useState(false);
   const [globalError, setGlobalError] = useState<string | null>(null);
@@ -2675,17 +2677,17 @@ export function AdminDashboard() {
                             {editingInlineLeagueId === league.id ? (
                               <>
                                 <td className="p-4">
-                                  <CustomSelect 
-                                    value={inlineLeagueCountryId} 
-                                    onChange={(_, value) => setInlineLeagueCountryId(value)}
+                                  <select
+                                    value={inlineLeagueCountryId}
+                                    onChange={(e) => setInlineLeagueCountryId(e.target.value)}
                                     onKeyDown={(e) => e.key === 'Enter' && saveInlineLeague(league.id)}
-                                    className="w-full"
+                                    className="w-full bg-background border border-white/10 rounded px-2 py-1 text-sm focus:border-primary focus:outline-none"
                                   >
                                     <option value="">(Ninguno)</option>
                                     {countries.map(c => (
                                       <option key={c.id} value={c.id}>{c.name}</option>
                                     ))}
-                                  </CustomSelect>
+                                  </select>
                                 </td>
                                 <td className="p-4">
                                   <input 

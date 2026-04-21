@@ -192,8 +192,51 @@ export default function Profile() {
     return methods[method.toLowerCase()] || method.charAt(0).toUpperCase() + method.slice(1);
   };
 
+  /**
+   * Formatea montos COP sin decimales para tarjetas de suscripción.
+   *
+   * @param amount - Valor en pesos colombianos.
+   * @param currency - Moneda registrada en la suscripción.
+   * @returns Monto legible o texto fallback.
+   */
+  const formatCopAmount = (amount: number | string | null, currency?: string | null) => {
+    // Si no hay valor, evitamos mostrar datos engañosos.
+    if (!amount) return 'N/A';
+
+    // Formateamos el costo con la moneda original registrada.
+    return new Intl.NumberFormat('es-CO', {
+      style: 'currency',
+      currency: currency || 'COP',
+      minimumFractionDigits: 0,
+    }).format(Number(amount));
+  };
+
+  /**
+   * Formatea montos USD para mostrar el valor de referencia del plan.
+   *
+   * @param amountUsd - Valor en dólares guardado en la suscripción.
+   * @param amountCop - Valor COP usado como fallback para suscripciones antiguas.
+   * @returns Monto USD legible o texto fallback.
+   */
+  const formatUsdAmount = (amountUsd: number | string | null, amountCop?: number | string | null) => {
+    // Calculamos fallback aproximado para registros antiguos sin amount_usd.
+    const value = amountUsd ? Number(amountUsd) : amountCop ? Number(amountCop) / 4000 : null;
+
+    // Si no hay valor suficiente, devolvemos texto neutral.
+    if (!value) return 'N/A';
+
+    // Formateamos USD con dos decimales para consistencia comercial.
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    }).format(value);
+  };
+
+  // Normalizamos suscripciones activas para renderizar tarjetas sin scroll horizontal.
+  const activeSubscriptions = Array.isArray(profileData?.subscriptions) ? profileData.subscriptions : [];
+
   return (
-    <div className="min-h-screen pt-24 md:pt-32 pb-20 px-4 md:px-8 max-w-6xl mx-auto">
+    <div className="min-h-screen pt-24 md:pt-32 pb-20 px-4 md:px-8 max-w-7xl mx-auto">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -283,27 +326,31 @@ export default function Profile() {
         </button>
       </motion.div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
         {/* Left Column: User Info & Status */}
-        <div className="lg:col-span-4 space-y-6">
+        <div className="xl:col-span-5 space-y-6">
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="bg-card border border-white/10 rounded-2xl p-6"
+            className="bg-card border border-white/10 rounded-2xl p-6 md:p-7 overflow-hidden"
           >
-            <div className="flex flex-col items-center text-center">
-              <div className="w-20 h-20 rounded-full bg-primary/20 flex items-center justify-center text-primary mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-5">
+              <div className="w-20 h-20 rounded-2xl bg-primary/20 flex items-center justify-center text-primary shrink-0">
                 <User className="w-10 h-10" />
               </div>
-              <h2 className="text-xl font-bold mb-1 truncate w-full">{profileData?.email}</h2>
-              <div className="flex items-center gap-2 mt-2">
-                <Shield className="w-4 h-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground capitalize">Rol: {profileData?.role}</span>
-              </div>
-              <div className="flex items-center gap-2 mt-1">
-                <Calendar className="w-4 h-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">Miembro desde: {formatDate(createdDate)}</span>
+              <div className="min-w-0 flex-1 text-center sm:text-left">
+                <h2 className="text-xl md:text-2xl font-black mb-2 truncate">{profileData?.email}</h2>
+                <div className="flex flex-wrap justify-center sm:justify-start gap-2">
+                  <span className="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1 text-xs text-muted-foreground capitalize">
+                    <Shield className="w-3.5 h-3.5" />
+                    Rol: {profileData?.role}
+                  </span>
+                  <span className="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1 text-xs text-muted-foreground">
+                    <Calendar className="w-3.5 h-3.5" />
+                    Desde {formatDate(createdDate)}
+                  </span>
+                </div>
               </div>
             </div>
           </motion.div>
@@ -327,40 +374,40 @@ export default function Profile() {
                 </div>
                 
                 <div className="space-y-3">
-                  {profileData?.subscriptions && profileData.subscriptions.length > 0 ? (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm text-left">
-                        <thead className="text-xs text-muted-foreground uppercase bg-white/5">
-                          <tr>
-                            <th className="px-4 py-3">Plan</th>
-                            <th className="px-4 py-3">Periodicidad</th>
-                            <th className="px-4 py-3">Costo (COP)</th>
-                            <th className="px-4 py-3">Costo (USD)</th>
-                            <th className="px-4 py-3">Pago</th>
-                            <th className="px-4 py-3">Vence</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {profileData.subscriptions.map((sub: any, idx: number) => (
-                            <tr key={idx} className="border-b border-white/5">
-                              <td className="px-4 py-3 font-medium text-white">{getPlanName(sub.plan_id)}</td>
-                              <td className="px-4 py-3 text-white capitalize">{sub.periodicity || 'mensual'}</td>
-                              <td className="px-4 py-3 text-primary font-bold">
-                                {sub.amount ? new Intl.NumberFormat('es-CO', { style: 'currency', currency: sub.currency || 'COP', minimumFractionDigits: 0 }).format(sub.amount) : 'N/A'}
-                              </td>
-                              <td className="px-4 py-3 text-primary font-bold">
-                                {sub.amount_usd 
-                                  ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(sub.amount_usd) 
-                                  : sub.amount 
-                                    ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(sub.amount / 4000)
-                                    : 'N/A'}
-                              </td>
-                              <td className="px-4 py-3 text-white">{formatPaymentMethod(sub.payment_method)}</td>
-                              <td className="px-4 py-3 text-white">{formatDate(new Date(sub.expires_at))}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                  {activeSubscriptions.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2 gap-3">
+                      {activeSubscriptions.map((sub: any, idx: number) => (
+                        <div key={idx} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                          <div className="flex items-start justify-between gap-3 mb-4">
+                            <div className="min-w-0">
+                              <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground mb-1">Plan activo</div>
+                              <div className="font-black text-white leading-tight">{getPlanName(sub.plan_id)}</div>
+                            </div>
+                            <span className="shrink-0 rounded-full bg-primary/15 px-3 py-1 text-[10px] font-bold uppercase text-primary">
+                              {sub.periodicity || 'mensual'}
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3 text-sm">
+                            <div className="rounded-xl bg-background/60 p-3">
+                              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Costo COP</div>
+                              <div className="mt-1 font-bold text-primary">{formatCopAmount(sub.amount, sub.currency)}</div>
+                            </div>
+                            <div className="rounded-xl bg-background/60 p-3">
+                              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Valor USD</div>
+                              <div className="mt-1 font-bold text-primary">{formatUsdAmount(sub.amount_usd, sub.amount)}</div>
+                            </div>
+                            <div className="rounded-xl bg-background/60 p-3">
+                              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Pago</div>
+                              <div className="mt-1 font-bold text-white">{formatPaymentMethod(sub.payment_method)}</div>
+                            </div>
+                            <div className="rounded-xl bg-background/60 p-3">
+                              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Vence</div>
+                              <div className="mt-1 font-bold text-white">{formatDate(new Date(sub.expires_at))}</div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   ) : (
                     <div className="bg-white/5 rounded-lg p-4 space-y-3">
@@ -428,7 +475,7 @@ export default function Profile() {
         </div>
 
         {/* Right Column: Settings & Metrics */}
-        <div className="lg:col-span-8 space-y-6">
+        <div className="xl:col-span-7 space-y-6">
           
           {/* Metrics Section (Only for VIPs) */}
           {isVipActive && metricsData && (
