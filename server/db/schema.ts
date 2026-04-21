@@ -85,6 +85,54 @@ const LIGAS_INICIALES = [
   { pais: "Arabia Saudita", ligas: ["Pro League"] },
 ];
 
+// ─── Equipos iniciales por liga y país ───────────────────────────────────────
+// Se usan para poblar la tabla 'teams' al iniciar el servidor
+const EQUIPOS_INICIALES = [
+  {
+    pais: "España",
+    liga: "La Liga",
+    equipos: [
+      "Deportivo Alavés", "Athletic Club", "Atlético de Madrid", "F. C. Barcelona",
+      "Real Betis Balompié", "Celta de Vigo", "Elche C. F.", "R. C. D. Espanyol",
+      "Getafe C. F.", "Girona F. C.", "Levante U. D.", "R. C. D. Mallorca",
+      "C. A. Osasuna", "Real Oviedo", "Rayo Vallecano", "Real Madrid C. F.",
+      "Real Sociedad", "Sevilla F. C.", "Valencia C. F.", "Villarreal C. F."
+    ]
+  },
+  {
+    pais: "Inglaterra",
+    liga: "Premier League",
+    equipos: [
+      "Arsenal", "Aston Villa", "Bournemouth", "Brentford", "Brighton & Hove Albion",
+      "Chelsea", "Crystal Palace", "Everton", "Fulham", "Ipswich Town",
+      "Leicester City", "Liverpool", "Manchester City", "Manchester United",
+      "Newcastle United", "Nottingham Forest", "Southampton", "Tottenham Hotspur",
+      "West Ham United", "Wolverhampton Wanderers"
+    ]
+  },
+  {
+    pais: "Colombia",
+    liga: "Liga BetPlay",
+    equipos: [
+      "Águilas Doradas", "Alianza FC", "América de Cali", "Atlético Bucaramanga",
+      "Atlético Nacional", "Boyacá Chicó", "Deportes Tolima", "Deportivo Cali",
+      "Deportivo Pasto", "Deportivo Pereira", "Envigado FC", "Fortaleza CEIF",
+      "Independiente Santa Fe", "Jaguares de Córdoba", "Junior de Barranquilla",
+      "La Equidad", "Millonarios", "Once Caldas", "Patriotas Boyacá", "Independiente Medellín"
+    ]
+  },
+  {
+    pais: "México",
+    liga: "Liga MX",
+    equipos: [
+      "Club América", "Atlas", "Atlético de San Luis", "Cruz Azul", "Chivas Guadalajara",
+      "FC Juárez", "Club León", "Mazatlán FC", "Monterrey", "Necaxa",
+      "Pachuca", "Puebla", "Pumas UNAM", "Querétaro", "Santos Laguna",
+      "Tigres UANL", "Toluca", "Tijuana"
+    ]
+  }
+];
+
 /**
  * Inicializa el esquema completo de la base de datos.
  * Crea tablas, ejecuta migraciones y siembra datos iniciales.
@@ -337,11 +385,25 @@ export async function initDB(): Promise<void> {
         max_uses            INT DEFAULT NULL,
         current_uses        INT DEFAULT 0,
         valid_until         DATETIME DEFAULT NULL,
-        created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        created_at          TIMESTAMP    DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
-    // ── 13. Tabla: app_settings ─────────────────────────────────────────────
+    // ── 13. Tabla: teams ─────────────────────────────────────────────────────
+    // Almacena equipos deportivos vinculados a una liga y país
+    await conexion.query(`
+      CREATE TABLE IF NOT EXISTS teams (
+        id         INT AUTO_INCREMENT PRIMARY KEY,
+        name       VARCHAR(255) NOT NULL,
+        league_id  INT,
+        country_id INT,
+        UNIQUE KEY unique_team_league (name, league_id),
+        FOREIGN KEY (league_id)  REFERENCES leagues(id) ON DELETE CASCADE,
+        FOREIGN KEY (country_id) REFERENCES countries(id) ON DELETE CASCADE
+      )
+    `);
+
+    // ── 14. Tabla: app_settings ─────────────────────────────────────────────
     // Configuraciones globales del panel que no pertenecen a una entidad normal.
     await conexion.query(`
       CREATE TABLE IF NOT EXISTS app_settings (
@@ -425,6 +487,38 @@ export async function initDB(): Promise<void> {
         [hashAdmin]
       );
       console.log("[DB] ✅ Usuario admin creado: admin@betroyale.club / admin123");
+    }
+
+    // ── Sembrar equipos iniciales ─────────────────────────────────────────────
+    console.log("[DB] Sembrando equipos iniciales...");
+    for (const item of EQUIPOS_INICIALES) {
+      try {
+        // Obtenemos el ID del país
+        const [filasPais]: any = await conexion.query(
+          "SELECT id FROM countries WHERE name = ?",
+          [item.pais]
+        );
+        const idPais = filasPais[0]?.id;
+        if (!idPais) continue;
+
+        // Obtenemos el ID de la liga
+        const [filasLiga]: any = await conexion.query(
+          "SELECT id FROM leagues WHERE name = ? AND country_id = ?",
+          [item.liga, idPais]
+        );
+        const idLiga = filasLiga[0]?.id;
+        if (!idLiga) continue;
+
+        // Insertamos los equipos
+        for (const nombreEquipo of item.equipos) {
+          await conexion.query(
+            "INSERT IGNORE INTO teams (name, league_id, country_id) VALUES (?, ?, ?)",
+            [nombreEquipo, idLiga, idPais]
+          ).catch(() => {});
+        }
+      } catch (err) {
+        console.error(`[DB] Error sembrando equipos para ${item.liga}:`, err);
+      }
     }
 
     console.log("[DB] ✅ Esquema inicializado correctamente");

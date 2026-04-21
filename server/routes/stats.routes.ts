@@ -6,11 +6,226 @@
  */
 
 import { Router } from "express";
+// Importamos JWT para autenticación opcional en estadísticas públicas.
+import jwt from "jsonwebtoken";
 import { pool } from "../config/database.js";
+// Importamos variables de entorno para validar tokens opcionales.
+import { env } from "../config/env.js";
 import { authenticateToken, requireAdmin } from "../middleware/auth.js";
 
 // Creamos el router para las rutas de estadísticas
 const router = Router();
+
+// Centralizamos los estados resueltos que pueden mostrarse completos al público.
+const ESTADOS_RESUELTOS = new Set(["won", "lost", "void", "half-won", "half-lost"]);
+
+/**
+ * <summary>
+ * Extrae un usuario opcional desde Authorization sin bloquear rutas públicas.
+ * </summary>
+ * @param req - Solicitud HTTP con header Authorization opcional.
+ * @returns Usuario decodificado o null si no hay sesión válida.
+ */
+function obtenerUsuarioOpcional(req: any): { id: number; email: string; role: string } | null {
+  // Leemos el header Authorization enviado por el frontend.
+  const authHeader = req.headers["authorization"];
+
+  // Extraemos el token Bearer cuando existe.
+  const token = authHeader && authHeader.split(" ")[1];
+
+  // Si no hay token usable, la ruta funciona como pública.
+  if (!token || token === "null" || token === "undefined") {
+    return null;
+  }
+
+  try {
+    // Verificamos el JWT con la clave del servidor.
+    const decoded = jwt.verify(token, env.JWT_SECRET) as any;
+
+    // Devolvemos solo los campos necesarios para autorización de vista.
+    return { id: decoded.id, email: decoded.email, role: decoded.role };
+  } catch (_error) {
+    // Un token inválido no debe romper la página pública de estadísticas.
+    return null;
+  }
+}
+
+/**
+ * <summary>
+ * Obtiene los planes activos del usuario para decidir qué picks pendientes puede ver.
+ * </summary>
+ * @param userId - ID del usuario autenticado.
+ * @returns Slugs de planes activos del usuario.
+ */
+async function obtenerPlanesActivosUsuario(userId: number): Promise<string[]> {
+  // Consultamos solo suscripciones vigentes para no dar acceso con planes vencidos.
+  const [rows]: any = await pool.query(
+    `SELECT DISTINCT plan_id
+     FROM user_subscriptions
+     WHERE user_id = ?
+       AND expires_at > NOW()`,
+    [userId]
+  );
+
+  // Convertimos filas en una lista simple de slugs.
+  return rows.map((row: any) => String(row.plan_id));
+}
+
+/**
+ * <summary>
+ * Indica si un usuario puede ver detalles de un pick VIP pendiente.
+ * </summary>
+ * @param pick - Pick del historial de estadísticas.
+ * @param usuario - Usuario autenticado opcional.
+ * @param planesActivos - Planes activos del usuario autenticado.
+ * @returns true si el detalle puede mostrarse.
+ */
+function puedeVerDetallePendienteVip(pick: any, usuario: { role: string } | null, planesActivos: string[]): boolean {
+  // Los administradores siempre pueden auditar todos los detalles.
+  if (usuario?.role === "admin") {
+    return true;
+  }
+
+  // Normalizamos el slug del plan del pick.
+  const slug = String(pick.pick_type_slug || "");
+
+  // El plan all_plans permite ver todos los VIP pendientes.
+  if (planesActivos.includes("all_plans")) {
+    return true;
+  }
+
+  // El usuario solo ve pendientes de planes que tiene activos.
+  return planesActivos.includes(slug);
+}
+
+/**
+ * <summary>
+ * Convierte un JSON de selecciones de parlay en un arreglo seguro.
+ * </summary>
+ * @param rawSelections - JSON guardado en base de datos.
+ * @returns Selecciones parseadas o arreglo vacío.
+ */
+function parseSeleccionesStats(rawSelections: any): any[] {
+  // Si no hay selecciones, devolvemos un arreglo vacío.
+  if (!rawSelections) {
+    return [];
+  }
+
+  // Si MySQL devuelve texto JSON, intentamos parsearlo.
+  if (typeof rawSelections === "string") {
+    try {
+      // Devolvemos el JSON convertido a arreglo.
+      return JSON.parse(rawSelections);
+    } catch (_error) {
+      // Si el JSON está dañado, evitamos romper estadísticas.
+      return [];
+    }
+  }
+
+  // Si ya viene como arreglo, lo reutilizamos.
+  if (Array.isArray(rawSelections)) {
+    return rawSelections;
+  }
+
+  // Cualquier otro formato no es seguro para mostrar.
+  return [];
+}
+
+/**
+ * <summary>
+ * Enriquece selecciones de parlay con liga, país y mercado legible.
+ * </summary>
+ * @param rawSelections - Selecciones originales del pick.
+ * @param leagueMap - Mapa de ligas por ID.
+ * @param marketMap - Mapa de mercados por ID.
+ * @returns Selecciones listas para el frontend.
+ */
+function enriquecerSeleccionesStats(rawSelections: any, leagueMap: Map<string, any>, marketMap: Map<string, any>): any[] {
+  // Parseamos el JSON antes de enriquecer.
+  const selecciones = parseSeleccionesStats(rawSelections);
+
+  // Mapeamos cada selección con datos legibles.
+  return selecciones.map((selection: any) => {
+    // Buscamos la liga relacionada con la selección.
+    const league = leagueMap.get(String(selection.league_id));
+
+    // Buscamos el mercado relacionado con la selección.
+    const market = marketMap.get(String(selection.pick));
+
+    // Devolvemos la selección enriquecida sin perder campos originales.
+    return {
+      ...selection,
+      league_name: league?.name || selection.league_name || selection.league_id,
+      country_name: league?.country_name || selection.country_name || "",
+      country_flag: league?.country_flag || selection.country_flag || "",
+      market_label: market?.label || selection.market_label || selection.pick,
+      market_acronym: market?.acronym || selection.market_acronym || "",
+    };
+  });
+}
+
+/**
+ * <summary>
+ * Oculta detalles sensibles de picks VIP pendientes para usuarios sin acceso.
+ * </summary>
+ * @param pick - Pick original consultado desde base de datos.
+ * @returns Pick seguro para entregar al frontend público.
+ */
+function ocultarDetalleVipPendiente(pick: any): any {
+  // Devolvemos el mismo pick con campos deportivos sensibles enmascarados.
+  return {
+    ...pick,
+    match_name: "Pick VIP pendiente",
+    league_name: "Detalles disponibles al resolverse",
+    country_name: null,
+    country_flag: null,
+    pick: "vip_pending",
+    market_label: "Reservado",
+    market_acronym: "VIP",
+    odds: null,
+    stake: null,
+    analysis: null,
+    selections: [],
+    is_details_locked: true,
+  };
+}
+
+/**
+ * <summary>
+ * Decide si un pick debe salir completo o enmascarado en estadísticas.
+ * </summary>
+ * @param pick - Pick consultado desde base de datos.
+ * @param usuario - Usuario autenticado opcional.
+ * @param planesActivos - Planes activos del usuario autenticado.
+ * @param leagueMap - Mapa de ligas por ID.
+ * @param marketMap - Mapa de mercados por ID.
+ * @returns Pick seguro para la zona de estadísticas.
+ */
+function prepararPickStats(pick: any, usuario: { role: string } | null, planesActivos: string[], leagueMap: Map<string, any>, marketMap: Map<string, any>): any {
+  // Normalizamos el slug para distinguir picks gratuitos de VIP.
+  const slug = String(pick.pick_type_slug || "");
+
+  // Detectamos si el pick pertenece a un plan VIP.
+  const esVip = slug !== "free";
+
+  // Detectamos si el pick ya tiene resultado público.
+  const estaResuelto = ESTADOS_RESUELTOS.has(String(pick.status));
+
+  // Solo los VIP pendientes necesitan control de detalle.
+  const debeOcultarse = esVip && !estaResuelto && !puedeVerDetallePendienteVip(pick, usuario, planesActivos);
+
+  // Si debe ocultarse, entregamos una versión segura.
+  if (debeOcultarse) {
+    return ocultarDetalleVipPendiente(pick);
+  }
+
+  // Si puede verse, enriquecemos selecciones de parlay para mostrar detalle real.
+  return {
+    ...pick,
+    selections: enriquecerSeleccionesStats(pick.selections, leagueMap, marketMap),
+    is_details_locked: false,
+  };
+}
 
 // ─── GET /api/stats/performance ──────────────────────────────────────────────
 /**
@@ -351,10 +566,21 @@ router.get("/advanced", authenticateToken, requireAdmin, async (req, res) => {
  */
 router.get("/historical-picks", async (req, res) => {
   try {
-    const { startDate, endDate, pickType, leagueId, limit = "50", offset = "0" } = req.query;
+    // Leemos filtros y el indicador que permite incluir pendientes para el registro.
+    const { startDate, endDate, pickType, leagueId, includePending, limit = "50", offset = "0" } = req.query;
+
+    // Detectamos sesión opcional para mostrar VIP pendientes solo a quien corresponde.
+    const usuario = obtenerUsuarioOpcional(req);
+
+    // Cargamos planes activos del usuario autenticado; visitantes quedan sin permisos VIP.
+    const planesActivos = usuario ? await obtenerPlanesActivosUsuario(usuario.id) : [];
 
     // Construimos la query dinámicamente según los filtros recibidos
-    let condiciones = ["p.status IN ('won', 'lost', 'void', 'half-won', 'half-lost')"];
+    const condiciones = [
+      includePending === "1" || includePending === "true"
+        ? "p.status IN ('pending', 'won', 'lost', 'void', 'half-won', 'half-lost')"
+        : "p.status IN ('won', 'lost', 'void', 'half-won', 'half-lost')",
+    ];
     const parametros: any[] = [];
 
     // Filtro de fechas
@@ -381,11 +607,11 @@ router.get("/historical-picks", async (req, res) => {
     const [picks] = await pool.query(
       `SELECT 
          p.id, p.match_date, p.match_name, p.pick, p.odds, p.stake, 
-         p.status, p.analysis, p.is_parlay,
+         p.status, p.analysis, p.is_parlay, p.selections, p.pick_type_id,
          pt.name AS pick_type_name, pt.slug AS pick_type_slug,
          COALESCE(l.name, p.league) AS league_name,
          m.label AS market_label, m.acronym AS market_acronym,
-         c.flag AS country_flag
+         c.name AS country_name, c.flag AS country_flag
        FROM picks p
        LEFT JOIN pick_types pt ON p.pick_type_id = pt.id
        LEFT JOIN leagues    l  ON p.league_id = l.id
@@ -395,6 +621,27 @@ router.get("/historical-picks", async (req, res) => {
        ORDER BY p.match_date DESC
        LIMIT ? OFFSET ?`,
       [...parametros, parseInt(String(limit), 10), parseInt(String(offset), 10)]
+    );
+
+    // Consultamos ligas con país para enriquecer selecciones de parlays.
+    const [ligas]: any = await pool.query(
+      `SELECT l.id, l.name, c.name AS country_name, c.flag AS country_flag
+       FROM leagues l
+       LEFT JOIN countries c ON l.country_id = c.id`
+    );
+
+    // Consultamos mercados para mostrar pronósticos legibles en cada selección.
+    const [mercados]: any = await pool.query("SELECT id, label, acronym FROM markets");
+
+    // Indexamos ligas por ID para resolver selecciones sin consultas por fila.
+    const leagueMap = new Map<string, any>(ligas.map((league: any) => [String(league.id), league]));
+
+    // Indexamos mercados por ID para resolver selecciones sin consultas por fila.
+    const marketMap = new Map<string, any>(mercados.map((market: any) => [String(market.id), market]));
+
+    // Aplicamos reglas de visibilidad VIP antes de responder al frontend.
+    const picksSeguros = (picks as any[]).map((pick) =>
+      prepararPickStats(pick, usuario, planesActivos, leagueMap, marketMap)
     );
 
     // Contamos el total para la paginación en el frontend
@@ -407,7 +654,7 @@ router.get("/historical-picks", async (req, res) => {
 
     return res.json({
       /** Lista de picks del historial */
-      picks,
+      picks: picksSeguros,
       /** Total de picks que cumplen el filtro (para paginación) */
       total: total[0].total,
     });

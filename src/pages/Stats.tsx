@@ -1,10 +1,14 @@
 import { useState, useEffect, useMemo } from "react";
 import type { ReactNode } from "react";
-import { TrendingUp, Activity, Target, CheckCircle2, XCircle, MinusCircle, Calendar, BarChart3, Trophy, CheckCircle, ChevronLeft, ChevronRight } from "lucide-react";
+import { TrendingUp, Activity, Target, CheckCircle2, XCircle, MinusCircle, Calendar, BarChart3, Trophy, CheckCircle, ChevronLeft, ChevronRight, Lock } from "lucide-react";
 import { motion } from "motion/react";
 import { CountryFlag } from "../components/CountryFlag";
 import { PickTimeInfo } from "../components/PickTimeInfo";
+// Importamos el cliente API para enviar Authorization cuando exista sesión.
+import { api } from "../lib/api";
 import { parseBetRoyaleDate } from "../lib/time";
+// Importamos la sesión para recargar estadísticas al iniciar o cerrar sesión.
+import { useAuth } from "../context/AuthContext";
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   LineChart, Line, AreaChart, Area, Legend, Cell
@@ -13,6 +17,8 @@ import { format, parseISO, startOfMonth, endOfMonth, eachMonthOfInterval, subMon
 import { es } from "date-fns/locale";
 
 export function Stats() {
+  // Leemos token y carga de auth para pedir estadísticas con permisos correctos.
+  const { token, loading: authLoading } = useAuth();
   const [picks, setPicks] = useState<any[]>([]);
   const [allPicks, setAllPicks] = useState<any[]>([]); // incluye pendientes para el registro
   const [isLoading, setIsLoading] = useState(true);
@@ -22,24 +28,42 @@ export function Stats() {
   const HISTORY_PER_PAGE = 10;
 
   useEffect(() => {
+    // Esperamos a que AuthContext resuelva para no pedir datos como visitante por accidente.
+    if (authLoading) {
+      return;
+    }
+
     const fetchPicks = async () => {
       try {
-        const res = await fetch("/api/picks");
-        const data = await res.json();
+        // Mostramos estado de carga cuando cambia la sesión.
+        setIsLoading(true);
+        // Pedimos el historial seguro; el backend oculta VIP pendientes sin acceso.
+        const data = await api.get<{ picks: any[] }>("/api/stats/historical-picks?includePending=1&limit=1000");
+        // Normalizamos la respuesta para proteger la UI ante formatos inesperados.
+        const historyPicks = Array.isArray(data) ? data : data.picks || [];
         // Todos los picks para el registro de partidos
-        setAllPicks(data);
+        setAllPicks(historyPicks);
         // Solo resueltos para las estadísticas/gráficos
-        const resolvedPicks = data.filter((p: any) => p.status !== 'pending');
+        const resolvedPicks = historyPicks.filter((p: any) => p.status !== 'pending');
         setPicks(resolvedPicks);
       } catch (error) {
         console.error("Error fetching picks:", error);
+        // Evitamos mostrar datos viejos si falla la carga segura.
+        setAllPicks([]);
+        // Evitamos mostrar estadísticas viejas si falla la carga segura.
+        setPicks([]);
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchPicks();
-  }, []);
+  }, [authLoading, token]);
+
+  useEffect(() => {
+    // Reiniciamos la paginación cuando cambian filtros para evitar páginas vacías.
+    setHistoryPage(1);
+  }, [timeframe, plan]);
 
   // Filtrar picks según el periodo y plan
   const filteredPicks = useMemo(() => {
@@ -603,6 +627,22 @@ export function Stats() {
                           ? '0.00 U'
                           : '—';
                         const profitColor = pick.status === 'won' ? 'text-green-400' : pick.status === 'lost' ? 'text-red-400' : pick.status === 'void' ? 'text-gray-400' : 'text-yellow-400';
+                        // Detectamos si el backend ocultó detalles VIP pendientes.
+                        const detailsLocked = Boolean(pick.is_details_locked);
+                        // Normalizamos selecciones de parlay enriquecidas por backend.
+                        const parlaySelections = Array.isArray(pick.selections) ? pick.selections : [];
+                        // Resolvemos el pronóstico visible sin truncarlo ni exponer datos bloqueados.
+                        const predictionLabel = detailsLocked ? 'VIP pendiente' : (pick.market_label || pick.market_acronym || pick.pick || 'Sin dato');
+                        // Normalizamos la cuota para que los picks bloqueados no muestren @0.00.
+                        const oddsNumber = Number(pick.odds);
+                        // Mostramos guion cuando la cuota no existe o está protegida.
+                        const oddsLabel = detailsLocked || pick.odds === null || pick.odds === undefined || Number.isNaN(oddsNumber) ? '—' : `@${oddsNumber.toFixed(2)}`;
+                        // Normalizamos stake para que los picks bloqueados no muestren unidades falsas.
+                        const stakeNumber = Number(pick.stake);
+                        // Mostramos guion cuando el stake no existe o está protegido.
+                        const stakeLabel = detailsLocked || pick.stake === null || pick.stake === undefined || Number.isNaN(stakeNumber) ? '—' : `${pick.stake}U`;
+                        // Solo mostramos selecciones de parlay si el usuario puede ver el detalle.
+                        const showParlaySelections = Boolean(pick.is_parlay) && !detailsLocked && parlaySelections.length > 0;
 
                         return (
                           <motion.div
@@ -610,7 +650,7 @@ export function Stats() {
                             initial={{ opacity: 0, x: -10 }}
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ duration: 0.2 }}
-                            className={`flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 rounded-2xl border bg-card/50 hover:bg-card transition-all duration-200 ${cfg.bg} ${cfg.border}`}
+                            className={`flex flex-col md:flex-row md:items-start justify-between gap-4 p-4 rounded-2xl border bg-card/50 hover:bg-card transition-all duration-200 ${cfg.bg} ${cfg.border}`}
                           >
                             {/* Izquierda: estado + partido */}
                             <div className="flex items-center gap-4 flex-1 min-w-0">
@@ -629,7 +669,7 @@ export function Stats() {
                                   {Boolean(pick.is_parlay) && (
                                     <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded bg-indigo-600/30 text-indigo-300 border border-indigo-500/30">PARLAY</span>
                                   )}
-                                  <span className="font-semibold text-sm truncate">{pick.match_name}</span>
+                                  <span className="font-semibold text-sm break-words min-w-0">{pick.match_name}</span>
                                   {/* Estado en móvil */}
                                   <span className={`md:hidden ml-auto text-[9px] font-black uppercase px-2 py-0.5 rounded-full border ${cfg.bg} ${cfg.border} ${cfg.color}`}>{cfg.label}</span>
                                 </div>
@@ -643,11 +683,80 @@ export function Stats() {
                                     <PickTimeInfo value={pick.match_date} compact />
                                   </span>
                                 </div>
+                                {/* Mostramos el pronóstico en móvil sin depender de la columna de escritorio. */}
+                                <div className="mt-2 flex items-start gap-2 text-xs lg:hidden">
+                                  {/* Etiqueta corta para separar dato de contexto. */}
+                                  <span className="shrink-0 text-muted-foreground">Pronóstico:</span>
+                                  {/* Valor flexible para evitar texto tapado en pantallas pequeñas. */}
+                                  <span className="font-bold text-white leading-snug break-words">{predictionLabel}</span>
+                                </div>
+                                {/* Aviso claro cuando un pick VIP pendiente está protegido. */}
+                                {detailsLocked && (
+                                  <div className="mt-3 inline-flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/10 px-3 py-2 text-xs font-medium text-primary">
+                                    {/* Icono de candado para indicar contenido reservado sin revelar detalles. */}
+                                    <Lock className="h-3.5 w-3.5" />
+                                    {/* Mensaje compacto para visitantes y usuarios sin ese plan. */}
+                                    <span>Detalle VIP visible al resolverse o con plan activo.</span>
+                                  </div>
+                                )}
+                                {/* Detalle de selecciones cuando el parlay ya es público o el VIP tiene acceso. */}
+                                {showParlaySelections && (
+                                  <div className="mt-3 grid gap-2">
+                                    {/* Recorremos cada selección del parlay con partido, liga, mercado y cuota. */}
+                                    {parlaySelections.map((selection: any, index: number) => {
+                                      // Normalizamos la cuota de cada selección.
+                                      const selectionOdds = Number(selection.odds);
+                                      // Armamos la cuota legible de cada selección.
+                                      const selectionOddsLabel = Number.isNaN(selectionOdds) ? '' : `@${selectionOdds.toFixed(2)}`;
+                                      // Armamos el mercado legible de cada selección.
+                                      const selectionMarket = selection.market_label || selection.market_acronym || selection.pick || 'Pronóstico';
+
+                                      return (
+                                        <div key={`${pick.id}-selection-${index}`} className="rounded-xl border border-white/10 bg-background/40 px-3 py-2 text-xs">
+                                          {/* Línea principal con número y partido. */}
+                                          <div className="flex flex-wrap items-center gap-2 font-bold text-white">
+                                            {/* Numeración clara de la selección. */}
+                                            <span className="text-primary">{index + 1}.</span>
+                                            {/* Bandera si la selección trae país. */}
+                                            {selection.country_flag && <CountryFlag code={selection.country_flag} />}
+                                            {/* Nombre del partido. */}
+                                            <span className="break-words">{selection.match_name || 'Partido del parlay'}</span>
+                                          </div>
+                                          {/* Datos secundarios de liga, hora y pronóstico. */}
+                                          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-muted-foreground">
+                                            {/* Liga o país de la selección. */}
+                                            <span>{selection.league_name || selection.country_name || 'Liga'}</span>
+                                            {/* Hora de la selección cuando existe. */}
+                                            {selection.match_time && (
+                                              <span className="inline-flex items-center gap-1">
+                                                {/* Icono de calendario compacto para la hora de selección. */}
+                                                <Calendar className="h-3 w-3" />
+                                                {/* Fecha/hora local formateada por el componente del proyecto. */}
+                                                <PickTimeInfo value={selection.match_time} compact />
+                                              </span>
+                                            )}
+                                            {/* Mercado y cuota de la selección. */}
+                                            <span className="font-semibold text-white">{selectionMarket} <span className="text-yellow-400">{selectionOddsLabel}</span></span>
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                                {/* Mostramos análisis solo cuando el backend permite ver el detalle del pick. */}
+                                {!detailsLocked && pick.analysis && (
+                                  <p className="mt-3 max-w-3xl rounded-xl border border-white/10 bg-background/35 px-3 py-2 text-xs leading-relaxed text-muted-foreground">
+                                    {/* Etiqueta breve para separar análisis del resto de métricas. */}
+                                    <span className="font-bold text-white">Análisis: </span>
+                                    {/* Texto del análisis publicado por administración. */}
+                                    {pick.analysis}
+                                  </p>
+                                )}
                               </div>
                             </div>
 
-                            {/* Derecha: métricas con anchos fijos para alineación perfecta */}
-                            <div className="flex items-center gap-2 md:gap-4 shrink-0 pl-0 md:pl-4 pt-2 md:pt-0 border-t md:border-t-0 border-white/5">
+                            {/* Derecha: métricas con anchos flexibles para evitar pronósticos tapados */}
+                            <div className="flex flex-wrap items-start justify-start md:justify-end gap-2 md:gap-4 shrink-0 pl-0 md:pl-4 pt-2 md:pt-0 border-t md:border-t-0 border-white/5">
                               {/* Tipo de pick: muestra nombre específico (VIP 2+, VIP 5+, Free) */}
                               <div className="text-center hidden sm:flex flex-col items-center w-[72px] shrink-0">
                                 <div className="text-[9px] uppercase tracking-wider text-muted-foreground mb-0.5">Tipo</div>
@@ -663,21 +772,21 @@ export function Stats() {
                               </div>
 
                               {/* Pronóstico */}
-                              <div className="text-center hidden lg:flex flex-col items-center w-[100px] shrink-0">
+                              <div className="hidden lg:flex flex-col items-start w-[170px] xl:w-[220px] shrink-0">
                                 <div className="text-[9px] uppercase tracking-wider text-muted-foreground mb-0.5">Pronóstico</div>
-                                <div className="text-xs font-bold truncate w-full text-center">{pick.market_label || pick.market_acronym || pick.pick}</div>
+                                <div className="text-xs font-bold w-full text-left leading-snug whitespace-normal break-words">{predictionLabel}</div>
                               </div>
 
                               {/* Cuota */}
                               <div className="flex flex-col items-center w-[60px] shrink-0 text-center">
                                 <div className="text-[9px] uppercase tracking-wider text-muted-foreground mb-0.5">Cuota</div>
-                                <div className="text-sm font-black text-yellow-400">@{Number(pick.odds).toFixed(2)}</div>
+                                <div className="text-sm font-black text-yellow-400">{oddsLabel}</div>
                               </div>
 
                               {/* Stake */}
                               <div className="flex flex-col items-center w-[50px] shrink-0 text-center">
                                 <div className="text-[9px] uppercase tracking-wider text-muted-foreground mb-0.5">Stake</div>
-                                <div className="text-sm font-bold">{pick.stake}U</div>
+                                <div className="text-sm font-bold">{stakeLabel}</div>
                               </div>
 
                               {/* Beneficio */}

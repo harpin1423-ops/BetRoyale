@@ -14,6 +14,7 @@ interface SearchableSelectProps {
   options: SearchableOption[];
   value: string | number;
   onChange: (value: string) => void;
+  onCreatable?: (query: string) => void;
   placeholder?: string;
   className?: string;
   required?: boolean;
@@ -25,6 +26,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   options,
   value,
   onChange,
+  onCreatable,
   placeholder = "Seleccionar...",
   className = "",
   required = false,
@@ -100,6 +102,13 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
     setIsOpen(false);
   };
 
+  const handleCreate = () => {
+    if (onCreatable && searchQuery) {
+      onCreatable(searchQuery);
+      setIsOpen(false);
+    }
+  };
+
   const dropdownMenu = (
     <AnimatePresence>
       {isOpen && (
@@ -127,9 +136,13 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' && filteredOptions.length > 0) {
+                  if (e.key === 'Enter') {
                     e.preventDefault();
-                    handleSelect(filteredOptions[0]);
+                    if (filteredOptions.length > 0) {
+                      handleSelect(filteredOptions[0]);
+                    } else if (onCreatable && searchQuery) {
+                      handleCreate();
+                    }
                   }
                   if (e.key === 'Escape') {
                     setIsOpen(false);
@@ -171,8 +184,20 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
                 </div>
               ))
             ) : (
-              <div className="px-4 py-8 text-center text-muted-foreground text-sm">
-                No se encontraron resultados
+              <div className="px-4 py-2">
+                {onCreatable && searchQuery ? (
+                  <div
+                    onClick={handleCreate}
+                    className="flex flex-col gap-1 px-4 py-4 rounded-xl bg-primary/5 border border-primary/20 cursor-pointer hover:bg-primary/10 transition-colors"
+                  >
+                    <span className="text-xs font-bold text-primary uppercase tracking-widest">¿No lo encuentras?</span>
+                    <span className="text-sm font-medium">Agregar "<span className="text-primary font-bold">{searchQuery}</span>"</span>
+                  </div>
+                ) : (
+                  <div className="px-4 py-8 text-center text-muted-foreground text-sm">
+                    No se encontraron resultados
+                  </div>
+                )}
               </div>
             )}
           </div>

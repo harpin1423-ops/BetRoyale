@@ -32,6 +32,7 @@ import statsRouter from "./routes/stats.routes.js";
 import promoCodesRouter from "./routes/promoCodes.routes.js";
 import pickTypesRouter from "./routes/pickTypes.routes.js";
 import telegramRouter from "./routes/telegram.routes.js";
+import { teamsRouter } from "./routes/teams.routes.js";
 import { apiLimiter } from "./middleware/rateLimiter.js";
 
 /**
@@ -109,6 +110,9 @@ export async function startServer(): Promise<void> {
 
   /** Países (flags y nombres) */
   app.use("/api/countries", countriesRouter);
+
+  /** Equipos deportivos por liga */
+  app.use("/api/teams", teamsRouter);
 
   /** Mercados de apuestas (Gana Local, AEM, +2.5, etc.) */
   app.use("/api/markets", marketsRouter);
