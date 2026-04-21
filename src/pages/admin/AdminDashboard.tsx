@@ -22,6 +22,118 @@ const formatPaymentMethod = (method: string) => {
   return methodMap[method.toLowerCase()] || method;
 };
 
+// Zona horaria oficial para mostrar y editar vencimientos de cupones.
+const PROMO_TIME_ZONE = "America/Bogota";
+
+/**
+ * @summary Formatea una fecha absoluta en hora Colombia para inputs datetime-local.
+ * @param value - Fecha absoluta que se debe mostrar en hora Colombia.
+ * @returns Cadena YYYY-MM-DDTHH:mm compatible con datetime-local.
+ */
+const formatDateForColombiaInput = (value: Date) => {
+  // Obtenemos las partes de fecha/hora sin depender de la zona local del navegador.
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    // Aplicamos la zona horaria operativa del panel.
+    timeZone: PROMO_TIME_ZONE,
+    // Solicitamos año numérico para el formato del input.
+    year: "numeric",
+    // Solicitamos mes de dos dígitos para el formato del input.
+    month: "2-digit",
+    // Solicitamos día de dos dígitos para el formato del input.
+    day: "2-digit",
+    // Solicitamos hora de dos dígitos en formato 24 horas.
+    hour: "2-digit",
+    // Solicitamos minutos de dos dígitos para el input.
+    minute: "2-digit",
+    // Forzamos ciclo 00-23 para evitar AM/PM.
+    hourCycle: "h23",
+  }).formatToParts(value);
+
+  // Convertimos las partes en un mapa por tipo.
+  const partMap = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+
+  // Devolvemos el formato nativo de datetime-local.
+  return `${partMap.year}-${partMap.month}-${partMap.day}T${partMap.hour}:${partMap.minute}`;
+};
+
+/**
+ * @summary Normaliza el vencimiento de cupón para el input sin convertir DATETIME local a UTC.
+ * @param value - Valor recibido desde el backend o desde el formulario.
+ * @returns Cadena YYYY-MM-DDTHH:mm para el input.
+ */
+const formatPromoDateForInput = (value: unknown) => {
+  // Evitamos mostrar valores vacíos o nulos.
+  if (value === null || value === undefined) return "";
+
+  // Convertimos el valor recibido a texto seguro para parsearlo.
+  const text = String(value).trim();
+
+  // Evitamos procesar cadenas vacías.
+  if (!text) return "";
+
+  // Detectamos timestamps con zona horaria explícita, como ISO terminado en Z.
+  const hasExplicitTimeZone = /(?:z|[+-]\d{2}:?\d{2})$/i.test(text);
+
+  // Convertimos timestamps absolutos a hora Colombia solo cuando traen zona explícita.
+  if (hasExplicitTimeZone) {
+    // Parseamos el timestamp absoluto recibido desde JSON.
+    const parsed = new Date(text);
+
+    // Si el timestamp es válido, lo mostramos en hora Colombia.
+    if (!Number.isNaN(parsed.getTime())) return formatDateForColombiaInput(parsed);
+  }
+
+  // Normalizamos el separador sin aplicar Date, para conservar la hora escrita por el admin.
+  const normalized = text.replace("T", " ");
+
+  // Extraemos fecha y minuto desde formatos MySQL o datetime-local.
+  const match = normalized.match(/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2})/);
+
+  // Si no coincide con un formato esperado, dejamos el campo vacío.
+  if (!match) return "";
+
+  // Devolvemos el valor listo para datetime-local.
+  return `${match[1]}-${match[2]}-${match[3]}T${match[4]}:${match[5]}`;
+};
+
+/**
+ * @summary Normaliza el vencimiento del cupón para enviarlo al backend como DATETIME MySQL.
+ * @param value - Valor actual del input datetime-local.
+ * @returns Cadena YYYY-MM-DD HH:mm:ss o null cuando no hay vencimiento.
+ */
+const normalizePromoDateForApi = (value: string) => {
+  // Convertimos el valor del input a formato estable.
+  const inputValue = formatPromoDateForInput(value);
+
+  // Enviamos null cuando el cupón no tiene fecha de vencimiento.
+  if (!inputValue) return null;
+
+  // Enviamos DATETIME sin zona horaria para que el backend lo trate como hora Colombia.
+  return `${inputValue.replace("T", " ")}:00`;
+};
+
+/**
+ * @summary Formatea el vencimiento del cupón para la tabla del admin sin desfase UTC.
+ * @param value - Valor de valid_until recibido desde el backend.
+ * @returns Texto legible con fecha, hora y zona Colombia.
+ */
+const formatPromoDateForDisplay = (value: unknown) => {
+  // Reutilizamos el formato de input para conservar la misma hora exacta.
+  const inputValue = formatPromoDateForInput(value);
+
+  // Mostramos que no vence si no hay fecha guardada.
+  if (!inputValue) return "Nunca";
+
+  // Separamos la fecha y la hora ya normalizadas.
+  const [datePart, timePart] = inputValue.split("T");
+
+  // Separamos año, mes y día para mostrar formato latino.
+  const [year, month, day] = datePart.split("-");
+
+  // Mostramos la hora explícitamente como Colombia.
+  return `${day}/${month}/${year}, ${timePart} COL`;
+};
+
 export function AdminDashboard() {
   const { token, logout } = useAuth();
   const [activeTab, setActiveTab] = useState("new-pick");
@@ -442,12 +554,23 @@ export function AdminDashboard() {
     }
   };
 
+  /**
+   * @summary Crea o actualiza un cupón manteniendo su vencimiento en hora Colombia.
+   * @param e - Evento submit del formulario de cupones.
+   */
   const handleSubmitPromoCode = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmittingPromoCode(true);
     try {
       const url = editingPromoCodeId ? `/api/promo-codes/${editingPromoCodeId}` : "/api/promo-codes";
       const method = editingPromoCodeId ? "PUT" : "POST";
+      // Preparamos el payload para enviar la fecha sin conversión UTC.
+      const promoPayload = {
+        // Conservamos los campos del formulario actual.
+        ...newPromoCode,
+        // Convertimos datetime-local a DATETIME MySQL en hora Colombia.
+        valid_until: normalizePromoDateForApi(newPromoCode.valid_until)
+      };
 
       const res = await fetch(url, {
         method: method,
@@ -455,7 +578,7 @@ export function AdminDashboard() {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${token}`
         },
-        body: JSON.stringify(newPromoCode)
+        body: JSON.stringify(promoPayload)
       });
       if (res.ok) {
         setNewPromoCode({ code: '', discount_percentage: '', max_uses: '', valid_until: '' });
@@ -473,13 +596,17 @@ export function AdminDashboard() {
     }
   };
 
+  /**
+   * @summary Carga un cupón en el formulario de edición sin desplazar la hora guardada.
+   * @param promo - Cupón seleccionado desde la tabla de administración.
+   */
   const handleEditPromoCodeInit = (promo: any) => {
     setEditingPromoCodeId(promo.id);
     setNewPromoCode({
       code: promo.code,
       discount_percentage: promo.discount_percentage.toString(),
       max_uses: promo.max_uses ? promo.max_uses.toString() : '',
-      valid_until: promo.valid_until ? new Date(promo.valid_until).toISOString().slice(0, 16) : ''
+      valid_until: formatPromoDateForInput(promo.valid_until)
     });
     // Scroll up to the form
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -3566,7 +3693,7 @@ export function AdminDashboard() {
                               {promo.max_uses ? ` / ${promo.max_uses}` : ' (Ilimitado)'}
                             </td>
                             <td className="p-4 text-muted-foreground text-xs">
-                              {promo.valid_until ? new Date(promo.valid_until).toLocaleString() : 'Nunca'}
+                              {formatPromoDateForDisplay(promo.valid_until)}
                             </td>
                             <td className="p-4 text-right">
                               <div className="flex justify-end gap-2">
