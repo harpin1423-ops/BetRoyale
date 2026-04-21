@@ -42,6 +42,10 @@ function crearTransporter(): nodemailer.Transporter | null {
       user: env.SMTP_USER,
       pass: env.SMTP_PASS,
     },
+    /** Configuración TLS: Necesaria para algunos entornos de hosting */
+    tls: {
+      rejectUnauthorized: false
+    }
   });
 }
 
@@ -79,9 +83,15 @@ async function enviarEmail(para: string, asunto: string, html: string): Promise<
     });
 
     console.log(`[EMAIL] ✅ Enviado a ${para} | ID: ${info.messageId}`);
-  } catch (error) {
-    // Registramos el error pero NO lanzamos excepción para no bloquear el flujo
-    console.error(`[EMAIL] ❌ Error enviando a ${para}:`, error);
+  } catch (error: any) {
+    // Registramos el error completo en consola para depuración
+    console.error(`[EMAIL] ❌ Error enviando a ${para}:`, {
+      message: error.message,
+      code: error.code,
+      command: error.command,
+      response: error.response,
+      stack: error.stack
+    });
   }
 }
 

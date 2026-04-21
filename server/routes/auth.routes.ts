@@ -76,6 +76,41 @@ function formatearFechaMysql(fecha: Date): string {
   return fecha.toISOString().slice(0, 19).replace("T", " ");
 }
 
+// ─── GET /api/auth/test-email ────────────────────────────────────────────────
+/**
+ * RUTA DE DIAGNÓSTICO: Prueba el envío de email y devuelve el error exacto.
+ * Solo para depuración de configuración SMTP.
+ */
+router.get("/test-email", async (req, res) => {
+  const { email } = req.query;
+  if (!email) return res.status(400).json({ error: "Falta el parámetro ?email=" });
+
+  console.log(`[DEBUG] Probando envío a ${email}...`);
+  
+  try {
+    const asunto = "Prueba de Conexión SMTP — BetRoyale";
+    const contenido = "<h1>¡Conexión Exitosa!</h1><p>Si recibes esto, tu configuración SMTP en Hostinger es correcta.</p>";
+    
+    // Importamos dinámicamente para asegurar que use la última config
+    const { enviarEmailRecuperacion } = await import("../services/email.service.js");
+    
+    // Intentamos enviar directamente
+    await enviarEmailRecuperacion(String(email), "TEST_TOKEN_DEBUG");
+    
+    return res.json({ 
+      success: true, 
+      message: `El comando de envío se ejecutó para ${email}. Revisa tu bandeja de entrada y los logs de Hostinger si no llega.` 
+    });
+  } catch (error: any) {
+    return res.status(500).json({ 
+      success: false, 
+      error: error.message,
+      code: error.code,
+      details: error.stack
+    });
+  }
+});
+
 // ─── POST /api/auth/register ─────────────────────────────────────────────────
 /**
  * Registra un nuevo usuario en el sistema.
