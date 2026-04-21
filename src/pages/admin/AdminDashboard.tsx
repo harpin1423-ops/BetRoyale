@@ -591,8 +591,6 @@ export function AdminDashboard() {
     const { name, value, type } = e.target;
     const checked = type === 'checkbox' ? (e.target as HTMLInputElement).checked : undefined;
     
-    }
-    
     setFormData(prev => {
       const newData = { ...prev, [name]: type === 'checkbox' ? checked : value };
       
