@@ -133,7 +133,7 @@ function templateBase(contenido: string, para: string = ""): string {
           <tr>
             <td style="padding:48px 32px 32px; text-align:center;">
               <a href="${env.APP_URL}" target="_blank" style="text-decoration:none;">
-                <img src="${logoUrl}" alt="BetRoyale Club" width="280" style="width:280px; height:auto; display:block; margin:0 auto;">
+                <img src="${logoUrl}" alt="BetRoyale Club" width="250" style="width:250px; height:auto; display:block; margin:0 auto; border: 2px solid #ffffff; border-radius: 50%; box-shadow: 0 0 15px rgba(255,255,255,0.1);">
               </a>
             </td>
           </tr>
