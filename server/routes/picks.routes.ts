@@ -216,6 +216,51 @@ async function obtenerCanalesTelegramParaPick(pick: any): Promise<string[]> {
 
 /**
  * <summary>
+ * Obtiene todos los canales VIP pagos para publicar resultados generales de parlays.
+ * </summary>
+ * @returns Lista de Channel IDs VIP configurados, incluyendo VIP Full, sin duplicados.
+ */
+async function obtenerCanalesTelegramVipParaResultados(): Promise<string[]> {
+  // Usamos Set para no duplicar envíos cuando un canal está repetido en la configuración.
+  const canales = new Set<string>();
+
+  // Consultamos todos los tipos de pick pagos que tengan canal de Telegram configurado.
+  const [tipos]: any = await pool.query(
+    `SELECT telegram_channel_id
+     FROM pick_types
+     WHERE slug <> 'free'
+       AND telegram_channel_id IS NOT NULL
+       AND telegram_channel_id <> ''`
+  );
+
+  // Agregamos cada canal VIP configurado desde el panel admin.
+  tipos.forEach((tipo: any) => {
+    // Normalizamos espacios accidentales del Channel ID.
+    const channelId = String(tipo.telegram_channel_id || "").trim();
+
+    // Solo agregamos IDs no vacíos.
+    if (channelId) {
+      canales.add(channelId);
+    }
+  });
+
+  // Cargamos la configuración global del canal VIP Full.
+  const fullConfig = await obtenerTelegramFullConfig();
+
+  // Normalizamos el Channel ID de VIP Full.
+  const fullChannelId = String(fullConfig.telegram_channel_id || "").trim();
+
+  // Agregamos VIP Full cuando esté configurado.
+  if (fullChannelId) {
+    canales.add(fullChannelId);
+  }
+
+  // Devolvemos una lista limpia de canales VIP pagos.
+  return Array.from(canales).filter(Boolean);
+}
+
+/**
+ * <summary>
  * Convierte una fecha guardada en MySQL como UTC en un objeto Date seguro.
  * </summary>
  * @param value - Fecha del pick recibida desde MySQL.
@@ -374,8 +419,14 @@ function debeUsarMensajeResultadoParlay(pick: any): boolean {
   // Normalizamos la bandera de parlay porque MySQL puede devolver 0/1.
   const esParlay = Boolean(Number(pick.is_parlay) || pick.is_parlay === true);
 
+  // Normalizamos el slug para evitar mandar resultados free a canales VIP pagos.
+  const slugTipo = String(pick.pick_type_slug || pick.pick_type || "").trim();
+
+  // Un pick gratuito no debe replicarse a todos los canales VIP.
+  const esPickGratis = slugTipo === "free";
+
   // Solo ganados y perdidos usan el formato corto pedido para parlays.
-  return esParlay && ["won", "lost"].includes(String(pick.status));
+  return !esPickGratis && esParlay && ["won", "lost"].includes(String(pick.status));
 }
 
 /**
@@ -393,8 +444,13 @@ async function notificarResultadoPickPorTelegram(pickId: string | number): Promi
     return;
   }
 
-  // Resolvemos los canales configurados para el plan del pick y VIP Full.
-  const channelIds = await obtenerCanalesTelegramParaPick(pick);
+  // Detectamos si aplica el resultado corto de parlay VIP.
+  const usaMensajeParlayVip = debeUsarMensajeResultadoParlay(pick);
+
+  // En parlays VIP ganados/perdidos publicamos en todos los canales VIP; en lo demás se respeta el canal del plan.
+  const channelIds = usaMensajeParlayVip
+    ? await obtenerCanalesTelegramVipParaResultados()
+    : await obtenerCanalesTelegramParaPick(pick);
 
   // Si no hay canales configurados, evitamos llamar a Telegram.
   if (channelIds.length === 0) {
@@ -402,7 +458,7 @@ async function notificarResultadoPickPorTelegram(pickId: string | number): Promi
   }
 
   // Calculamos métricas solo para el formato corto de parlays ganados/perdidos.
-  const mensaje = debeUsarMensajeResultadoParlay(pick)
+  const mensaje = usaMensajeParlayVip
     ? formatResultadoParlayParaTelegram(pick, await calcularMetricasMensualesParaPick(pick))
     : formatPickParaTelegram(pick, true);
 
