@@ -13,25 +13,25 @@ import path from "path";
 import helmet from "helmet";
 
 // ─── Importamos la configuración central ─────────────────────────────────────
-import { env } from "./config/env";
-import { pool } from "./config/database";
-import { initDB } from "./db/schema";
+import { env } from "./config/env.js";
+import { pool } from "./config/database.js";
+import { initDB } from "./db/schema.js";
 
 // ─── Importamos los middlewares ────────────────────────────────────────────────
-import { requestLogger, apiLogger } from "./middleware/logger";
-import { errorHandler, notFoundHandler } from "./middleware/errorHandler";
+import { requestLogger, apiLogger } from "./middleware/logger.js";
+import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
 
 // ─── Importamos los routers de cada dominio ───────────────────────────────────
-import authRouter from "./routes/auth.routes";
-import picksRouter from "./routes/picks.routes";
-import usersRouter from "./routes/users.routes";
-import { leaguesRouter, countriesRouter } from "./routes/leagues.routes";
-import marketsRouter from "./routes/markets.routes";
-import paymentsRouter from "./routes/payments.routes";
-import statsRouter from "./routes/stats.routes";
-import promoCodesRouter from "./routes/promoCodes.routes";
-import pickTypesRouter from "./routes/pickTypes.routes";
-import { apiLimiter, authLimiter } from "./middleware/rateLimiter";
+import authRouter from "./routes/auth.routes.js";
+import picksRouter from "./routes/picks.routes.js";
+import usersRouter from "./routes/users.routes.js";
+import { leaguesRouter, countriesRouter } from "./routes/leagues.routes.js";
+import marketsRouter from "./routes/markets.routes.js";
+import paymentsRouter from "./routes/payments.routes.js";
+import statsRouter from "./routes/stats.routes.js";
+import promoCodesRouter from "./routes/promoCodes.routes.js";
+import pickTypesRouter from "./routes/pickTypes.routes.js";
+import { apiLimiter, authLimiter } from "./middleware/rateLimiter.js";
 
 /**
  * Crea y configura la instancia del servidor Express,

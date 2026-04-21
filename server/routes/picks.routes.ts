@@ -6,11 +6,11 @@
  */
 
 import { Router } from "express";
-import { pool } from "../config/database";
-import { env } from "../config/env";
-import { authenticateToken, requireAdmin } from "../middleware/auth";
-import { sendTelegramMessage, formatPickParaTelegram, formatSeguimientoParaTelegram } from "../services/telegram.service";
-import { obtenerTelegramFullConfig } from "../services/settings.service";
+import { pool } from "../config/database.js";
+import { env } from "../config/env.js";
+import { authenticateToken, requireAdmin } from "../middleware/auth.js";
+import { sendTelegramMessage, formatPickParaTelegram, formatSeguimientoParaTelegram } from "../services/telegram.service.js";
+import { obtenerTelegramFullConfig } from "../services/settings.service.js";
 
 // Creamos el router para las rutas de picks
 const router = Router();

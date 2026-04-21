@@ -7,11 +7,12 @@
 
 import { Router } from "express";
 import jwt from "jsonwebtoken";
-import { pool } from "../config/database";
-import { env } from "../config/env";
-import { authenticateToken, requireAdmin } from "../middleware/auth";
-import { obtenerTelegramFullConfig } from "../services/settings.service";
-import { ResultadoInviteVip, obtenerOCrearInviteVip } from "../services/telegramInvites.service";
+import { pool } from "../config/database.js";
+import { env } from "../config/env.js";
+import { authenticateToken, requireAdmin } from "../middleware/auth.js";
+import { obtenerTelegramFullConfig } from "../services/settings.service.js";
+import type { ResultadoInviteVip } from "../services/telegramInvites.service.js";
+import { obtenerOCrearInviteVip } from "../services/telegramInvites.service.js";
 
 // Creamos el router para todas las rutas relacionadas con usuarios
 const router = Router();

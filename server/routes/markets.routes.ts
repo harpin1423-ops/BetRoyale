@@ -6,8 +6,8 @@
  */
 
 import { Router } from "express";
-import { pool } from "../config/database";
-import { authenticateToken, requireAdmin } from "../middleware/auth";
+import { pool } from "../config/database.js";
+import { authenticateToken, requireAdmin } from "../middleware/auth.js";
 
 // Creamos el router para las rutas de mercados
 const router = Router();

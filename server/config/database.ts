@@ -6,7 +6,7 @@
  */
 
 import mysql from "mysql2/promise";
-import { env } from "./env";
+import { env } from "./env.js";
 
 /**
  * Pool de conexiones MySQL compartido en toda la aplicación.

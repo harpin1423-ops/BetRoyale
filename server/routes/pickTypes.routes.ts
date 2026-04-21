@@ -4,10 +4,10 @@
  */
 
 import { Router } from "express";
-import { pool } from "../config/database";
-import { authenticateToken, requireAdmin } from "../middleware/auth";
-import { escapeTelegramHtml, sendTelegramMessage } from "../services/telegram.service";
-import { SETTINGS_KEYS, guardarSetting, obtenerTelegramFullConfig } from "../services/settings.service";
+import { pool } from "../config/database.js";
+import { authenticateToken, requireAdmin } from "../middleware/auth.js";
+import { escapeTelegramHtml, sendTelegramMessage } from "../services/telegram.service.js";
+import { SETTINGS_KEYS, guardarSetting, obtenerTelegramFullConfig } from "../services/settings.service.js";
 
 const router = Router();
 

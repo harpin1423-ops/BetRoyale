@@ -3,8 +3,8 @@
  * @description Generación y caché de links privados temporales para canales VIP.
  */
 
-import { pool } from "../config/database";
-import { createTelegramInviteLink } from "./telegram.service";
+import { pool } from "../config/database.js";
+import { createTelegramInviteLink } from "./telegram.service.js";
 
 // Tiempo de vida para links privados de canales pagos.
 const HORAS_VALIDEZ_INVITE_VIP = 24;

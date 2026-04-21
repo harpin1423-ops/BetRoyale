@@ -6,8 +6,8 @@
  */
 
 import { MercadoPagoConfig, Payment } from "mercadopago";
-import { pool } from "../config/database";
-import { env } from "../config/env";
+import { pool } from "../config/database.js";
+import { env } from "../config/env.js";
 
 // ─── Cache de tasa de cambio ─────────────────────────────────────────────────
 

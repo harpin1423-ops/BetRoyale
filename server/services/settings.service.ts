@@ -3,8 +3,8 @@
  * @description Helpers para leer y guardar configuraciones globales del panel.
  */
 
-import { pool } from "../config/database";
-import { env } from "../config/env";
+import { pool } from "../config/database.js";
+import { env } from "../config/env.js";
 
 // Llaves estables usadas para la configuración global del canal VIP Full.
 export const SETTINGS_KEYS = {

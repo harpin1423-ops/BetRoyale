@@ -9,10 +9,10 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { pool } from "../config/database";
-import { env } from "../config/env";
-import { authenticateToken } from "../middleware/auth";
-import { enviarEmailBienvenida } from "../services/email.service";
+import { pool } from "../config/database.js";
+import { env } from "../config/env.js";
+import { authenticateToken } from "../middleware/auth.js";
+import { enviarEmailBienvenida } from "../services/email.service.js";
 
 // Creamos el router de Express para agrupar las rutas de autenticación
 const router = Router();

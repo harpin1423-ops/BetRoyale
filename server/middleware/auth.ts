@@ -7,7 +7,7 @@
 
 import { Request as ExpressRequest, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
-import { env } from "../config/env";
+import { env } from "../config/env.js";
 
 /**
  * Extiende la interfaz Request de Express para incluir el usuario decodificado.

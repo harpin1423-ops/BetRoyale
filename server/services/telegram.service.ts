@@ -5,7 +5,7 @@
  * de los picks para su presentación en Telegram (HTML).
  */
 
-import { env } from "../config/env";
+import { env } from "../config/env.js";
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 

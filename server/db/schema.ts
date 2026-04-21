@@ -7,7 +7,7 @@
  */
 
 import bcrypt from "bcryptjs";
-import { pool } from "../config/database";
+import { pool } from "../config/database.js";
 
 // ─── Mapeo de países a códigos ISO para banderas ─────────────────────────────
 // Usado para poblar la columna 'flag' en la tabla countries

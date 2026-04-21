@@ -16,8 +16,8 @@
  *   server/index.ts    → Ensamblador del servidor Express
  */
 
-// Importamos y arrancamos el servidor modular
-import { startServer } from "./server/index";
+// Importamos y arrancamos el servidor modular con extensión compatible con Node ESM.
+import { startServer } from "./server/index.js";
 
 // Iniciamos el servidor (maneja internamente: BD, rutas, middlewares y Vite)
 startServer().catch((error) => {

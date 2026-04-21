@@ -7,15 +7,15 @@
 
 import { Router } from "express";
 import { Preference, Payment } from "mercadopago";
-import { pool } from "../config/database";
-import { env } from "../config/env";
-import { authenticateToken } from "../middleware/auth";
+import { pool } from "../config/database.js";
+import { env } from "../config/env.js";
+import { authenticateToken } from "../middleware/auth.js";
 import {
   getMercadoPagoClient,
   obtenerTasaCambio,
   activarSuscripcion,
-} from "../services/mercadopago.service";
-import { enviarEmailConfirmacionVIP } from "../services/email.service";
+} from "../services/mercadopago.service.js";
+import { enviarEmailConfirmacionVIP } from "../services/email.service.js";
 
 // Creamos el router para las rutas de pagos
 const router = Router();
