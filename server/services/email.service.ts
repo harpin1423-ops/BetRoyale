@@ -104,11 +104,16 @@ async function enviarEmail(para: string, asunto: string, html: string): Promise<
  * Diseño premium, oscuro, con el nuevo logo y estética SaaS.
  *
  * @param contenido - Contenido HTML interno del correo
+ * @param para      - Email del destinatario (opcional, para personalización de soporte)
  * @returns HTML completo del email
  */
-function templateBase(contenido: string): string {
+function templateBase(contenido: string, para: string = ""): string {
   // URL del logo guardado en public
   const logoUrl = `${env.APP_URL}/logo_premium.jpg`;
+  
+  // Link de soporte WhatsApp con mensaje predefinido
+  const msjSoporte = encodeURIComponent(`Hola BetRoyale, necesito soporte para mi cuenta (${para}).`);
+  const whatsappUrl = `https://wa.me/573150730901?text=${msjSoporte}`;
 
   return `
 <!DOCTYPE html>
@@ -124,11 +129,11 @@ function templateBase(contenido: string): string {
       <td align="center">
         <table width="100%" maxWidth="600" cellpadding="0" cellspacing="0" style="max-width:600px; background-color:#141414; border-radius:24px; overflow:hidden; border:1px solid rgba(255,255,255,0.08); box-shadow: 0 20px 50px rgba(0,0,0,0.5);">
           
-          <!-- Header con Logo Premium -->
+          <!-- Header con Logo Premium (Más grande y sin recorte) -->
           <tr>
             <td style="padding:48px 32px 32px; text-align:center;">
               <a href="${env.APP_URL}" target="_blank" style="text-decoration:none;">
-                <img src="${logoUrl}" alt="BetRoyale Club" width="120" style="width:120px; height:auto; border-radius:50%;">
+                <img src="${logoUrl}" alt="BetRoyale Club" width="220" style="width:220px; height:auto; display:block; margin:0 auto;">
               </a>
             </td>
           </tr>
@@ -140,13 +145,25 @@ function templateBase(contenido: string): string {
             </td>
           </tr>
 
+          <!-- Sección de Soporte WhatsApp -->
+          <tr>
+            <td style="padding:0 48px 48px; text-align:center;">
+              <div style="background:rgba(255,255,255,0.03); border-radius:16px; padding:24px; border:1px dashed rgba(255,255,255,0.1);">
+                <p style="margin:0 0 12px; color:#9ca3af; font-size:14px;">¿Tienes alguna duda o problema?</p>
+                <a href="${whatsappUrl}" 
+                   style="color:#34d399; text-decoration:none; font-weight:700; font-size:15px; display:inline-flex; align-items:center;">
+                   💬 Hablar con Soporte por WhatsApp
+                </a>
+              </div>
+            </td>
+          </tr>
+
           <!-- Footer con Redes y Links -->
           <tr>
             <td style="background-color:#000000; padding:40px; border-top:1px solid rgba(255,255,255,0.05); text-align:center;">
               <div style="margin-bottom:24px;">
                 <a href="${env.APP_URL}" style="color:#ffffff; text-decoration:none; font-weight:600; font-size:14px; margin:0 15px;">Sitio Web</a>
-                <a href="https://t.me/betroyaleclub" style="color:#EAB308; text-decoration:none; font-weight:600; font-size:14px; margin:0 15px;">Telegram</a>
-                <a href="https://instagram.com/betroyaleclub" style="color:#ffffff; text-decoration:none; font-weight:600; font-size:14px; margin:0 15px;">Instagram</a>
+                <a href="${env.TELEGRAM_FREE_INVITE_LINK || '#'}" style="color:#EAB308; text-decoration:none; font-weight:600; font-size:14px; margin:0 15px;">Acceder al Grupo FREE</a>
               </div>
               <p style="margin:0; color:#4b5563; font-size:12px; line-height:1.5;">
                 &copy; ${new Date().getFullYear()} BetRoyale Club. Todos los derechos reservados.<br>
@@ -198,7 +215,7 @@ export async function enviarEmailBienvenida(email: string): Promise<void> {
     </div>
   `;
 
-  await enviarEmail(email, asunto, templateBase(contenido));
+  await enviarEmail(email, asunto, templateBase(contenido, email));
 }
 
 /**
@@ -237,7 +254,7 @@ export async function enviarEmailRecuperacion(email: string, token: string): Pro
     </div>
   `;
 
-  await enviarEmail(email, asunto, templateBase(contenido));
+  await enviarEmail(email, asunto, templateBase(contenido, email));
 }
 
 /**
@@ -272,7 +289,7 @@ export async function enviarEmailConfirmacionClave(email: string): Promise<void>
     </div>
   `;
 
-  await enviarEmail(email, asunto, templateBase(contenido));
+  await enviarEmail(email, asunto, templateBase(contenido, email));
 }
 
 /**
@@ -310,5 +327,5 @@ export async function enviarEmailConfirmacionVIP(email: string, planId: string, 
     </div>
   `;
 
-  await enviarEmail(email, asunto, templateBase(contenido));
+  await enviarEmail(email, asunto, templateBase(contenido, email));
 }
