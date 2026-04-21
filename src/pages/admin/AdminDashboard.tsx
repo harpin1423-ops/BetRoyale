@@ -5,7 +5,7 @@ import { NORMALIZED_PICKS, getPickDisplay, getPlanName } from "../../lib/constan
 import { getLocalizedStatus } from "../../lib/utils";
 import { useAuth } from "../../context/AuthContext";
 import { CountryFlag } from "../../components/CountryFlag";
-import { CustomSelect } from "../../components/CustomSelect";
+import { SearchableSelect } from "../../components/SearchableSelect";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from "recharts";
 
 const formatPaymentMethod = (method: string) => {
@@ -1573,33 +1573,46 @@ export function AdminDashboard() {
                     </div>
                     <div className="md:col-span-6 space-y-3">
                       <label className="text-xs font-black text-primary uppercase tracking-[0.2em]">País</label>
-                      <CustomSelect name="country_id" value={formData.country_id} onChange={handleSelectChange} className="w-full">
-                        <option value="">Seleccionar...</option>
-                        {Array.isArray(countries) && countries.map(c => (
-                          <option key={c.id} value={c.id}>{c.name}</option>
-                        ))}
-                      </CustomSelect>
+                      <SearchableSelect
+                        options={Array.isArray(countries) ? countries.map(c => ({
+                          value: c.id,
+                          label: c.name,
+                          icon: <CountryFlag countryCode={c.flag} className="w-5 h-4" />
+                        })) : []}
+                        value={formData.country_id}
+                        onChange={(val) => handleSelectChange('country_id', val)}
+                        placeholder="Seleccionar país..."
+                      />
                     </div>
 
                     <div className="md:col-span-6 space-y-3">
                       <label className="text-xs font-black text-primary uppercase tracking-[0.2em]">Liga / Competición</label>
-                      <CustomSelect name="league_id" value={formData.league_id} onChange={handleSelectChange} required className="w-full">
-                        <option value="" disabled>Seleccionar...</option>
-                        {leagues
+                      <SearchableSelect
+                        options={leagues
                           .filter(l => !formData.country_id || l.country_id?.toString() === formData.country_id)
-                          .map(l => (
-                          <option key={l.id} value={l.id}>{l.name}</option>
-                        ))}
-                      </CustomSelect>
+                          .map(l => ({
+                            value: l.id,
+                            label: l.name
+                          }))}
+                        value={formData.league_id}
+                        onChange={(val) => handleSelectChange('league_id', val)}
+                        required
+                        placeholder="Seleccionar liga..."
+                        disabled={!formData.country_id}
+                      />
                     </div>
                     <div className="md:col-span-6 space-y-3">
                       <label className="text-xs font-black text-primary uppercase tracking-[0.2em]">Mercado / Pronóstico</label>
-                      <CustomSelect name="pick" value={formData.pick} onChange={handleSelectChange} required className="w-full">
-                        <option value="" disabled>Seleccionar...</option>
-                        {markets.map(p => (
-                          <option key={p.id} value={p.id}>{p.label} ({p.acronym})</option>
-                        ))}
-                      </CustomSelect>
+                      <SearchableSelect
+                        options={markets.map(p => ({
+                          value: p.id,
+                          label: `${p.label} (${p.acronym})`
+                        }))}
+                        value={formData.pick}
+                        onChange={(val) => handleSelectChange('pick', val)}
+                        required
+                        placeholder="Seleccionar mercado..."
+                      />
                     </div>
 
                     <div className="md:col-span-12 space-y-3">
@@ -1639,97 +1652,86 @@ export function AdminDashboard() {
                       No hay selecciones añadidas. Haz clic en "Añadir Selección" para empezar.
                     </div>
                   ) : (
-                    <div className="space-y-6">
-                      {formData.selections.map((sel, index) => (
-                        <div key={index} className="relative bg-card border border-white/10 rounded-2xl p-8 shadow-xl animate-in zoom-in-95 duration-300">
-                          <button 
-                            type="button" 
-                            onClick={() => removeSelection(index)}
-                            className="absolute -top-3 -right-3 w-10 h-10 flex items-center justify-center bg-destructive text-destructive-foreground rounded-full shadow-lg hover:scale-110 transition-all z-10 border-2 border-white/20"
-                          >
-                            <X className="w-5 h-5" />
-                          </button>
-
-                          <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
-                            {/* Row 1: Location & Time */}
-                            <div className="md:col-span-4 space-y-3">
-                              <label className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">País</label>
-                              <CustomSelect 
-                                name="country_id" 
-                                value={sel.country_id} 
-                                onChange={(name, value) => handleSelectionChange(index, { target: { name, value } } as any)} 
-                                className="w-full"
-                              >
-                                <option value="">Seleccionar...</option>
-                                {countries.map(c => (
-                                  <option key={c.id} value={c.id}>{c.name}</option>
-                                ))}
-                              </CustomSelect>
-                            </div>
-
-                            <div className="md:col-span-4 space-y-3">
-                              <label className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Liga / Competición</label>
-                              <CustomSelect 
-                                name="league_id" 
-                                value={sel.league_id} 
-                                onChange={(name, value) => handleSelectionChange(index, { target: { name, value } } as any)} 
-                                required 
-                                className="w-full"
-                              >
-                                <option value="" disabled>Seleccionar...</option>
-                                {leagues
-                                  .filter(l => !sel.country_id || l.country_id?.toString() === sel.country_id)
-                                  .map(l => (
-                                  <option key={l.id} value={l.id}>{l.name}</option>
-                                ))}
-                              </CustomSelect>
-                            </div>
-
-                            <div className="md:col-span-4 space-y-3">
-                              <label className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Fecha y Hora</label>
-                              <input 
-                                type="datetime-local" 
-                                name="match_time" 
-                                value={sel.match_time} 
-                                onChange={(e) => handleSelectionChange(index, e)} 
-                                required 
-                                className="w-full bg-background border border-white/10 rounded-2xl px-5 py-4 text-sm focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all text-foreground shadow-inner" 
-                              />
-                            </div>
-
-                            {/* Row 2: Match, Pick & Odds */}
-                            <div className="md:col-span-5 space-y-3">
-                              <label className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Partido (Evento)</label>
-                              <input 
-                                type="text" 
-                                name="match_name" 
-                                value={sel.match_name} 
-                                onChange={(e) => handleSelectionChange(index, e)} 
-                                required 
-                                placeholder="Ej: Real Madrid vs Manchester City" 
-                                className="w-full bg-background border border-white/10 rounded-2xl px-5 py-4 text-sm focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all font-bold text-foreground shadow-inner placeholder:font-normal placeholder:text-muted-foreground/30" 
-                              />
-                            </div>
-
-                            <div className="md:col-span-4 space-y-3">
-                              <label className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Mercado / Pronóstico</label>
-                              <CustomSelect 
-                                name="pick" 
-                                value={sel.pick} 
-                                onChange={(name, value) => handleSelectionChange(index, { target: { name, value } } as any)} 
-                                required 
-                                className="w-full"
-                              >
-                                <option value="" disabled>Seleccionar...</option>
-                                {markets.map(p => (
-                                  <option key={p.id} value={p.id}>{p.label} ({p.acronym})</option>
-                                ))}
-                              </CustomSelect>
-                            </div>
-
-                            <div className="md:col-span-3 space-y-3">
-                              <label className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Cuota</label>
-                              <div className="relative">
+                    <div className="overflow-x-auto rounded-2xl border border-white/10 shadow-2xl bg-black/20">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="bg-white/5 border-b border-white/10">
+                            <th className="px-4 py-4 text-[10px] font-black text-primary uppercase tracking-[0.2em] w-[150px]">País</th>
+                            <th className="px-4 py-4 text-[10px] font-black text-primary uppercase tracking-[0.2em] w-[180px]">Liga</th>
+                            <th className="px-4 py-4 text-[10px] font-black text-primary uppercase tracking-[0.2em]">Evento / Partido</th>
+                            <th className="px-4 py-4 text-[10px] font-black text-primary uppercase tracking-[0.2em] w-[180px]">Fecha</th>
+                            <th className="px-4 py-4 text-[10px] font-black text-primary uppercase tracking-[0.2em] w-[180px]">Mercado</th>
+                            <th className="px-4 py-4 text-[10px] font-black text-primary uppercase tracking-[0.2em] w-[100px] text-center">Cuota</th>
+                            <th className="px-4 py-4 text-[10px] font-black text-primary uppercase tracking-[0.2em] w-[50px]"></th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-white/5">
+                          {formData.selections.map((sel, index) => (
+                            <tr key={index} className="hover:bg-white/[0.02] transition-colors">
+                              <td className="px-3 py-3">
+                                <SearchableSelect
+                                  size="sm"
+                                  options={countries.map(c => ({
+                                    value: c.id,
+                                    label: c.name,
+                                    icon: <CountryFlag countryCode={c.flag} className="w-4 h-3" />
+                                  }))}
+                                  value={sel.country_id}
+                                  onChange={(val) => handleSelectionChange(index, { target: { name: 'country_id', value: val } } as any)}
+                                  placeholder="País"
+                                />
+                              </td>
+                              <td className="px-3 py-3">
+                                <SearchableSelect
+                                  size="sm"
+                                  options={leagues
+                                    .filter(l => !sel.country_id || l.country_id?.toString() === sel.country_id)
+                                    .map(l => ({
+                                      value: l.id,
+                                      label: l.name
+                                    }))}
+                                  value={sel.league_id}
+                                  onChange={(val) => handleSelectionChange(index, { target: { name: 'league_id', value: val } } as any)}
+                                  required
+                                  placeholder="Liga"
+                                  disabled={!sel.country_id}
+                                />
+                              </td>
+                              <td className="px-3 py-3">
+                                <input 
+                                  type="text" 
+                                  name="match_name" 
+                                  value={sel.match_name} 
+                                  onChange={(e) => handleSelectionChange(index, e)} 
+                                  required 
+                                  placeholder="Ej: Madrid vs City" 
+                                  className="w-full bg-background/50 border border-white/10 rounded-xl px-4 py-2 text-xs focus:outline-none focus:border-primary transition-all font-bold text-foreground" 
+                                />
+                              </td>
+                              <td className="px-3 py-3">
+                                <input 
+                                  type="datetime-local" 
+                                  name="match_time" 
+                                  value={sel.match_time} 
+                                  onChange={(e) => handleSelectionChange(index, e)} 
+                                  required 
+                                  className="w-full bg-background/50 border border-white/10 rounded-xl px-3 py-2 text-[10px] focus:outline-none focus:border-primary transition-all text-foreground" 
+                                />
+                              </td>
+                              <td className="px-3 py-3">
+                                <SearchableSelect
+                                  size="sm"
+                                  options={markets.map(p => ({
+                                    value: p.id,
+                                    label: `${p.label} (${p.acronym})`
+                                  }))}
+                                  value={sel.pick}
+                                  onChange={(val) => handleSelectionChange(index, { target: { name: 'pick', value: val } } as any)}
+                                  required
+                                  placeholder="Mercado"
+                                />
+                              </td>
+                              <td className="px-3 py-3">
                                 <input 
                                   type="number" 
                                   name="odds" 
@@ -1738,14 +1740,23 @@ export function AdminDashboard() {
                                   required 
                                   step="0.01" 
                                   placeholder="1.85" 
-                                  className="w-full bg-background border border-white/10 rounded-2xl px-5 py-4 text-sm font-black text-primary focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all text-center shadow-inner" 
+                                  className="w-full bg-background/50 border border-white/10 rounded-xl px-2 py-2 text-xs font-black text-primary focus:outline-none focus:border-primary transition-all text-center" 
                                 />
-                                <div className="absolute right-4 top-1/2 -translate-y-1/2 text-[9px] font-black uppercase tracking-tighter text-primary/40 pointer-events-none">ODDS</div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
+                              </td>
+                              <td className="px-3 py-3 text-center">
+                                <button 
+                                  type="button" 
+                                  onClick={() => removeSelection(index)}
+                                  className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-all"
+                                  title="Quitar selección"
+                                >
+                                  <X className="w-4 h-4" />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
                   )}
                 </div>
@@ -1778,11 +1789,14 @@ export function AdminDashboard() {
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-muted-foreground">Stake (1-10)</label>
-                  <CustomSelect name="stake" value={formData.stake} onChange={handleSelectChange} className="w-full">
-                    {[1,2,3,4,5,6,7,8,9,10].map(num => (
-                      <option key={num} value={num}>Stake {num}</option>
-                    ))}
-                  </CustomSelect>
+                  <SearchableSelect
+                    options={[1,2,3,4,5,6,7,8,9,10].map(num => ({
+                      value: num,
+                      label: `Stake ${num}`
+                    }))}
+                    value={formData.stake}
+                    onChange={(val) => handleSelectChange('stake', val)}
+                  />
                 </div>
               </div>
 
@@ -1853,35 +1867,40 @@ export function AdminDashboard() {
             {/* Filters and Bulk Actions */}
             <div className="bg-card border border-white/10 rounded-2xl p-4 mb-6 flex flex-col md:flex-row gap-4 justify-between items-center">
               <div className="flex flex-wrap gap-4 w-full md:w-auto">
-                <select
+                <SearchableSelect
+                  className="w-[180px]"
+                  placeholder="Todos los estados"
+                  options={[
+                    { value: "", label: "Todos los estados" },
+                    { value: "pending", label: "Pendientes" },
+                    { value: "won", label: "Ganados" },
+                    { value: "lost", label: "Perdidos" },
+                    { value: "void", label: "Nulos" },
+                  ]}
                   value={pickFilterStatus}
-                  onChange={(e) => setPickFilterStatus(e.target.value)}
-                  className="bg-background border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-primary/50"
-                >
-                  <option value="">Todos los estados</option>
-                  <option value="pending">Pendientes</option>
-                  <option value="won">Ganados</option>
-                  <option value="lost">Perdidos</option>
-                  <option value="void">Nulos</option>
-                </select>
-                <select
+                  onChange={(val) => setPickFilterStatus(val)}
+                />
+                <SearchableSelect
+                  className="w-[180px]"
+                  placeholder="Todos los tipos"
+                  options={[
+                    { value: "", label: "Todos los tipos" },
+                    ...(Array.isArray(pickTypes) ? pickTypes.map(pt => ({ value: pt.id, label: pt.name })) : [])
+                  ]}
                   value={pickFilterType}
-                  onChange={(e) => setPickFilterType(e.target.value)}
-                  className="bg-background border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-primary/50"
-                >
-                  {Array.isArray(pickTypes) && pickTypes.map(pt => (
-                    <option key={pt.id} value={pt.id}>{pt.name}</option>
-                  ))}
-                </select>
-                <select
+                  onChange={(val) => setPickFilterType(val)}
+                />
+                <SearchableSelect
+                  className="w-[200px]"
+                  placeholder="Individuales y Parlays"
+                  options={[
+                    { value: "", label: "Individuales y Parlays" },
+                    { value: "false", label: "Solo Individuales" },
+                    { value: "true", label: "Solo Parlays" },
+                  ]}
                   value={pickFilterIsParlay}
-                  onChange={(e) => setPickFilterIsParlay(e.target.value)}
-                  className="bg-background border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-primary/50"
-                >
-                  <option value="">Individuales y Parlays</option>
-                  <option value="false">Solo Individuales</option>
-                  <option value="true">Solo Parlays</option>
-                </select>
+                  onChange={(val) => setPickFilterIsParlay(val)}
+                />
                 <input
                   type="text"
                   placeholder="Buscar liga..."
@@ -2247,39 +2266,45 @@ export function AdminDashboard() {
                 onChange={(e) => setUserFilter(e.target.value)}
                 className="bg-background border border-white/10 rounded-xl px-5 py-4 text-sm focus:outline-none focus:border-primary flex-1 min-w-[200px] transition-all"
               />
-              <CustomSelect
+              <SearchableSelect
+                className="flex-1 min-w-[150px]"
+                placeholder="Todos los roles"
+                options={[
+                  { value: "", label: "Todos los roles" },
+                  { value: "user", label: "Usuario (Gratis)" },
+                  { value: "vip", label: "VIP" },
+                  { value: "admin", label: "Administrador" },
+                ]}
                 value={roleFilter}
-                onChange={(_, value) => setRoleFilter(value)}
+                onChange={(val) => setRoleFilter(val)}
+              />
+              <SearchableSelect
                 className="flex-1 min-w-[150px]"
-              >
-                <option value="">Todos los roles</option>
-                <option value="user">Usuario (Gratis)</option>
-                <option value="vip">VIP</option>
-                <option value="admin">Administrador</option>
-              </CustomSelect>
-              <CustomSelect
+                placeholder="Todos los planes"
+                options={[
+                  { value: "", label: "Todos los planes" },
+                  { value: "cuota_2", label: "VIP Cuota 2+" },
+                  { value: "cuota_3", label: "VIP Cuota 3+" },
+                  { value: "cuota_4", label: "VIP Cuota 4+" },
+                  { value: "cuota_5", label: "VIP Cuota 5+" },
+                  { value: "all_plans", label: "Todos los Planes" },
+                ]}
                 value={planFilter}
-                onChange={(_, value) => setPlanFilter(value)}
+                onChange={(val) => setPlanFilter(val)}
+              />
+              <SearchableSelect
                 className="flex-1 min-w-[150px]"
-              >
-                <option value="">Todos los planes</option>
-                <option value="cuota_2">VIP Cuota 2+</option>
-                <option value="cuota_3">VIP Cuota 3+</option>
-                <option value="cuota_4">VIP Cuota 4+</option>
-                <option value="cuota_5">VIP Cuota 5+</option>
-                <option value="all_plans">Todos los Planes</option>
-              </CustomSelect>
-              <CustomSelect
+                placeholder="Todas las periodicidades"
+                options={[
+                  { value: "", label: "Todas las periodicidades" },
+                  { value: "mensual", label: "Mensual" },
+                  { value: "trimestral", label: "Trimestral" },
+                  { value: "semestral", label: "Semestral" },
+                  { value: "anual", label: "Anual" },
+                ]}
                 value={periodicityFilter}
-                onChange={(_, value) => setPeriodicityFilter(value)}
-                className="flex-1 min-w-[150px]"
-              >
-                <option value="">Todas las periodicidades</option>
-                <option value="mensual">Mensual</option>
-                <option value="trimestral">Trimestral</option>
-                <option value="semestral">Semestral</option>
-                <option value="anual">Anual</option>
-              </CustomSelect>
+                onChange={(val) => setPeriodicityFilter(val)}
+              />
             </div>
 
             <div className="bg-card border border-white/10 rounded-2xl overflow-hidden">
@@ -2353,21 +2378,23 @@ export function AdminDashboard() {
                           <td className="px-4 py-3 text-right">
                             {row.role !== 'admin' && (
                               <div className="flex items-center justify-end gap-2">
-                                <CustomSelect 
+                                <SearchableSelect 
                                   value=""
-                                  onChange={(_, value) => {
+                                  onChange={(value) => {
                                     if (value) {
                                       updateVipStatus(row.id, parseInt(value));
                                     }
                                   }}
                                   className="w-full"
-                                >
-                                  <option value="">+ Añadir VIP</option>
-                                  <option value="30">30 Días (Mensual)</option>
-                                  <option value="90">90 Días (Trimestral)</option>
-                                  <option value="180">180 Días (Semestral)</option>
-                                  <option value="365">365 Días (Anual)</option>
-                                </CustomSelect>
+                                  placeholder="+ Añadir VIP"
+                                  options={[
+                                    { value: "", label: "+ Añadir VIP" },
+                                    { value: "30", label: "30 Días (Mensual)" },
+                                    { value: "90", label: "90 Días (Trimestral)" },
+                                    { value: "180", label: "180 Días (Semestral)" },
+                                    { value: "365", label: "365 Días (Anual)" },
+                                  ]}
+                                />
                                 {row.role === 'vip' && (
                                   <button 
                                     onClick={() => cancelVipStatus(row.id, row.email)}
@@ -2530,20 +2557,20 @@ export function AdminDashboard() {
                   <form onSubmit={handleLeagueSubmit} className="space-y-4">
                     <div className="space-y-2">
                       <label className="text-sm font-medium text-muted-foreground">País</label>
-                      <CustomSelect 
+                      <SearchableSelect 
                         value={leagueForm.country_id} 
-                        onChange={(_, value) => {
+                        onChange={(value) => {
                           setLeagueForm(prev => ({ ...prev, country_id: value }));
                           setLeagueCountryFilter(value);
                           if (leagueMessage.type === 'error') setLeagueMessage({ type: "", text: "" });
                         }} 
                         className="w-full"
-                      >
-                        <option value="">Seleccionar...</option>
-                        {countries.map(c => (
-                          <option key={c.id} value={c.id}>{c.name}</option>
-                        ))}
-                      </CustomSelect>
+                        placeholder="Seleccionar..."
+                        options={[
+                          { value: "", label: "Seleccionar..." },
+                          ...countries.map(c => ({ value: c.id, label: c.name }))
+                        ]}
+                      />
                     </div>
                     <div className="space-y-2">
                       <label className="text-sm font-medium text-muted-foreground">Nombre de la Liga</label>
@@ -2594,16 +2621,16 @@ export function AdminDashboard() {
                 <div className="mb-4 flex flex-col sm:flex-row gap-4 items-center justify-between">
                   <div className="relative flex-1">
                     <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <CustomSelect 
+                    <SearchableSelect 
                       value={leagueCountryFilter} 
-                      onChange={(_, value) => setLeagueCountryFilter(value)}
+                      onChange={(value) => setLeagueCountryFilter(value)}
                       className="w-full"
-                    >
-                      <option value="">Filtrar por país (Todos)</option>
-                      {countries.map(c => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
-                      ))}
-                    </CustomSelect>
+                      placeholder="Filtrar por país (Todos)"
+                      options={[
+                        { value: "", label: "Filtrar por país (Todos)" },
+                        ...countries.map(c => ({ value: c.id, label: c.name }))
+                      ]}
+                    />
                   </div>
                     <div className="relative flex-1">
                       <input
@@ -3204,16 +3231,16 @@ export function AdminDashboard() {
               <div className="flex flex-wrap items-center gap-4">
                 <div className="flex items-center gap-2">
                   <label className="text-sm font-medium text-muted-foreground">Plan:</label>
-                  <CustomSelect 
+                  <SearchableSelect 
                     value={selectedStatsPlan}
-                    onChange={(_, value) => setSelectedStatsPlan(value)}
+                    onChange={(value) => setSelectedStatsPlan(value)}
                     className="w-32"
-                  >
-                    <option value="all">Todos los Planes</option>
-                    {Array.isArray(pickTypes) && pickTypes.map(pt => (
-                      <option key={pt.id} value={pt.slug}>{pt.name}</option>
-                    ))}
-                  </CustomSelect>
+                    placeholder="Todos los Planes"
+                    options={[
+                      { value: "all", label: "Todos los Planes" },
+                      ...(Array.isArray(pickTypes) ? pickTypes.map(pt => ({ value: pt.slug, label: pt.name })) : [])
+                    ]}
+                  />
                 </div>
               </div>
             </div>
