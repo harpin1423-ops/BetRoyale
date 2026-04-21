@@ -108,8 +108,8 @@ async function enviarEmail(para: string, asunto: string, html: string): Promise<
  * @returns HTML completo del email
  */
 function templateBase(contenido: string, para: string = ""): string {
-  // URL del logo guardado en public (con cache buster para asegurar frescura)
-  const logoUrl = `${env.APP_URL}/logo_premium_final.png?v=3.1`;
+  // URL del logo guardado en public
+  const logoUrl = `${env.APP_URL}/logo_premium.jpg`;
   
   // Link de soporte WhatsApp con mensaje predefinido
   const msjSoporte = encodeURIComponent(`Hola BetRoyale, necesito soporte para mi cuenta (${para}).`);
@@ -129,11 +129,11 @@ function templateBase(contenido: string, para: string = ""): string {
       <td align="center">
         <table width="100%" maxWidth="600" cellpadding="0" cellspacing="0" style="max-width:600px; background-color:#141414; border-radius:24px; overflow:hidden; border:1px solid rgba(255,255,255,0.08); box-shadow: 0 20px 50px rgba(0,0,0,0.5);">
           
-          <!-- Header con Logo Premium (Circular, sin fondo negro y más grande) -->
+          <!-- Header con Logo Original (Recortado circularmente con borde) -->
           <tr>
             <td style="padding:48px 32px 32px; text-align:center;">
               <a href="${env.APP_URL}" target="_blank" style="text-decoration:none;">
-                <img src="${logoUrl}" alt="BetRoyale Club" width="250" style="width:250px; height:auto; display:block; margin:0 auto; border: 2px solid #ffffff; border-radius: 50%; box-shadow: 0 0 15px rgba(255,255,255,0.1);">
+                <img src="${logoUrl}" alt="BetRoyale Club" width="250" style="width:250px; height:auto; display:block; margin:0 auto; border: 2px solid #ffffff; border-radius: 50%; object-fit: cover;">
               </a>
             </td>
           </tr>
