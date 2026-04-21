@@ -345,12 +345,25 @@ export async function initDB(): Promise<void> {
         channel_id  VARCHAR(255) NOT NULL,
         invite_link VARCHAR(512) NOT NULL,
         expires_at  DATETIME NOT NULL,
+        used_at     DATETIME DEFAULT NULL,
+        telegram_user_id  VARCHAR(64) DEFAULT NULL,
+        telegram_username VARCHAR(255) DEFAULT NULL,
+        revoked_at  DATETIME DEFAULT NULL,
         created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         UNIQUE KEY unique_user_plan_channel (user_id, plan_id, channel_id),
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
       )
     `);
+
+    // Registramos cuándo Telegram confirmó que el link ya fue usado.
+    await conexion.query(`ALTER TABLE telegram_user_invites ADD COLUMN IF NOT EXISTS used_at DATETIME DEFAULT NULL`).catch(() => {});
+    // Guardamos el ID de Telegram reportado por el webhook para auditoría.
+    await conexion.query(`ALTER TABLE telegram_user_invites ADD COLUMN IF NOT EXISTS telegram_user_id VARCHAR(64) DEFAULT NULL`).catch(() => {});
+    // Guardamos el username de Telegram reportado por el webhook para mostrarlo al usuario.
+    await conexion.query(`ALTER TABLE telegram_user_invites ADD COLUMN IF NOT EXISTS telegram_username VARCHAR(255) DEFAULT NULL`).catch(() => {});
+    // Marcamos links revocados cuando se regenera uno nuevo antes de vencer.
+    await conexion.query(`ALTER TABLE telegram_user_invites ADD COLUMN IF NOT EXISTS revoked_at DATETIME DEFAULT NULL`).catch(() => {});
 
     // ── Sembrar ligas y países iniciales ─────────────────────────────────────
     for (const { pais, ligas } of LIGAS_INICIALES) {

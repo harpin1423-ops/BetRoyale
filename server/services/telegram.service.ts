@@ -437,6 +437,62 @@ export async function createTelegramInviteLink(
 }
 
 /**
+ * Revoca un link privado de invitación para que no queden enlaces VIP antiguos activos.
+ *
+ * @param channelId - ID del canal privado donde se revocará el invite.
+ * @param inviteLink - Link de invitación que se desea invalidar.
+ * @returns true si Telegram aceptó la revocación; false si falló o faltó configuración.
+ */
+export async function revokeTelegramInviteLink(
+  channelId: string,
+  inviteLink: string
+): Promise<boolean> {
+  // Verificamos que el token del bot, el canal y el link estén configurados.
+  const token = env.TELEGRAM_BOT_TOKEN;
+
+  // Sin datos completos no se puede revocar nada de forma segura.
+  if (!token || !channelId || !inviteLink) {
+    return false;
+  }
+
+  try {
+    // Construimos la URL de la API de Telegram para revocar links privados.
+    const url = `https://api.telegram.org/bot${token}/revokeChatInviteLink`;
+
+    // Hacemos la petición POST para invalidar el link anterior.
+    const respuesta = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        /** ID del canal privado destino */
+        chat_id: channelId,
+        /** Link privado que se revocará */
+        invite_link: inviteLink,
+      }),
+    });
+
+    // Parseamos la respuesta de Telegram.
+    const data = (await respuesta.json()) as {
+      ok: boolean;
+      description?: string;
+    };
+
+    // Registramos el rechazo sin exponer datos sensibles.
+    if (!data.ok) {
+      console.warn("[TELEGRAM] No se pudo revocar invite link:", data.description);
+      return false;
+    }
+
+    // Confirmamos que el link anterior ya no queda activo.
+    return true;
+  } catch (error) {
+    // Error de red u otro error inesperado al hablar con Telegram.
+    console.error("[TELEGRAM] Error al revocar invite link:", error);
+    return false;
+  }
+}
+
+/**
  * Formatea los datos de un pick en un mensaje HTML estilizado para Telegram.
  * Soporta tanto la notificación de un nuevo pick como la de actualización de resultado.
  *

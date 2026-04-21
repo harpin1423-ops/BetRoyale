@@ -62,6 +62,9 @@ export const env = {
   /** Enlace de invitación al canal VIP Full */
   TELEGRAM_FULL_INVITE_LINK: process.env.TELEGRAM_FULL_INVITE_LINK || "",
 
+  /** Secreto opcional que Telegram enviará al webhook para validar origen */
+  TELEGRAM_WEBHOOK_SECRET: process.env.TELEGRAM_WEBHOOK_SECRET || "",
+
   // ─── Email (Nodemailer) ──────────────────────────────────────────────────────
   /** Host SMTP para envío de correos (ej: smtp.gmail.com) */
   SMTP_HOST: process.env.SMTP_HOST || "",

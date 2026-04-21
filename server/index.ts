@@ -31,6 +31,7 @@ import paymentsRouter from "./routes/payments.routes.js";
 import statsRouter from "./routes/stats.routes.js";
 import promoCodesRouter from "./routes/promoCodes.routes.js";
 import pickTypesRouter from "./routes/pickTypes.routes.js";
+import telegramRouter from "./routes/telegram.routes.js";
 import { apiLimiter, authLimiter } from "./middleware/rateLimiter.js";
 
 /**
@@ -117,6 +118,9 @@ export async function startServer(): Promise<void> {
 
   /** Códigos promocionales de descuento */
   app.use("/api/promo-codes", promoCodesRouter);
+
+  /** Webhook de Telegram para marcar invites VIP como usados */
+  app.use("/api/telegram", telegramRouter);
 
   /** Health check: verificación rápida de que el servidor está activo */
   app.get("/api/health", (_req, res) => {

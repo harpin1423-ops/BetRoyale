@@ -1,10 +1,28 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { Calendar, TrendingUp, CheckCircle, XCircle, Clock, MinusCircle, Trophy, Activity, ChevronRight, Filter, Lock, Save, DollarSign } from "lucide-react";
+import { Calendar, TrendingUp, CheckCircle, XCircle, Clock, MinusCircle, Trophy, Activity, ChevronRight, Filter, Lock, Save, DollarSign, RefreshCw, ExternalLink } from "lucide-react";
 import { getPickDisplay } from "../lib/constants";
 import { getLocalizedStatus } from "../lib/utils";
 import { useAuth } from "../context/AuthContext";
 import { Link } from "react-router-dom";
 import { CountryFlag } from "../components/CountryFlag";
+
+/**
+ * Representa un link VIP privado de Telegram asignado al usuario autenticado.
+ */
+type TelegramVipLink = {
+  /** Nombre visible del canal o plan. */
+  name: string;
+  /** Link privado de un solo ingreso cuando todavía está disponible. */
+  link: string;
+  /** Fecha de vencimiento del link privado. */
+  expires_at?: string | null;
+  /** Estado del link según backend y webhook de Telegram. */
+  status?: "available" | "used" | "expired";
+  /** Fecha en que Telegram confirmó el ingreso al canal. */
+  used_at?: string | null;
+  /** Username de Telegram reportado al ingresar. */
+  telegram_username?: string | null;
+};
 
 export function VipPicks() {
   const [picks, setPicks] = useState<any[]>([]);
@@ -12,7 +30,9 @@ export function VipPicks() {
   const [planSettings, setPlanSettings] = useState<any[]>([]);
   const [activePlanId, setActivePlanId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [telegramLinks, setTelegramLinks] = useState<{ free: string, vip: { name: string, link: string, expires_at?: string | null }[] }>({ free: "#", vip: [] });
+  const [telegramLinks, setTelegramLinks] = useState<{ free: string, vip: TelegramVipLink[] }>({ free: "#", vip: [] });
+  const [isRefreshingTelegramLinks, setIsRefreshingTelegramLinks] = useState(false);
+  const [telegramLinksMessage, setTelegramLinksMessage] = useState<string | null>(null);
   const { token, user } = useAuth();
   
   const [initialBank, setInitialBank] = useState<number>(1000);
@@ -97,6 +117,70 @@ export function VipPicks() {
     } finally {
       setIsSavingBank(false);
     }
+  };
+
+  /**
+   * Regenera links privados de Telegram que aún no hayan sido usados.
+   */
+  const refreshTelegramLinks = useCallback(async () => {
+    // Sin token no podemos emitir links VIP privados.
+    if (!token) return;
+
+    // Mostramos estado de carga mientras el backend revoca y crea links.
+    setIsRefreshingTelegramLinks(true);
+
+    // Limpiamos el mensaje anterior para evitar confusión visual.
+    setTelegramLinksMessage(null);
+
+    try {
+      // Pedimos al backend refrescar solo links no usados del usuario autenticado.
+      const tgRes = await fetch("/api/user/telegram-links?refresh=1", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      // Si el backend rechaza la operación, mostramos una alerta controlada.
+      if (!tgRes.ok) {
+        throw new Error("No se pudieron regenerar los enlaces.");
+      }
+
+      // Parseamos la respuesta actualizada con estados available/used.
+      const tgData = await tgRes.json();
+
+      // Reemplazamos los links visibles en el panel del usuario.
+      setTelegramLinks(tgData);
+
+      // Avisamos que los links fueron revisados o regenerados.
+      setTelegramLinksMessage("Enlaces actualizados. Si ya ingresaste, el canal quedará marcado como activo.");
+    } catch (error) {
+      // Mostramos un mensaje claro cuando Telegram o el backend no responden.
+      setTelegramLinksMessage("No pudimos generar un nuevo enlace ahora. Intenta nuevamente en unos minutos.");
+    } finally {
+      // Cerramos el estado de carga del botón.
+      setIsRefreshingTelegramLinks(false);
+    }
+  }, [token]);
+
+  /**
+   * Construye el texto de estado que acompaña cada canal VIP.
+   *
+   * @param vip - Link privado de Telegram que se mostrará al usuario.
+   * @returns Texto breve para explicar si el acceso está disponible o ya fue usado.
+   */
+  const getTelegramStatusText = (vip: TelegramVipLink) => {
+    // Si Telegram confirmó el ingreso, mostramos el canal como activo.
+    if (vip.status === "used") {
+      return vip.telegram_username
+        ? `Ya ingresaste como @${vip.telegram_username}`
+        : "Ya ingresaste a este canal";
+    }
+
+    // Si no hay link disponible, pedimos generar uno nuevo.
+    if (!vip.link || vip.link === "#" || vip.status === "expired") {
+      return "Enlace vencido; genera uno nuevo";
+    }
+
+    // Para links disponibles aclaramos que son privados y de un solo ingreso.
+    return "Link privado de 1 ingreso, expira en 7 días";
   };
 
   const filteredPicks = useMemo(() => {
@@ -298,35 +382,85 @@ export function VipPicks() {
       {/* Telegram Links Section */}
       {hasAccess && telegramLinks.vip.length > 0 && (
         <div className="mb-8 p-6 rounded-3xl bg-gradient-to-r from-blue-600/20 to-primary/20 border border-blue-500/30">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="flex flex-col gap-5">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-blue-500 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/25">
                 <TrendingUp className="w-6 h-6 text-white" />
               </div>
               <div>
                 <h3 className="text-xl font-bold text-white">¡Únete a nuestros canales de Telegram!</h3>
-                <p className="text-sm text-blue-200/70">Recibe notificaciones instantáneas de cada pick directamente en tu móvil.</p>
+                <p className="text-sm text-blue-200/70">Cada link es privado, temporal y válido para un solo ingreso del usuario comprador.</p>
               </div>
             </div>
+              <button
+                type="button"
+                onClick={refreshTelegramLinks}
+                disabled={isRefreshingTelegramLinks}
+                className="inline-flex items-center gap-2 rounded-xl border border-blue-300/30 bg-blue-500/10 px-4 py-2 text-sm font-bold text-blue-100 transition-colors hover:bg-blue-500/20 disabled:opacity-60"
+              >
+                <RefreshCw className={`w-4 h-4 ${isRefreshingTelegramLinks ? "animate-spin" : ""}`} />
+                Generar nuevo enlace
+              </button>
+            </div>
+            {telegramLinksMessage && (
+              <div className="rounded-xl border border-blue-300/20 bg-blue-950/40 px-4 py-3 text-sm text-blue-100">
+                {telegramLinksMessage}
+              </div>
+            )}
             <div className="flex flex-wrap gap-3">
-              {telegramLinks.vip.map((vip, idx) => (
-                <a 
-                  key={idx}
-                  href={vip.link} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-5 py-2.5 rounded-xl font-bold transition-all shadow-lg shadow-blue-500/20"
-                >
-                  <span>
-                    <span className="block">Canal {vip.name}</span>
-                    {vip.expires_at && (
-                      <span className="block text-[10px] font-medium text-blue-100/80">
-                        Link privado, expira en 24h
+              {telegramLinks.vip.map((vip, idx) => {
+                // Determinamos si el link aún puede usarse para entrar.
+                const linkDisponible = vip.status !== "used" && vip.link && vip.link !== "#";
+
+                // Identificamos si el estado cerrado corresponde a ingreso confirmado.
+                const ingresoConfirmado = vip.status === "used";
+
+                // Los links usados se muestran como estado, no como botón de ingreso.
+                if (!linkDisponible) {
+                  return (
+                    <div
+                      key={`${vip.name}-${idx}`}
+                      className={`flex items-center gap-2 rounded-xl border px-5 py-2.5 font-bold ${
+                        ingresoConfirmado
+                          ? "border-emerald-400/30 bg-emerald-500/10 text-emerald-100"
+                          : "border-amber-400/30 bg-amber-500/10 text-amber-100"
+                      }`}
+                    >
+                      {ingresoConfirmado ? (
+                        <CheckCircle className="w-4 h-4 shrink-0" />
+                      ) : (
+                        <Clock className="w-4 h-4 shrink-0" />
+                      )}
+                      <span>
+                        <span className="block">Canal {vip.name}</span>
+                        <span className="block text-[10px] font-medium opacity-80">
+                          {getTelegramStatusText(vip)}
+                        </span>
                       </span>
-                    )}
-                  </span>
-                </a>
-              ))}
+                    </div>
+                  );
+                }
+
+                // Los links disponibles abren Telegram en una pestaña segura.
+                return (
+                  <a
+                    key={`${vip.name}-${idx}`}
+                    href={vip.link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-5 py-2.5 rounded-xl font-bold transition-all shadow-lg shadow-blue-500/20"
+                  >
+                    <span>
+                      <span className="block">Canal {vip.name}</span>
+                      <span className="block text-[10px] font-medium text-blue-100/80">
+                        {getTelegramStatusText(vip)}
+                      </span>
+                    </span>
+                    <ExternalLink className="w-4 h-4 shrink-0" />
+                  </a>
+                );
+              })}
             </div>
           </div>
         </div>

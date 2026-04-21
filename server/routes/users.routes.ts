@@ -22,11 +22,13 @@ const router = Router();
  *
  * @param userId - ID del usuario autenticado que recibirá links únicos.
  * @param planesActivos - Slugs de suscripciones activas del usuario.
+ * @param forceRefresh - Indica si se debe regenerar un link no usado y vigente.
  * @returns Lista de links VIP temporales listos para mostrar en frontend.
  */
 async function generarLinksVipPrivados(
   userId: number,
-  planesActivos: string[]
+  planesActivos: string[],
+  forceRefresh = false
 ): Promise<ResultadoInviteVip[]> {
   // Detectamos el plan global que debería usar el canal espejo VIP Full.
   const tieneTodosLosPlanes = planesActivos.includes("all_plans");
@@ -42,6 +44,7 @@ async function generarLinksVipPrivados(
       planId: "all_plans",
       channelId: fullConfig.telegram_channel_id,
       name: "BetRoyale VIP Full",
+      forceRefresh,
     });
 
     // Si el canal Full está listo, devolvemos solo ese link para evitar canales duplicados.
@@ -87,6 +90,7 @@ async function generarLinksVipPrivados(
       planId: canal.slug,
       channelId: canal.telegram_channel_id,
       name: canal.name,
+      forceRefresh,
     });
 
     // Solo mostramos canales donde Telegram aceptó crear un link privado.
@@ -195,6 +199,9 @@ router.get("/telegram-links", async (req: any, res) => {
 
     // Si hay usuario autenticado, resolvemos sus canales VIP activos.
     if (userId) {
+      // Permitimos que el usuario regenere links vencidos/no usados desde su panel.
+      const forceRefresh = req.query.refresh === "1" || req.query.refresh === "true";
+
       // Obtenemos los slugs activos del usuario para resolver canales por plan.
       const [planesActivosRows]: any = await pool.query(
         `SELECT DISTINCT plan_id
@@ -207,7 +214,7 @@ router.get("/telegram-links", async (req: any, res) => {
       const planesActivos = planesActivosRows.map((s: any) => s.plan_id);
 
       // Para planes pagos generamos links privados, temporales y de un solo ingreso.
-      canalesVip = await generarLinksVipPrivados(userId, planesActivos);
+      canalesVip = await generarLinksVipPrivados(userId, planesActivos, forceRefresh);
     }
 
     // Buscamos primero el link gratuito administrado desde pick_types.
@@ -227,6 +234,9 @@ router.get("/telegram-links", async (req: any, res) => {
         name: s.name,
         link: s.link || s.telegram_invite_link,
         expires_at: s.expires_at || null,
+        status: s.status || "available",
+        used_at: s.used_at || null,
+        telegram_username: s.telegram_username || null,
       })),
     });
   } catch (error) {
