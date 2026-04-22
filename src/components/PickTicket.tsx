@@ -120,6 +120,24 @@ const STATUS: Record<string, StatusTheme> = {
   "half-lost": { label: "MEDIO PERDIDO", color: "#fdba74", background: "rgba(251, 146, 60, 0.14)", border: "rgba(253, 186, 116, 0.54)" },
 };
 
+// Definimos el ancho visible del ticket para que el modal no se vea gigante.
+const TICKET_WIDTH = 900;
+
+// Definimos la altura visible manteniendo proporción 4:3.
+const TICKET_HEIGHT = 675;
+
+// Definimos la altura del encabezado para una composición compacta.
+const TICKET_HEADER_HEIGHT = 96;
+
+// Definimos la altura del pie para evitar que tape las selecciones.
+const TICKET_FOOTER_HEIGHT = 45;
+
+// Calculamos el alto central desde las medidas 4:3.
+const TICKET_MAIN_HEIGHT = TICKET_HEIGHT - TICKET_HEADER_HEIGHT - TICKET_FOOTER_HEIGHT;
+
+// Exportamos al doble de escala para obtener 1800x1350 en PNG.
+const TICKET_EXPORT_SCALE = 2;
+
 /**
  * <summary>
  * Obtiene el branding visual del ticket según el plan o canal.
@@ -298,17 +316,105 @@ function formatTime(value: string): string {
  * @param code - Código ISO o emoji de bandera.
  * @returns Bandera lista para mostrar.
  */
-function flagEmoji(code?: string): string {
-  // Evitamos mostrar valores vacíos.
+function normalizeCountryCode(code?: string): string {
+  // Evitamos procesar valores vacíos.
   if (!code) return "";
 
-  // Si llega un código ISO de dos letras, lo convertimos a emoji.
-  if (/^[a-z]{2}$/i.test(code)) {
-    return code.toUpperCase().replace(/./g, (letter) => String.fromCodePoint(127397 + letter.charCodeAt(0)));
-  }
+  // Normalizamos el valor recibido desde base de datos.
+  const normalized = code.trim().toLowerCase();
 
-  // Si ya llega emoji o texto, lo devolvemos tal cual.
-  return code;
+  // Mapeamos banderas emoji conocidas a ISO para evitar render raro en Windows.
+  const emojiMap: Record<string, string> = {
+    "🇦🇷": "ar",
+    "🇧🇷": "br",
+    "🇨🇴": "co",
+    "🇩🇪": "de",
+    "🇪🇸": "es",
+    "🇫🇷": "fr",
+    "🇬🇧": "gb",
+    "🇮🇹": "it",
+    "🇲🇽": "mx",
+    "🇳🇱": "nl",
+    "🇵🇹": "pt",
+    "🇺🇸": "us",
+  };
+
+  // Devolvemos el ISO equivalente cuando llega emoji.
+  if (emojiMap[code]) return emojiMap[code];
+
+  // Permitimos códigos ISO puros de dos letras.
+  if (/^[a-z]{2}$/i.test(normalized)) return normalized;
+
+  // Soportamos alias comunes para Inglaterra/Reino Unido.
+  if (["uk", "england", "inglaterra"].includes(normalized)) return "gb";
+
+  // Soportamos nombres comunes usados en ligas.
+  if (["espana", "españa", "spain"].includes(normalized)) return "es";
+
+  // Devolvemos vacío si no podemos inferir una bandera confiable.
+  return "";
+}
+
+/**
+ * <summary>
+ * Genera un fondo CSS tipo bandera sin depender de emojis del sistema operativo.
+ * </summary>
+ * @param code - Código ISO normalizado del país.
+ * @returns Fondo CSS para pintar la bandera dentro del ticket.
+ */
+function getFlagBackground(code: string): string {
+  // Definimos banderas frecuentes del fútbol europeo y latino.
+  const flags: Record<string, string> = {
+    ar: "linear-gradient(to bottom, #74acdf 0 33%, #ffffff 33% 66%, #74acdf 66% 100%)",
+    br: "radial-gradient(circle at 50% 50%, #002776 0 18%, transparent 19%), linear-gradient(135deg, transparent 28%, #ffdf00 29% 48%, transparent 49%), linear-gradient(45deg, transparent 28%, #ffdf00 29% 48%, transparent 49%), #009b3a",
+    co: "linear-gradient(to bottom, #fcd116 0 50%, #003893 50% 75%, #ce1126 75% 100%)",
+    de: "linear-gradient(to bottom, #000000 0 33%, #dd0000 33% 66%, #ffce00 66% 100%)",
+    es: "linear-gradient(to bottom, #aa151b 0 25%, #f1bf00 25% 75%, #aa151b 75% 100%)",
+    fr: "linear-gradient(to right, #0055a4 0 33%, #ffffff 33% 66%, #ef4135 66% 100%)",
+    gb: "linear-gradient(33deg, transparent 42%, #ffffff 42% 46%, #c8102e 46% 54%, #ffffff 54% 58%, transparent 58%), linear-gradient(147deg, transparent 42%, #ffffff 42% 46%, #c8102e 46% 54%, #ffffff 54% 58%, transparent 58%), linear-gradient(to bottom, transparent 41%, #ffffff 41% 45%, #c8102e 45% 55%, #ffffff 55% 59%, transparent 59%), linear-gradient(to right, transparent 41%, #ffffff 41% 45%, #c8102e 45% 55%, #ffffff 55% 59%, transparent 59%), #012169",
+    it: "linear-gradient(to right, #009246 0 33%, #ffffff 33% 66%, #ce2b37 66% 100%)",
+    mx: "linear-gradient(to right, #006847 0 33%, #ffffff 33% 66%, #ce1126 66% 100%)",
+    nl: "linear-gradient(to bottom, #ae1c28 0 33%, #ffffff 33% 66%, #21468b 66% 100%)",
+    pt: "linear-gradient(to right, #006600 0 42%, #ff0000 42% 100%)",
+    us: "linear-gradient(to bottom, #b22234 0 8%, #ffffff 8% 16%, #b22234 16% 24%, #ffffff 24% 32%, #b22234 32% 40%, #ffffff 40% 48%, #b22234 48% 56%, #ffffff 56% 64%, #b22234 64% 72%, #ffffff 72% 80%, #b22234 80% 88%, #ffffff 88% 96%, #b22234 96% 100%)",
+  };
+
+  // Devolvemos la bandera conocida o un fondo neutro para países no mapeados.
+  return flags[code] || "linear-gradient(135deg, #334155, #0f172a)";
+}
+
+/**
+ * <summary>
+ * Renderiza una bandera compacta compatible con html2canvas y Windows.
+ * </summary>
+ * @param code - Código ISO o emoji recibido desde el backend.
+ * @param size - Alto visual de la bandera en pixeles.
+ * @returns Bandera CSS para la fila del ticket.
+ */
+function TicketFlag({ code, size = 18 }: { code?: string; size?: number }) {
+  // Normalizamos el país antes de pintar la bandera.
+  const normalized = normalizeCountryCode(code);
+
+  // Evitamos reservar espacio cuando no hay país.
+  if (!normalized) return null;
+
+  // Renderizamos la bandera como CSS para que se exporte estable en PNG.
+  return (
+    <span
+      aria-label={`Bandera ${normalized.toUpperCase()}`}
+      style={{
+        width: Math.round(size * 1.36),
+        height: size,
+        flexShrink: 0,
+        display: "inline-block",
+        overflow: "hidden",
+        borderRadius: Math.max(3, Math.round(size * 0.18)),
+        background: getFlagBackground(normalized),
+        border: "1px solid rgba(255, 255, 255, 0.28)",
+        boxShadow: "0 4px 12px rgba(0, 0, 0, 0.28)",
+      }}
+    />
+  );
 }
 
 /**
@@ -499,7 +605,7 @@ export function PickTicket({ pick }: { pick: PickData }) {
     try {
       // Capturamos el ticket en escala alta para redes.
       const canvas = await html2canvas(ticketRef.current, {
-        scale: 2,
+        scale: TICKET_EXPORT_SCALE,
         useCORS: true,
         allowTaint: true,
         backgroundColor: theme.background,
@@ -540,8 +646,8 @@ export function PickTicket({ pick }: { pick: PickData }) {
         ref={ticketRef}
         style={{
           ...getTicketBackground(theme),
-          width: 1200,
-          height: 900,
+          width: TICKET_WIDTH,
+          height: TICKET_HEIGHT,
           position: "relative",
           overflow: "hidden",
           color: "#f8fafc",
@@ -575,8 +681,8 @@ export function PickTicket({ pick }: { pick: PickData }) {
             position: "absolute",
             right: -130,
             bottom: -130,
-            width: 420,
-            height: 420,
+            width: 320,
+            height: 320,
             borderRadius: "50%",
             background: theme.glow,
             filter: "blur(44px)",
@@ -588,20 +694,20 @@ export function PickTicket({ pick }: { pick: PickData }) {
           style={{
             position: "relative",
             zIndex: 2,
-            height: 132,
+            height: TICKET_HEADER_HEIGHT,
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            padding: "0 44px",
+            padding: "0 32px",
             borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 22 }}>
-            <BrandLogo size={70} />
+          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            <BrandLogo size={54} />
             <div>
               <div
                 style={{
-                  fontSize: 34,
+                  fontSize: 26,
                   fontWeight: 950,
                   lineHeight: 1,
                   letterSpacing: "0.22em",
@@ -613,8 +719,8 @@ export function PickTicket({ pick }: { pick: PickData }) {
               </div>
               <div
                 style={{
-                  marginTop: 11,
-                  fontSize: 13,
+                  marginTop: 8,
+                  fontSize: 10,
                   fontWeight: 800,
                   letterSpacing: "0.34em",
                   color: "#cbd5e1",
@@ -626,15 +732,15 @@ export function PickTicket({ pick }: { pick: PickData }) {
             </div>
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 9 }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 7 }}>
             <div
               style={{
-                padding: "9px 28px",
+                padding: "7px 21px",
                 borderRadius: 999,
                 border: `1.5px solid ${theme.accent}`,
                 color: theme.accent,
                 background: "rgba(0, 0, 0, 0.18)",
-                fontSize: 17,
+                fontSize: 13,
                 fontWeight: 950,
                 letterSpacing: "0.22em",
                 textTransform: "uppercase",
@@ -644,12 +750,12 @@ export function PickTicket({ pick }: { pick: PickData }) {
             </div>
             <div
               style={{
-                padding: "8px 28px",
+                padding: "6px 21px",
                 borderRadius: 999,
                 border: `1.5px solid ${status.border}`,
                 color: status.color,
                 background: status.background,
-                fontSize: 16,
+                fontSize: 12,
                 fontWeight: 950,
                 letterSpacing: "0.22em",
                 textTransform: "uppercase",
@@ -664,9 +770,9 @@ export function PickTicket({ pick }: { pick: PickData }) {
           style={{
             position: "relative",
             zIndex: 2,
-            height: 708,
+            height: TICKET_MAIN_HEIGHT,
             display: "grid",
-            gridTemplateColumns: "310px 1fr",
+            gridTemplateColumns: "228px 1fr",
           }}
         >
           <aside
@@ -674,7 +780,7 @@ export function PickTicket({ pick }: { pick: PickData }) {
               display: "flex",
               flexDirection: "column",
               justifyContent: "space-between",
-              padding: "34px 36px 28px",
+              padding: "26px 28px 20px",
               background: `linear-gradient(180deg, ${theme.panel}, rgba(2, 6, 23, 0.82))`,
               borderRight: "1px solid rgba(255, 255, 255, 0.08)",
             }}
@@ -682,7 +788,7 @@ export function PickTicket({ pick }: { pick: PickData }) {
             <div>
               <div
                 style={{
-                  fontSize: 54,
+                  fontSize: 42,
                   fontWeight: 950,
                   letterSpacing: "0.20em",
                   lineHeight: 1,
@@ -694,8 +800,8 @@ export function PickTicket({ pick }: { pick: PickData }) {
               </div>
               <div
                 style={{
-                  marginTop: 15,
-                  fontSize: 17,
+                  marginTop: 12,
+                  fontSize: 13,
                   fontWeight: 950,
                   letterSpacing: "0.28em",
                   color: theme.accent,
@@ -706,28 +812,28 @@ export function PickTicket({ pick }: { pick: PickData }) {
               </div>
               <div
                 style={{
-                  marginTop: 32,
+                  marginTop: 24,
                   height: 1,
                   width: "100%",
                   background: `linear-gradient(90deg, ${theme.line}, transparent)`,
                 }}
               />
-              <div style={{ marginTop: 34 }}>
+              <div style={{ marginTop: 26 }}>
                 <div style={{ fontSize: 13, fontWeight: 950, letterSpacing: "0.24em", color: "#64748b", textTransform: "uppercase" }}>
                   Stake
                 </div>
-                <div style={{ marginTop: 8, fontSize: 34, fontWeight: 950, color: "#f8fafc" }}>
+                <div style={{ marginTop: 6, fontSize: 26, fontWeight: 950, color: "#f8fafc" }}>
                   {parseNumber(pick.stake).toFixed(parseNumber(pick.stake) % 1 === 0 ? 0 : 1)}u
                 </div>
               </div>
-              <div style={{ marginTop: 30 }}>
+              <div style={{ marginTop: 23 }}>
                 <div style={{ fontSize: 13, fontWeight: 950, letterSpacing: "0.24em", color: "#64748b", textTransform: "uppercase" }}>
                   Cuota Total
                 </div>
                 <div
                   style={{
-                    marginTop: 10,
-                    fontSize: 66,
+                    marginTop: 8,
+                    fontSize: 50,
                     fontWeight: 950,
                     lineHeight: 0.95,
                     color: theme.accent,
@@ -740,9 +846,9 @@ export function PickTicket({ pick }: { pick: PickData }) {
               {isResolved && (
                 <div
                   style={{
-                    marginTop: 28,
-                    padding: "18px 20px",
-                    borderRadius: 18,
+                    marginTop: 20,
+                    padding: "13px 15px",
+                    borderRadius: 15,
                     border: "1px solid rgba(255, 255, 255, 0.10)",
                     background: "rgba(255, 255, 255, 0.045)",
                   }}
@@ -753,19 +859,19 @@ export function PickTicket({ pick }: { pick: PickData }) {
                   <div
                     style={{
                       marginTop: 8,
-                      fontSize: 34,
+                      fontSize: 26,
                       fontWeight: 950,
                       color: profitUnits >= 0 ? "#34d399" : "#fb7185",
                     }}
                   >
                     {formatUnits(profitUnits)}
                   </div>
-                  <div style={{ marginTop: 12, display: "flex", gap: 18 }}>
+                  <div style={{ marginTop: 10, display: "flex", gap: 13 }}>
                     <div>
                       <div style={{ fontSize: 10, fontWeight: 900, letterSpacing: "0.18em", color: "#64748b", textTransform: "uppercase" }}>
                         Yield
                       </div>
-                      <div style={{ marginTop: 4, fontSize: 17, fontWeight: 950, color: theme.secondary }}>
+                      <div style={{ marginTop: 4, fontSize: 13, fontWeight: 950, color: theme.secondary }}>
                         {yieldValue > 0 ? "+" : ""}{yieldValue.toFixed(2)}%
                       </div>
                     </div>
@@ -773,7 +879,7 @@ export function PickTicket({ pick }: { pick: PickData }) {
                       <div style={{ fontSize: 10, fontWeight: 900, letterSpacing: "0.18em", color: "#64748b", textTransform: "uppercase" }}>
                         Estado
                       </div>
-                      <div style={{ marginTop: 4, fontSize: 17, fontWeight: 950, color: status.color }}>
+                      <div style={{ marginTop: 4, fontSize: 13, fontWeight: 950, color: status.color }}>
                         {status.label}
                       </div>
                     </div>
@@ -782,36 +888,22 @@ export function PickTicket({ pick }: { pick: PickData }) {
               )}
             </div>
 
-            <div style={{ borderTop: "1px solid rgba(255, 255, 255, 0.08)", paddingTop: 20 }}>
-              <div style={{ fontSize: 14, fontWeight: 800, color: "#94a3b8" }}>Únete a BetRoyale Club</div>
-              <div style={{ marginTop: 5, fontSize: 22, fontWeight: 950, color: theme.accent }}>betroyaleclub.com</div>
-              <div style={{ marginTop: 5, fontSize: 13, fontStyle: "italic", lineHeight: 1.35, color: "#64748b" }}>
+            <div style={{ borderTop: "1px solid rgba(255, 255, 255, 0.08)", paddingTop: 15 }}>
+              <div style={{ fontSize: 11, fontWeight: 800, color: "#94a3b8" }}>Únete a BetRoyale Club</div>
+              <div style={{ marginTop: 5, fontSize: 17, fontWeight: 950, color: theme.accent }}>betroyaleclub.com</div>
+              <div style={{ marginTop: 4, fontSize: 10, fontStyle: "italic", lineHeight: 1.35, color: "#64748b" }}>
                 Análisis, disciplina y gestión de banca.
               </div>
             </div>
           </aside>
 
-          <section style={{ minWidth: 0, display: "flex", flexDirection: "column", padding: "26px 32px 24px" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 24, marginBottom: 18 }}>
+          <section style={{ minWidth: 0, display: "flex", flexDirection: "column", padding: "18px 24px 18px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-start", gap: 14, marginBottom: 12 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
-                <span style={{ width: 12, height: 12, borderRadius: "50%", background: theme.accent, boxShadow: `0 0 20px ${theme.accent}`, flexShrink: 0 }} />
-                <span style={{ fontSize: 16, fontWeight: 950, letterSpacing: "0.20em", color: theme.accent, textTransform: "uppercase", whiteSpace: "nowrap" }}>
+                <span style={{ width: 9, height: 9, borderRadius: "50%", background: theme.accent, boxShadow: `0 0 18px ${theme.accent}`, flexShrink: 0 }} />
+                <span style={{ fontSize: 12, fontWeight: 950, letterSpacing: "0.20em", color: theme.accent, textTransform: "uppercase", whiteSpace: "nowrap" }}>
                   {formatDate(primaryDate)} · COL (GMT-5)
                 </span>
-              </div>
-              <div
-                style={{
-                  padding: "10px 20px",
-                  borderRadius: 999,
-                  border: "1px solid rgba(255, 255, 255, 0.08)",
-                  background: "rgba(255, 255, 255, 0.04)",
-                  fontSize: 14,
-                  fontWeight: 900,
-                  color: "#cbd5e1",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                Formato 4:3 HD · Instagram · Facebook
               </div>
             </div>
 
@@ -826,33 +918,33 @@ export function PickTicket({ pick }: { pick: PickData }) {
                   border: `1px solid ${theme.line}`,
                   borderLeft: `8px solid ${theme.accent}`,
                   background: "rgba(2, 6, 23, 0.68)",
-                  padding: "42px 48px",
+                  padding: "32px 36px",
                 }}
               >
-                <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 18, fontWeight: 950, letterSpacing: "0.16em", color: theme.accent, textTransform: "uppercase" }}>
-                  <span style={{ fontSize: 30, lineHeight: 1 }}>{flagEmoji(pick.country_flag)}</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 14, fontWeight: 950, letterSpacing: "0.16em", color: theme.accent, textTransform: "uppercase" }}>
+                  <TicketFlag code={pick.country_flag} size={20} />
                   <span>{getRegionLabel(pick)}</span>
                 </div>
-                <div style={{ marginTop: 24, fontSize: 43, lineHeight: 1.1, fontWeight: 950, color: "#f8fafc" }}>
+                <div style={{ marginTop: 19, fontSize: 32, lineHeight: 1.1, fontWeight: 950, color: "#f8fafc" }}>
                   {pick.match_name}
                 </div>
-                <div style={{ marginTop: 20, fontSize: 18, fontWeight: 800, color: "#94a3b8" }}>
+                <div style={{ marginTop: 16, fontSize: 14, fontWeight: 800, color: "#94a3b8" }}>
                   {formatTime(pick.match_date)} COL · GMT-5
                 </div>
-                <div style={{ marginTop: 44, fontSize: 15, fontWeight: 950, letterSpacing: "0.24em", color: "#64748b", textTransform: "uppercase" }}>
+                <div style={{ marginTop: 34, fontSize: 12, fontWeight: 950, letterSpacing: "0.24em", color: "#64748b", textTransform: "uppercase" }}>
                   Pronóstico
                 </div>
-                <div style={{ marginTop: 10, fontSize: 56, lineHeight: 1.05, fontWeight: 950, color: "#f8fafc" }}>
+                <div style={{ marginTop: 8, fontSize: 42, lineHeight: 1.05, fontWeight: 950, color: "#f8fafc" }}>
                   {getPredictionLabel(pick)}{getMarketAcronym(pick)}
                 </div>
                 {isResolved && pick.score_home !== null && pick.score_home !== undefined && pick.score_away !== null && pick.score_away !== undefined && (
-                  <div style={{ marginTop: 34, fontSize: 24, fontWeight: 950, color: "#cbd5e1" }}>
+                  <div style={{ marginTop: 26, fontSize: 18, fontWeight: 950, color: "#cbd5e1" }}>
                     Resultado: {pick.score_home}-{pick.score_away}
                   </div>
                 )}
               </article>
             ) : (
-              <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", gap: compactParlay ? 8 : 12 }}>
+              <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", gap: compactParlay ? 7 : 9 }}>
                 {selections.map((selection, index) => {
                   // Calculamos si hay marcador completo para mostrarlo solo en resueltos.
                   const hasScore = selection.score_home !== null && selection.score_home !== undefined && selection.score_away !== null && selection.score_away !== undefined;
@@ -866,63 +958,63 @@ export function PickTicket({ pick }: { pick: PickData }) {
                       style={{
                         position: "relative",
                         flex: 1,
-                        minHeight: compactParlay ? 104 : 120,
+                        minHeight: compactParlay ? 82 : 100,
                         overflow: "hidden",
                         display: "flex",
                         alignItems: "stretch",
                         justifyContent: "space-between",
-                        gap: 20,
-                        padding: compactParlay ? "14px 24px" : "18px 26px",
-                        borderRadius: 20,
+                        gap: 15,
+                        padding: compactParlay ? "10px 18px" : "13px 19px",
+                        borderRadius: 15,
                         border: `1px solid ${theme.line}`,
-                        borderLeft: `8px solid ${theme.accent}`,
+                        borderLeft: `6px solid ${theme.accent}`,
                         background: "rgba(2, 6, 23, 0.70)",
                       }}
                     >
                       <div style={{ minWidth: 0, flex: 1 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 9, fontSize: compactParlay ? 13 : 14, fontWeight: 950, letterSpacing: "0.16em", color: theme.accent, textTransform: "uppercase" }}>
-                          <span style={{ fontSize: compactParlay ? 20 : 22, lineHeight: 1 }}>{flagEmoji(selection.country_flag)}</span>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: compactParlay ? 10 : 11, fontWeight: 950, letterSpacing: "0.16em", color: theme.accent, textTransform: "uppercase" }}>
+                          <TicketFlag code={selection.country_flag} size={compactParlay ? 13 : 15} />
                           <span>{regionLabel || "Liga"}</span>
                         </div>
-                        <div style={{ marginTop: compactParlay ? 7 : 9, fontSize: compactParlay ? 24 : 27, lineHeight: 1.08, fontWeight: 950, color: "#f8fafc" }}>
+                        <div style={{ marginTop: compactParlay ? 5 : 7, fontSize: compactParlay ? 18 : 20, lineHeight: 1.08, fontWeight: 950, color: "#f8fafc" }}>
                           {selection.match_name}
                         </div>
-                        <div style={{ marginTop: compactParlay ? 11 : 14, fontSize: compactParlay ? 11 : 12, fontWeight: 950, letterSpacing: "0.20em", color: "#64748b", textTransform: "uppercase" }}>
+                        <div style={{ marginTop: compactParlay ? 8 : 10, fontSize: compactParlay ? 8 : 9, fontWeight: 950, letterSpacing: "0.20em", color: "#64748b", textTransform: "uppercase" }}>
                           Pronóstico
                         </div>
-                        <div style={{ marginTop: 3, fontSize: compactParlay ? 24 : 28, lineHeight: 1.05, fontWeight: 950, color: "#f8fafc" }}>
+                        <div style={{ marginTop: 3, fontSize: compactParlay ? 17 : 20, lineHeight: 1.05, fontWeight: 950, color: "#f8fafc" }}>
                           {getPredictionLabel(selection)}{getMarketAcronym(selection)}
                         </div>
                       </div>
 
-                      <div style={{ width: 150, display: "flex", flexDirection: "column", alignItems: "flex-end", justifyContent: "space-between", textAlign: "right", flexShrink: 0 }}>
+                      <div style={{ width: 112, display: "flex", flexDirection: "column", alignItems: "flex-end", justifyContent: "space-between", textAlign: "right", flexShrink: 0 }}>
                         <div>
-                          <div style={{ fontSize: 11, fontWeight: 950, letterSpacing: "0.20em", color: "#64748b", textTransform: "uppercase" }}>
+                          <div style={{ fontSize: 8, fontWeight: 950, letterSpacing: "0.20em", color: "#64748b", textTransform: "uppercase" }}>
                             Hora
                           </div>
-                          <div style={{ marginTop: 5, fontSize: compactParlay ? 20 : 22, fontWeight: 950, color: "#e2e8f0" }}>
+                          <div style={{ marginTop: 4, fontSize: compactParlay ? 15 : 17, fontWeight: 950, color: "#e2e8f0" }}>
                             {formatTime(selection.match_time)} COL
                           </div>
-                          <div style={{ marginTop: 2, fontSize: 12, fontWeight: 800, color: "#64748b" }}>
+                          <div style={{ marginTop: 2, fontSize: 9, fontWeight: 800, color: "#64748b" }}>
                             GMT-5
                           </div>
                         </div>
-                        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 7 }}>
+                        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 5 }}>
                           <div
                             style={{
-                              padding: "6px 16px",
+                              padding: "5px 12px",
                               borderRadius: 999,
                               border: `1.5px solid ${theme.accent}`,
                               background: "rgba(0, 0, 0, 0.20)",
                               color: theme.accent,
-                              fontSize: compactParlay ? 18 : 21,
+                              fontSize: compactParlay ? 14 : 16,
                               fontWeight: 950,
                             }}
                           >
                             @{parseNumber(selection.odds, 1).toFixed(2)}
                           </div>
                           {isResolved && hasScore && (
-                            <div style={{ padding: "5px 12px", borderRadius: 999, background: "rgba(255, 255, 255, 0.06)", color: "#cbd5e1", fontSize: 13, fontWeight: 900 }}>
+                            <div style={{ padding: "4px 9px", borderRadius: 999, background: "rgba(255, 255, 255, 0.06)", color: "#cbd5e1", fontSize: 10, fontWeight: 900 }}>
                               Resultado: {selection.score_home}-{selection.score_away}
                             </div>
                           )}
@@ -940,14 +1032,14 @@ export function PickTicket({ pick }: { pick: PickData }) {
           style={{
             position: "relative",
             zIndex: 2,
-            height: 60,
+            height: TICKET_FOOTER_HEIGHT,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            gap: 22,
+            gap: 16,
             borderTop: "1px solid rgba(255, 255, 255, 0.08)",
             background: "rgba(0, 0, 0, 0.34)",
-            fontSize: 15,
+            fontSize: 11,
             fontWeight: 950,
           }}
         >
@@ -963,7 +1055,7 @@ export function PickTicket({ pick }: { pick: PickData }) {
         disabled={generating}
         onClick={download}
         style={{
-          width: 1200,
+          width: TICKET_WIDTH,
           maxWidth: "100%",
           padding: "15px 0",
           borderRadius: 8,
@@ -978,7 +1070,7 @@ export function PickTicket({ pick }: { pick: PickData }) {
         }}
         type="button"
       >
-        {generating ? "Generando imagen..." : "Descargar Ticket HD 4:3"}
+        {generating ? "Generando imagen..." : "Descargar imagen"}
       </button>
     </div>
   );
