@@ -202,6 +202,45 @@ const EQUIPOS_INICIALES = [
     ]
   },
   {
+    pais: "Noruega",
+    liga: "Eliteserien",
+    equipos: [
+      "Bodø/Glimt", "Brann", "Bryne", "Fredrikstad", "HamKam", "Haugesund",
+      "KFUM Oslo", "Kristiansund", "Molde", "Rosenborg", "Sandefjord",
+      "Sarpsborg 08", "Strømsgodset", "Tromsø", "Vålerenga", "Viking"
+    ]
+  },
+  {
+    pais: "Dinamarca",
+    liga: "Superliga",
+    equipos: [
+      "Aalborg BK", "Aarhus GF", "Brøndby IF", "FC Copenhague", "FC Midtjylland",
+      "FC Nordsjælland", "Lyngby BK", "Randers FC", "Silkeborg IF", "SønderjyskE",
+      "Vejle BK", "Viborg FF"
+    ]
+  },
+  {
+    pais: "Rumania",
+    liga: "SuperLiga",
+    equipos: [
+      "CFR Cluj", "Dinamo de Bucarest", "FCSB", "Gloria Buzău", "Hermannstadt",
+      "Oțelul Galați", "Petrolul Ploiești", "Politehnica Iași", "Rapid de Bucarest",
+      "Sepsi OSK", "Universitatea Cluj", "Unirea Slobozia", "Universitatea Craiova",
+      "UTA Arad", "FC Botoșani", "Farul Constanța"
+    ]
+  },
+  {
+    pais: "Serbia",
+    liga: "SuperLiga",
+    equipos: [
+      "Čukarički", "Estrella Roja de Belgrado", "IMT Belgrado", "Jedinstvo Ub",
+      "Mladost Lučani", "Napredak Kruševac", "Novi Pazar", "OFK Belgrado",
+      "Partizán de Belgrado", "Radnički Kragujevac", "Radnički Niš",
+      "Spartak Subotica", "Tekstilac Odžaci", "TSC Bačka Topola", "Vojvodina",
+      "Železničar Pančevo"
+    ]
+  },
+  {
     pais: "Suecia",
     liga: "Allsvenskan",
     equipos: [
