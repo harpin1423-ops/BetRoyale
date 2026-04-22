@@ -202,6 +202,36 @@ const EQUIPOS_INICIALES = [
     ]
   },
   {
+    pais: "Suiza",
+    liga: "Super League",
+    equipos: [
+      "BSC Young Boys", "Servette FC", "FC Lugano", "FC Lucerna", "FC Winterthur",
+      "FC San Galo", "FC Zúrich", "Grasshopper Club Zúrich", "FC Basilea",
+      "FC Lausana-Sport", "Yverdon-Sport", "FC Sion"
+    ]
+  },
+  {
+    pais: "Perú",
+    liga: "Liga 1",
+    equipos: [
+      "Universitario de Deportes", "Alianza Lima", "Sporting Cristal", "FBC Melgar",
+      "Cusco FC", "ADT de Tarma", "Atlético Grau", "Sport Huancayo", "Cienciano",
+      "Deportivo Garcilaso", "Los Chankas", "Sport Boys", "UTC de Cajamarca",
+      "Comerciantes Unidos", "Alianza Atlético", "Juan Pablo II", "FC Cajamarca",
+      "Deportivo Moquegua"
+    ]
+  },
+  {
+    pais: "Ecuador",
+    liga: "Liga Pro",
+    equipos: [
+      "Independiente del Valle", "Liga de Quito (LDU)", "Barcelona Sporting Club",
+      "Club Sport Emelec", "Aucas", "Universidad Católica", "Orense Sporting Club",
+      "Mushuc Runa", "Macará", "Técnico Universitario", "Delfín Sporting Club",
+      "Deportivo Cuenca", "Libertad FC", "Manta FC", "El Nacional"
+    ]
+  },
+  {
     pais: "Colombia",
     liga: "Liga BetPlay",
     equipos: [
