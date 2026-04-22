@@ -3050,7 +3050,11 @@ export function AdminDashboard() {
                           placeholder="Seleccionar..."
                           options={[
                             { value: "", label: "Seleccionar..." },
-                            ...countries.map(c => ({ value: c.id, label: c.name }))
+                            ...countries.map(c => ({ 
+                              value: c.id, 
+                              label: c.name,
+                              icon: <CountryFlag countryCode={c.flag} className="w-5 h-4" />
+                            }))
                           ]}
                         />
                       </div>
@@ -3109,7 +3113,11 @@ export function AdminDashboard() {
                         placeholder="Filtrar por país (Todos)"
                         options={[
                           { value: "", label: "Filtrar por país (Todos)" },
-                          ...countries.map(c => ({ value: c.id, label: c.name }))
+                          ...countries.map(c => ({ 
+                            value: c.id, 
+                            label: c.name,
+                            icon: <CountryFlag countryCode={c.flag} className="w-5 h-4" />
+                          }))
                         ]}
                       />
                     </div>
