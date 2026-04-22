@@ -108,10 +108,39 @@ const EQUIPOS_INICIALES = [
         liga: "La Liga",
         equipos: [
             "Deportivo Alavés", "Athletic Club", "Atlético de Madrid", "F. C. Barcelona",
-            "Real Betis Balompié", "Celta de Vigo", "Elche C. F.", "R. C. D. Espanyol",
-            "Getafe C. F.", "Girona F. C.", "Levante U. D.", "R. C. D. Mallorca",
-            "C. A. Osasuna", "Real Oviedo", "Rayo Vallecano", "Real Madrid C. F.",
-            "Real Sociedad", "Sevilla F. C.", "Valencia C. F.", "Villarreal C. F."
+            "Real Betis Balompié", "Celta de Vigo", "R. C. D. Espanyol", "Getafe C. F.",
+            "Girona F. C.", "U. D. Las Palmas", "C. D. Leganés", "R. C. D. Mallorca",
+            "C. A. Osasuna", "Rayo Vallecano", "Real Madrid C. F.", "Real Sociedad",
+            "Sevilla F. C.", "Valencia C. F.", "Real Valladolid C. F.", "Villarreal C. F."
+        ]
+    },
+    {
+        pais: "España",
+        liga: "Segunda División",
+        equipos: [
+            "Albacete Balompié", "U. D. Almería", "Burgos C. F.", "Cádiz C. F.",
+            "C. D. Castellón", "Córdoba C. F.", "R. C. Deportivo de La Coruña",
+            "S. D. Eibar", "Elche C. F.", "C. D. Eldense", "Racing Club de Ferrol",
+            "Granada C. F.", "S. D. Huesca", "Levante U. D.", "Málaga C. F.",
+            "C. D. Mirandés", "Real Oviedo", "Racing de Santander", "Real Sporting de Gijón",
+            "C. D. Tenerife", "Real Zaragoza", "F. C. Cartagena"
+        ]
+    },
+    {
+        pais: "España",
+        liga: "Copa del Rey",
+        equipos: [
+            "Deportivo Alavés", "Athletic Club", "Atlético de Madrid", "F. C. Barcelona",
+            "Real Betis Balompié", "Celta de Vigo", "R. C. D. Espanyol", "Getafe C. F.",
+            "Girona F. C.", "U. D. Las Palmas", "C. D. Leganés", "R. C. D. Mallorca",
+            "C. A. Osasuna", "Rayo Vallecano", "Real Madrid C. F.", "Real Sociedad",
+            "Sevilla F. C.", "Valencia C. F.", "Real Valladolid C. F.", "Villarreal C. F.",
+            "Albacete Balompié", "U. D. Almería", "Burgos C. F.", "Cádiz C. F.",
+            "C. D. Castellón", "Córdoba C. F.", "R. C. Deportivo de La Coruña",
+            "S. D. Eibar", "Elche C. F.", "C. D. Eldense", "Racing Club de Ferrol",
+            "Granada C. F.", "S. D. Huesca", "Levante U. D.", "Málaga C. F.",
+            "C. D. Mirandés", "Real Oviedo", "Racing de Santander", "Real Sporting de Gijón",
+            "C. D. Tenerife", "Real Zaragoza", "F. C. Cartagena"
         ]
     },
     {
@@ -123,6 +152,49 @@ const EQUIPOS_INICIALES = [
             "Leicester City", "Liverpool", "Manchester City", "Manchester United",
             "Newcastle United", "Nottingham Forest", "Southampton", "Tottenham Hotspur",
             "West Ham United", "Wolverhampton Wanderers"
+        ]
+    },
+    {
+        pais: "Inglaterra",
+        liga: "Championship",
+        equipos: [
+            "Blackburn Rovers", "Bristol City", "Burnley", "Cardiff City", "Coventry City",
+            "Derby County", "Hull City", "Leeds United", "Luton Town", "Middlesbrough",
+            "Millwall", "Norwich City", "Oxford United", "Plymouth Argyle", "Portsmouth",
+            "Preston North End", "Queens Park Rangers", "Sheffield United", "Sheffield Wednesday",
+            "Stoke City", "Sunderland", "Swansea City", "Watford", "West Bromwich Albion"
+        ]
+    },
+    {
+        pais: "Inglaterra",
+        liga: "FA Cup",
+        equipos: [
+            "Arsenal", "Aston Villa", "Bournemouth", "Brentford", "Brighton & Hove Albion",
+            "Chelsea", "Crystal Palace", "Everton", "Fulham", "Ipswich Town",
+            "Leicester City", "Liverpool", "Manchester City", "Manchester United",
+            "Newcastle United", "Nottingham Forest", "Southampton", "Tottenham Hotspur",
+            "West Ham United", "Wolverhampton Wanderers",
+            "Blackburn Rovers", "Bristol City", "Burnley", "Cardiff City", "Coventry City",
+            "Derby County", "Hull City", "Leeds United", "Luton Town", "Middlesbrough",
+            "Millwall", "Norwich City", "Oxford United", "Plymouth Argyle", "Portsmouth",
+            "Preston North End", "Queens Park Rangers", "Sheffield United", "Sheffield Wednesday",
+            "Stoke City", "Sunderland", "Swansea City", "Watford", "West Bromwich Albion"
+        ]
+    },
+    {
+        pais: "Inglaterra",
+        liga: "EFL Cup",
+        equipos: [
+            "Arsenal", "Aston Villa", "Bournemouth", "Brentford", "Brighton & Hove Albion",
+            "Chelsea", "Crystal Palace", "Everton", "Fulham", "Ipswich Town",
+            "Leicester City", "Liverpool", "Manchester City", "Manchester United",
+            "Newcastle United", "Nottingham Forest", "Southampton", "Tottenham Hotspur",
+            "West Ham United", "Wolverhampton Wanderers",
+            "Blackburn Rovers", "Bristol City", "Burnley", "Cardiff City", "Coventry City",
+            "Derby County", "Hull City", "Leeds United", "Luton Town", "Middlesbrough",
+            "Millwall", "Norwich City", "Oxford United", "Plymouth Argyle", "Portsmouth",
+            "Preston North End", "Queens Park Rangers", "Sheffield United", "Sheffield Wednesday",
+            "Stoke City", "Sunderland", "Swansea City", "Watford", "West Bromwich Albion"
         ]
     },
     {
@@ -142,6 +214,32 @@ const EQUIPOS_INICIALES = [
             "Borussia Mönchengladbach", "Eintracht Fráncfort", "Friburgo", "Heidenheim",
             "Holstein Kiel", "Hoffenheim", "Mainz 05", "RB Leipzig", "St. Pauli",
             "Stuttgart", "Unión Berlín", "Werder Bremen", "Wolfsburgo"
+        ]
+    },
+    {
+        pais: "Alemania",
+        liga: "2. Bundesliga",
+        equipos: [
+            "1. FC Kaiserslautern", "1. FC Köln", "1. FC Magdeburg", "1. FC Nürnberg",
+            "Eintracht Braunschweig", "Elversberg", "Fortuna Düsseldorf", "Hamburger SV",
+            "Hannover 96", "Hertha BSC", "Jahn Regensburg", "Karlsruher SC",
+            "Paderborn 07", "Preußen Münster", "Schalke 04", "SpVgg Greuther Fürth",
+            "SSV Ulm 1846", "SV Darmstadt 98"
+        ]
+    },
+    {
+        pais: "Alemania",
+        liga: "DFB Pokal",
+        equipos: [
+            "Augsburgo", "Bayer Leverkusen", "Bayern de Múnich", "Bochum", "Borussia Dortmund",
+            "Borussia Mönchengladbach", "Eintracht Fráncfort", "Friburgo", "Heidenheim",
+            "Holstein Kiel", "Hoffenheim", "Mainz 05", "RB Leipzig", "St. Pauli",
+            "Stuttgart", "Unión Berlín", "Werder Bremen", "Wolfsburgo",
+            "1. FC Kaiserslautern", "1. FC Köln", "1. FC Magdeburg", "1. FC Nürnberg",
+            "Eintracht Braunschweig", "Elversberg", "Fortuna Düsseldorf", "Hamburger SV",
+            "Hannover 96", "Hertha BSC", "Jahn Regensburg", "Karlsruher SC",
+            "Paderborn 07", "Preußen Münster", "Schalke 04", "SpVgg Greuther Fürth",
+            "SSV Ulm 1846", "SV Darmstadt 98"
         ]
     },
     {
