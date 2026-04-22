@@ -166,7 +166,8 @@ const EQUIPOS_INICIALES = [
       "Derby County", "Hull City", "Leeds United", "Luton Town", "Middlesbrough",
       "Millwall", "Norwich City", "Oxford United", "Plymouth Argyle", "Portsmouth",
       "Preston North End", "Queens Park Rangers", "Sheffield United", "Sheffield Wednesday",
-      "Stoke City", "Sunderland", "Swansea City", "Watford", "West Bromwich Albion"
+      "Stoke City", "Sunderland", "Swansea City", "Watford", "West Bromwich Albion",
+      "Birmingham City"
     ]
   },
   {
