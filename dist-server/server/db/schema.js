@@ -321,6 +321,30 @@ const EQUIPOS_INICIALES = [
         ]
     },
     {
+        pais: "Brasil",
+        liga: "Serie B",
+        equipos: [
+            "Amazonas FC", "América Mineiro", "Avaí", "Botafogo-SP", "Brusque FC",
+            "CRB", "Ceará SC", "Chapecoense", "Coritiba", "Goiás EC", "Guarani FC",
+            "Ituano FC", "Mirassol FC", "Novorizontino", "Operário Ferroviário",
+            "Paysandu SC", "Ponte Preta", "Santos FC", "Sport Recife", "Vila Nova FC"
+        ]
+    },
+    {
+        pais: "Brasil",
+        liga: "Copa do Brasil",
+        equipos: [
+            "Athletico Paranaense", "Atlético Goianiense", "Atlético Mineiro", "Bahia", "Botafogo",
+            "Corinthians", "Criciúma", "Cruzeiro", "Cuiabá", "Flamengo", "Fluminense",
+            "Fortaleza", "Grêmio", "Internacional", "Juventude", "Palmeiras",
+            "Red Bull Bragantino", "São Paulo", "Vasco da Gama", "Vitória",
+            "Amazonas FC", "América Mineiro", "Avaí", "Botafogo-SP", "Brusque FC",
+            "CRB", "Ceará SC", "Chapecoense", "Coritiba", "Goiás EC", "Guarani FC",
+            "Ituano FC", "Mirassol FC", "Novorizontino", "Operário Ferroviário",
+            "Paysandu SC", "Ponte Preta", "Santos FC", "Sport Recife", "Vila Nova FC"
+        ]
+    },
+    {
         pais: "Países Bajos",
         liga: "Eredivisie",
         equipos: [
