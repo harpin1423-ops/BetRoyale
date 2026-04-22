@@ -558,6 +558,16 @@ const EQUIPOS_INICIALES = [
     ]
   },
   {
+    pais: "Bélgica",
+    liga: "Pro League",
+    equipos: [
+      "Anderlecht", "Royal Antwerp", "Beerschot", "Cercle Brugge", "Charleroi",
+      "Club Brugge", "Dender", "KRC Genk", "KAA Gent", "KV Kortrijk",
+      "KV Mechelen", "OH Leuven", "Sint-Truiden", "Standard de Lieja",
+      "Union Saint-Gilloise", "Westerlo"
+    ]
+  },
+  {
     pais: "Escocia",
     liga: "Premiership",
     equipos: [
