@@ -83,6 +83,16 @@ const LIGAS_INICIALES = [
   { pais: "Escocia", ligas: ["Premiership"] },
   { pais: "Japón", ligas: ["J1 League"] },
   { pais: "Arabia Saudita", ligas: ["Pro League"] },
+  { pais: "Suecia", ligas: ["Allsvenskan"] },
+  { pais: "Catar", ligas: ["QSL"] },
+  { pais: "Hungría", ligas: ["NB I"] },
+  { pais: "Croacia", ligas: ["HNL"] },
+  { pais: "Egipto", ligas: ["Premier League"] },
+  { pais: "Noruega", ligas: ["Eliteserien"] },
+  { pais: "Dinamarca", ligas: ["Superliga"] },
+  { pais: "Rumania", ligas: ["SuperLiga"] },
+  { pais: "Serbia", ligas: ["SuperLiga"] },
+  { pais: "Suiza", ligas: ["Super League"] },
 ];
 
 // ─── Equipos iniciales por liga y país ───────────────────────────────────────
@@ -251,7 +261,7 @@ const EQUIPOS_INICIALES = [
   },
   {
     pais: "Catar",
-    liga: "Stars League",
+    liga: "QSL",
     equipos: [
       "Al-Ahli", "Al-Arabi", "Al-Duhail", "Al-Gharafa", "Al-Khor", "Al-Rayyan",
       "Al-Sadd", "Al-Shahaniya", "Al-Shamal", "Al-Wakrah", "Qatar SC", "Umm Salal"
@@ -259,7 +269,7 @@ const EQUIPOS_INICIALES = [
   },
   {
     pais: "Hungría",
-    liga: "Super Lig",
+    liga: "NB I",
     equipos: [
       "Debreceni VSC", "Diósgyőri VTK", "Fehérvár FC", "Ferencváros", "Győri ETO",
       "Kecskeméti TE", "Kisvárda FC", "MTK Budapest", "Nyíregyháza Spartacus",
