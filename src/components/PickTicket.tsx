@@ -391,13 +391,6 @@ function getFlagBackground(code: string): string {
  * @param size - Alto visual de la bandera en pixeles.
  * @returns Bandera CSS para la fila del ticket.
  */
-function TicketFlag({ code, size = 18 }: { code?: string; size?: number }) {
-  // Normalizamos el país antes de pintar la bandera.
-  const normalized = normalizeCountryCode(code);
-
-  // Evitamos reservar espacio cuando no hay país.
-  if (!normalized) return null;
-
 // Usamos la misma metodología que CountryFlag.tsx: flag-icons CDN por código ISO.
 function TicketFlag({ code, size = 18 }: { code?: string; size?: number }) {
   // Normalizamos el valor recibido desde el backend.
@@ -451,6 +444,7 @@ function TicketFlag({ code, size = 18 }: { code?: string; size?: number }) {
     />
   );
 }
+
 
 /**
  * <summary>
