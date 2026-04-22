@@ -143,13 +143,26 @@ async function handleParlayResolution(pick: any) {
  */
 async function notificarResultado(pick: any) {
   try {
-    const config = await obtenerTelegramFullConfig();
-    const planConfig = config.find((c) => c.slug === pick.pick_type_slug);
+    // 1. Notificar al canal específico del plan (si tiene uno configurado)
+    const [planRows]: any = await pool.query(
+      "SELECT telegram_channel_id FROM pick_types WHERE id = ? OR slug = ?",
+      [pick.pick_type_id, pick.pick_type_slug]
+    );
 
-    if (!planConfig || !planConfig.channelId) return;
+    if (planRows.length > 0 && planRows[0].telegram_channel_id) {
+      const mensaje = formatPickParaTelegram(pick, true);
+      await sendTelegramMessage(planRows[0].telegram_channel_id, mensaje);
+    }
 
-    const mensaje = formatPickParaTelegram(pick, true);
-    await sendTelegramMessage(planConfig.channelId, mensaje);
+    // 2. Notificar al canal espejo VIP Full (si el pick es VIP y está configurado)
+    const isVip = pick.pick_type_slug && pick.pick_type_slug !== 'free';
+    if (isVip) {
+      const configFull = await obtenerTelegramFullConfig();
+      if (configFull.telegram_channel_id) {
+        const mensaje = formatPickParaTelegram(pick, true);
+        await sendTelegramMessage(configFull.telegram_channel_id, mensaje);
+      }
+    }
   } catch (error) {
     console.error(`[CRON] Error enviando notificación a Telegram para pick #${pick.id}:`, error);
   }
