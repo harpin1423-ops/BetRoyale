@@ -1,11 +1,11 @@
 import React, { useRef, useState } from 'react';
 import html2canvas from 'html2canvas';
-import { Trophy, CheckCircle, XCircle, MinusCircle, Clock, Calendar, ListChecks } from 'lucide-react';
-import { CountryFlag } from './CountryFlag';
 
+/* ─────────────────────── TIPOS ─────────────────────── */
 interface PickSelection {
   match_name: string;
   pick: string;
+  market_label?: string;
   odds: number | string;
   league_name?: string;
   league?: string;
@@ -13,244 +13,508 @@ interface PickSelection {
   match_time: string;
   score_home?: number | null;
   score_away?: number | null;
-  status?: string;
 }
 
 interface PickData {
   id: number;
   match_name: string;
   pick: string;
+  market_label?: string;
   odds: number | string;
   stake: number | string;
-  league: string;
+  league?: string;
+  league_name?: string;
+  country_flag?: string;
   match_date: string;
-  status: 'pending' | 'won' | 'lost' | 'void' | string;
+  status: string;
   pick_type?: string;
+  pick_type_name?: string;
+  pick_type_slug?: string;
   score_home?: number | null;
   score_away?: number | null;
   is_parlay?: boolean;
   selections?: PickSelection[];
+  analysis?: string;
 }
 
 interface PickTicketProps {
   pick: PickData;
 }
 
+/* ─────────────── TEMAS POR TIPO DE PLAN ─────────────── */
+interface Theme {
+  bg: string;
+  leftPanelBg: string;
+  accent: string;
+  accentSoft: string;
+  accentText: string;
+  groupBg: string;
+  groupBorder: string;
+  groupText: string;
+  glow1: string;
+  glow2: string;
+  cardBorder: string;
+  oddsColor: string;
+  label: string;
+}
+
+function getTheme(pickTypeName: string, pickTypeSlug: string): Theme {
+  const name = (pickTypeName || pickTypeSlug || '').toLowerCase();
+
+  if (name.includes('free') || pickTypeSlug === 'free') {
+    return {
+      bg: '#050f0a', leftPanelBg: 'linear-gradient(160deg,#031a0d 0%,#071f10 100%)',
+      accent: '#10b981', accentSoft: 'rgba(16,185,129,0.15)', accentText: '#10b981',
+      groupBg: 'rgba(16,185,129,0.12)', groupBorder: '#10b981', groupText: '#10b981',
+      glow1: 'rgba(16,185,129,0.25)', glow2: 'rgba(212,175,55,0.15)',
+      cardBorder: 'rgba(16,185,129,0.2)', oddsColor: '#10b981',
+      label: 'FREE',
+    };
+  }
+  if (name.includes('5') || name.includes('cinco')) {
+    return {
+      bg: '#0a0005', leftPanelBg: 'linear-gradient(160deg,#1a0010 0%,#2d0020 100%)',
+      accent: '#e11d48', accentSoft: 'rgba(225,29,72,0.15)', accentText: '#e11d48',
+      groupBg: 'rgba(225,29,72,0.12)', groupBorder: '#e11d48', groupText: '#e11d48',
+      glow1: 'rgba(225,29,72,0.3)', glow2: 'rgba(212,175,55,0.2)',
+      cardBorder: 'rgba(225,29,72,0.2)', oddsColor: '#fbbf24',
+      label: 'VIP CUOTA 5+',
+    };
+  }
+  if (name.includes('4') || name.includes('cuatro')) {
+    return {
+      bg: '#06000f', leftPanelBg: 'linear-gradient(160deg,#0e0025 0%,#1a0040 100%)',
+      accent: '#7c3aed', accentSoft: 'rgba(124,58,237,0.15)', accentText: '#a78bfa',
+      groupBg: 'rgba(124,58,237,0.12)', groupBorder: '#7c3aed', groupText: '#a78bfa',
+      glow1: 'rgba(124,58,237,0.3)', glow2: 'rgba(52,211,153,0.15)',
+      cardBorder: 'rgba(124,58,237,0.25)', oddsColor: '#fbbf24',
+      label: 'VIP CUOTA 4+',
+    };
+  }
+  if (name.includes('3') || name.includes('tres')) {
+    return {
+      bg: '#00080f', leftPanelBg: 'linear-gradient(160deg,#001525 0%,#002540 100%)',
+      accent: '#0ea5e9', accentSoft: 'rgba(14,165,233,0.15)', accentText: '#38bdf8',
+      groupBg: 'rgba(14,165,233,0.12)', groupBorder: '#0ea5e9', groupText: '#38bdf8',
+      glow1: 'rgba(14,165,233,0.3)', glow2: 'rgba(212,175,55,0.2)',
+      cardBorder: 'rgba(14,165,233,0.2)', oddsColor: '#fbbf24',
+      label: 'VIP CUOTA 3+',
+    };
+  }
+  if (name.includes('full') || name.includes('acceso')) {
+    return {
+      bg: '#070707', leftPanelBg: 'linear-gradient(160deg,#0d0d0d 0%,#1a1a1a 100%)',
+      accent: '#d4af37', accentSoft: 'rgba(212,175,55,0.15)', accentText: '#f5e070',
+      groupBg: 'rgba(212,175,55,0.1)', groupBorder: '#d4af37', groupText: '#f5e070',
+      glow1: 'rgba(212,175,55,0.25)', glow2: 'rgba(212,175,55,0.1)',
+      cardBorder: 'rgba(212,175,55,0.2)', oddsColor: '#f5e070',
+      label: 'FULL ACCESS',
+    };
+  }
+  // Default: VIP 2+
+  return {
+    bg: '#04080f', leftPanelBg: 'linear-gradient(160deg,#040d20 0%,#071533 100%)',
+    accent: '#d4af37', accentSoft: 'rgba(212,175,55,0.12)', accentText: '#f5e070',
+    groupBg: 'rgba(212,175,55,0.1)', groupBorder: '#d4af37', groupText: '#f5e070',
+    glow1: 'rgba(212,175,55,0.2)', glow2: 'rgba(59,130,246,0.2)',
+    cardBorder: 'rgba(212,175,55,0.18)', oddsColor: '#f5e070',
+    label: 'VIP CUOTA 2+',
+  };
+}
+
+/* ─────────────────── HELPERS ─────────────────── */
+const STATUS_CONFIG: Record<string, { label: string; bg: string; color: string; stamp: string; stampColor: string; stampBorder: string }> = {
+  pending:  { label: 'PENDIENTE', bg: 'rgba(251,191,36,0.15)',  color: '#fbbf24', stamp: 'PENDIENTE', stampColor: '#fbbf24', stampBorder: '#fbbf24' },
+  won:      { label: 'GANADO ✓',  bg: 'rgba(16,185,129,0.15)', color: '#10b981', stamp: 'WIN',       stampColor: '#10b981', stampBorder: '#10b981' },
+  lost:     { label: 'PERDIDO ✗', bg: 'rgba(239,68,68,0.15)',  color: '#ef4444', stamp: 'LOSS',      stampColor: '#ef4444', stampBorder: '#ef4444' },
+  void:     { label: 'NULO',      bg: 'rgba(148,163,184,0.15)', color: '#94a3b8', stamp: 'VOID',      stampColor: '#94a3b8', stampBorder: '#94a3b8' },
+};
+
+function fmtTime(iso: string) {
+  const d = new Date(iso);
+  return d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) + ' COL (GMT-5)';
+}
+function fmtDate(iso: string) {
+  const d = new Date(iso);
+  return d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+function flagEmoji(code?: string) {
+  if (!code) return '';
+  if (code.length === 2) {
+    return code.toUpperCase().replace(/./g, c => String.fromCodePoint(127397 + c.charCodeAt(0)));
+  }
+  return code;
+}
+
+/* ═══════════════════ COMPONENTE PRINCIPAL ═══════════════════ */
 export function PickTicket({ pick }: PickTicketProps) {
   const ticketRef = useRef<HTMLDivElement>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+
+  const theme = getTheme(pick.pick_type_name || '', pick.pick_type_slug || pick.pick_type || '');
+  const statusCfg = STATUS_CONFIG[pick.status] || STATUS_CONFIG.pending;
+  const isResolved = pick.status !== 'pending';
+  const isParlay = Boolean(pick.is_parlay);
+
+  const leagueName = pick.league_name || pick.league || '';
+  const pronLabel = pick.market_label || pick.pick || '';
 
   const downloadTicket = async () => {
     if (!ticketRef.current) return;
     setIsGenerating(true);
     try {
-      // Tomamos la captura en alta resolución (escala 3x)
       const canvas = await html2canvas(ticketRef.current, {
-        scale: 3, 
+        scale: 3,
         useCORS: true,
-        backgroundColor: '#020617', // slate-950
+        allowTaint: true,
+        backgroundColor: theme.bg,
+        logging: false,
       });
-      const dataUrl = canvas.toDataURL('image/png');
       const link = document.createElement('a');
-      link.download = `BetRoyale-Pick-${pick.id}-${pick.status}.png`;
-      link.href = dataUrl;
+      link.download = `BetRoyale-${isParlay ? 'Parlay' : 'Pick'}-${pick.id}-${pick.status}.png`;
+      link.href = canvas.toDataURL('image/png');
       link.click();
     } catch (err) {
-      console.error("Error generando imagen", err);
+      console.error('Error generando imagen:', err);
     } finally {
       setIsGenerating(false);
     }
   };
 
-  const isResolved = pick.status !== 'pending';
-  const isWon = pick.status === 'won';
-  const isLost = pick.status === 'lost';
-  const isVoid = pick.status === 'void';
-
-  // Format date
-  const dateObj = new Date(pick.match_date);
-  const dateStr = dateObj.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
-  const timeStr = dateObj.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-
-  // Separate match name if possible (Team A vs Team B)
-  const teams = pick.match_name.split(/ vs /i);
-  const homeTeam = teams[0] || pick.match_name;
-  const awayTeam = teams[1] || '';
+  /* ── ESTILOS INLINE (necesarios para html2canvas) ── */
+  const S = {
+    wrapper: {
+      display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 16,
+      fontFamily: "'Inter', 'Segoe UI', sans-serif",
+    },
+    ticket: {
+      position: 'relative' as const,
+      width: 800, minHeight: 480,
+      background: theme.bg,
+      display: 'flex', flexDirection: 'column' as const,
+      overflow: 'hidden',
+      boxShadow: `0 0 60px ${theme.glow1}, 0 0 120px rgba(0,0,0,0.8)`,
+    },
+    // Glows
+    glow1: {
+      position: 'absolute' as const, top: -80, left: -80,
+      width: 300, height: 300,
+      background: `radial-gradient(circle, ${theme.glow1} 0%, transparent 70%)`,
+      pointerEvents: 'none' as const,
+    },
+    glow2: {
+      position: 'absolute' as const, bottom: -80, right: -80,
+      width: 280, height: 280,
+      background: `radial-gradient(circle, ${theme.glow2} 0%, transparent 70%)`,
+      pointerEvents: 'none' as const,
+    },
+    // HEADER
+    header: {
+      position: 'relative' as const, zIndex: 2,
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      padding: '18px 28px 14px',
+      borderBottom: `1px solid rgba(255,255,255,0.06)`,
+      background: 'rgba(255,255,255,0.02)',
+    },
+    logoGroup: { display: 'flex', alignItems: 'center', gap: 10 },
+    logoIcon: { fontSize: 28 },
+    logoText: {
+      fontSize: 24, fontWeight: 900, letterSpacing: 2,
+      background: `linear-gradient(90deg, ${theme.accent}, #f5e070, ${theme.accent})`,
+      WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+      backgroundClip: 'text',
+    },
+    headerRight: { display: 'flex', flexDirection: 'column' as const, alignItems: 'flex-end', gap: 6 },
+    groupBadge: {
+      padding: '4px 14px', borderRadius: 20,
+      border: `1.5px solid ${theme.groupBorder}`,
+      background: theme.groupBg,
+      color: theme.groupText,
+      fontSize: 12, fontWeight: 800, letterSpacing: 1.5,
+    },
+    statusBadge: {
+      padding: '3px 12px', borderRadius: 20,
+      background: statusCfg.bg,
+      color: statusCfg.color,
+      fontSize: 11, fontWeight: 700, letterSpacing: 1,
+    },
+    typeBadge: {
+      padding: '3px 12px', borderRadius: 20,
+      background: 'rgba(99,102,241,0.15)',
+      color: '#818cf8',
+      border: '1px solid rgba(99,102,241,0.3)',
+      fontSize: 11, fontWeight: 700, letterSpacing: 1,
+    },
+    // BODY
+    body: {
+      position: 'relative' as const, zIndex: 2,
+      display: 'flex', flex: 1,
+    },
+    // LEFT PANEL
+    leftPanel: {
+      width: 220, flexShrink: 0,
+      background: theme.leftPanelBg,
+      borderRight: `1px solid ${theme.accent}22`,
+      display: 'flex', flexDirection: 'column' as const,
+      justifyContent: 'space-between',
+      padding: '24px 20px',
+    },
+    leftTitle: {
+      fontSize: isParlay ? 36 : 22, fontWeight: 900,
+      color: '#fff', letterSpacing: isParlay ? 3 : 1,
+      marginBottom: 4,
+    },
+    leftSub: {
+      fontSize: 11, fontWeight: 700, letterSpacing: 2,
+      color: theme.accentText, textTransform: 'uppercase' as const,
+    },
+    dividerLine: {
+      height: 1, background: `linear-gradient(90deg, ${theme.accent}55, transparent)`,
+      margin: '16px 0',
+    },
+    stakeBox: { marginBottom: 8 },
+    stakeLabel: { fontSize: 10, fontWeight: 700, color: '#64748b', letterSpacing: 1.5, textTransform: 'uppercase' as const, marginBottom: 2 },
+    stakeVal: { fontSize: 20, fontWeight: 900, color: '#cbd5e1' },
+    oddsBox: { marginBottom: 4 },
+    oddsLabel: { fontSize: 10, fontWeight: 700, color: '#64748b', letterSpacing: 1.5, textTransform: 'uppercase' as const, marginBottom: 2 },
+    oddsVal: { fontSize: 42, fontWeight: 900, color: theme.oddsColor, lineHeight: 1, textShadow: `0 0 20px ${theme.glow1}` },
+    ctaBox: {
+      marginTop: 'auto' as const,
+      borderTop: `1px solid rgba(255,255,255,0.06)`,
+      paddingTop: 14,
+    },
+    ctaJoin: { fontSize: 11, fontWeight: 700, color: '#94a3b8', marginBottom: 3 },
+    ctaWeb: { fontSize: 13, fontWeight: 800, color: theme.accentText },
+    ctaSlogan: { fontSize: 10, fontStyle: 'italic', color: '#64748b', marginTop: 2 },
+    // RIGHT PANEL
+    rightPanel: {
+      flex: 1, padding: '20px 24px',
+      display: 'flex', flexDirection: 'column' as const, gap: 10,
+      overflowY: 'hidden' as const,
+    },
+    // Single pick
+    singleLeague: { fontSize: 11, fontWeight: 700, color: theme.accentText, letterSpacing: 1.5, textTransform: 'uppercase' as const, marginBottom: 8 },
+    singleMatch: { fontSize: 22, fontWeight: 900, color: '#f1f5f9', lineHeight: 1.2, marginBottom: 12 },
+    singleVs: { fontSize: 13, fontWeight: 900, color: '#334155', margin: '4px 0' },
+    singleMeta: { display: 'flex', gap: 16, fontSize: 12, color: '#64748b', fontWeight: 500, marginBottom: 16 },
+    pronBox: {
+      background: 'rgba(255,255,255,0.04)',
+      border: `1px solid ${theme.cardBorder}`,
+      borderRadius: 14, padding: '14px 18px',
+    },
+    pronLabel: { fontSize: 10, fontWeight: 700, color: '#64748b', letterSpacing: 1.5, textTransform: 'uppercase' as const, marginBottom: 6 },
+    pronVal: { fontSize: 26, fontWeight: 900, color: '#f8fafc', lineHeight: 1.2 },
+    // Parlay cards
+    selCard: {
+      background: 'rgba(255,255,255,0.03)',
+      border: `1px solid ${theme.cardBorder}`,
+      borderRadius: 12, padding: '12px 16px',
+      position: 'relative' as const,
+    },
+    selLeague: { fontSize: 10, fontWeight: 700, color: theme.accentText, letterSpacing: 1.2, textTransform: 'uppercase' as const, marginBottom: 4 },
+    selMatch: { fontSize: 15, fontWeight: 800, color: '#f1f5f9', marginBottom: 8, paddingRight: 60 },
+    selBottom: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' },
+    selPronLabel: { fontSize: 9, fontWeight: 700, color: '#475569', textTransform: 'uppercase' as const, letterSpacing: 1, marginBottom: 2 },
+    selPronVal: { fontSize: 13, fontWeight: 800, color: '#e2e8f0' },
+    selTimeLabel: { fontSize: 9, fontWeight: 700, color: '#475569', textTransform: 'uppercase' as const, letterSpacing: 1, marginBottom: 2, textAlign: 'right' as const },
+    selOddsRow: { display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'flex-end' },
+    selTime: { fontSize: 10, color: '#64748b' },
+    selOddsBadge: {
+      padding: '3px 10px', borderRadius: 20,
+      background: theme.accentSoft,
+      border: `1px solid ${theme.accent}55`,
+      color: theme.oddsColor,
+      fontSize: 13, fontWeight: 900,
+    },
+    selScore: {
+      position: 'absolute' as const, right: 12, top: '50%',
+      transform: 'translateY(-50%)',
+      fontSize: 14, fontWeight: 900, color: theme.oddsColor,
+    },
+    // STAMP
+    stamp: {
+      position: 'absolute' as const, zIndex: 20,
+      inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: 'rgba(5,8,18,0.65)', backdropFilter: 'blur(6px)',
+    },
+    stampInner: {
+      transform: 'rotate(-15deg)',
+      display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 8,
+    },
+    stampText: {
+      fontSize: 72, fontWeight: 900, letterSpacing: 6,
+      color: statusCfg.stampColor,
+      border: `5px solid ${statusCfg.stampBorder}`,
+      padding: '8px 28px', borderRadius: 16,
+      textShadow: `0 0 30px ${statusCfg.stampColor}`,
+    },
+    stampScore: {
+      fontSize: 28, fontWeight: 900,
+      background: `rgba(0,0,0,0.6)`, padding: '6px 20px',
+      borderRadius: 10, color: statusCfg.stampColor,
+      border: `2px solid ${statusCfg.stampBorder}44`,
+    },
+    // FOOTER
+    footer: {
+      position: 'relative' as const, zIndex: 2,
+      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12,
+      padding: '10px 28px',
+      borderTop: `1px solid ${theme.accent}33`,
+      background: 'rgba(0,0,0,0.3)',
+    },
+    footerDot: { color: theme.accent, fontSize: 8 },
+    footerText: { fontSize: 11, color: '#475569', fontWeight: 500 },
+    footerAccent: { fontSize: 11, color: theme.accentText, fontWeight: 700 },
+  };
 
   return (
-    <div className="flex flex-col items-center gap-4">
-      {/* Contenedor del Ticket (Lo que se captura) */}
-      <div 
-        ref={ticketRef}
-        className="relative overflow-hidden bg-slate-950 text-white w-[400px] min-h-[500px] p-8 flex flex-col justify-between"
-        style={{
-          fontFamily: "'Inter', sans-serif",
-          boxShadow: "0 0 40px rgba(0,0,0,0.5)"
-        }}
-      >
-        {/* Fondo decorativo */}
-        <div className="absolute top-[-50px] right-[-50px] w-48 h-48 bg-emerald-500/20 rounded-full blur-[60px] pointer-events-none" />
-        <div className="absolute bottom-[-50px] left-[-50px] w-48 h-48 bg-blue-500/20 rounded-full blur-[60px] pointer-events-none" />
+    <div style={S.wrapper}>
+      <div ref={ticketRef} style={S.ticket}>
+        {/* Glows decorativos */}
+        <div style={S.glow1} />
+        <div style={S.glow2} />
 
-        {/* Header: Logo / Branding */}
-        <div className="flex items-center justify-between z-10 border-b border-slate-800 pb-4">
-          <div className="flex items-center gap-2">
-            <Trophy className="w-8 h-8 text-emerald-400" />
-            <h1 className="text-2xl font-black tracking-wider bg-gradient-to-r from-emerald-400 to-blue-500 bg-clip-text text-transparent">
-              BETROYALE
-            </h1>
+        {/* ── HEADER ── */}
+        <div style={S.header}>
+          <div style={S.logoGroup}>
+            <span style={S.logoIcon}>🏆</span>
+            <span style={S.logoText}>BETROYALE CLUB</span>
           </div>
-          <div className="flex flex-col items-end gap-1">
-            <div className="text-xs font-bold uppercase tracking-widest text-slate-400 bg-slate-900 px-3 py-1 rounded-full border border-slate-800">
-              {pick.pick_type?.includes('free') ? '🔥 FREE' : '💎 VIP'}
-            </div>
-            {pick.is_parlay && (
-              <div className="text-[9px] font-black uppercase text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded flex items-center gap-1 border border-purple-500/20">
-                <ListChecks className="w-3 h-3" /> PARLAY
-              </div>
-            )}
+          <div style={S.headerRight}>
+            <span style={S.groupBadge}>{theme.label}</span>
+            <span style={S.statusBadge}>● {statusCfg.label}</span>
+            {isParlay && <span style={S.typeBadge}>▶ PARLAY {pick.selections?.length || ''} SEL.</span>}
           </div>
         </div>
 
-        {/* Content: Match & Pick */}
-        <div className="flex-1 flex flex-col justify-center z-10 py-6 gap-6">
-          {!pick.is_parlay ? (
-            // VISTA SIMPLE (1 PICK)
-            <div className="text-center">
-              <div className="text-emerald-400 text-sm font-semibold tracking-widest uppercase mb-3 flex justify-center items-center gap-2">
-                {pick.league}
+        {/* ── BODY ── */}
+        <div style={S.body}>
+          {/* Panel Izquierdo */}
+          <div style={S.leftPanel}>
+            <div>
+              <div style={S.leftTitle}>{isParlay ? 'PARLAY' : 'PICK'}</div>
+              <div style={S.leftSub}>{isParlay ? `${pick.selections?.length || ''} selecciones` : 'Pick Simple'}</div>
+              <div style={S.dividerLine} />
+              <div style={S.stakeBox}>
+                <div style={S.stakeLabel}>Stake</div>
+                <div style={S.stakeVal}>{pick.stake}u</div>
               </div>
-              
-              {awayTeam ? (
-                <div className="flex flex-col items-center gap-2">
-                  <span className="text-xl font-bold text-slate-100 text-center leading-tight">{homeTeam}</span>
-                  <span className="text-sm font-black text-slate-600">VS</span>
-                  <span className="text-xl font-bold text-slate-100 text-center leading-tight">{awayTeam}</span>
-                </div>
-              ) : (
-                <span className="text-xl font-bold text-slate-100 text-center leading-tight">{pick.match_name}</span>
-              )}
-              
-              <div className="flex items-center justify-center gap-4 mt-4 text-slate-400 text-sm font-medium">
-                <span className="flex items-center gap-1"><Calendar className="w-4 h-4" /> {dateStr}</span>
-                <span className="flex items-center gap-1"><Clock className="w-4 h-4" /> {timeStr}</span>
+              <div style={S.oddsBox}>
+                <div style={S.oddsLabel}>Cuota Total</div>
+                <div style={S.oddsVal}>@{pick.odds}</div>
               </div>
             </div>
-          ) : (
-            // VISTA PARLAY (MÚLTIPLES PICKS)
-            <div className="flex flex-col gap-4">
-              {pick.selections?.map((sel, idx) => {
-                const selDateObj = new Date(sel.match_time);
-                const selTimeStr = selDateObj.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-                
+            <div style={S.ctaBox}>
+              <div style={S.ctaJoin}>Únete a BetRoyale Club</div>
+              <div style={S.ctaWeb}>betroyaleclub.com</div>
+              <div style={S.ctaSlogan}>Invirtiendo con Inteligencia</div>
+            </div>
+          </div>
+
+          {/* Panel Derecho */}
+          <div style={S.rightPanel}>
+            {!isParlay ? (
+              /* ── PICK SIMPLE ── */
+              <>
+                <div style={S.singleLeague}>
+                  {flagEmoji(pick.country_flag)} {leagueName}
+                </div>
+                <div>
+                  {pick.match_name.toLowerCase().includes(' vs ') ? (
+                    pick.match_name.split(/ vs /i).map((t, i, arr) => (
+                      <React.Fragment key={i}>
+                        <div style={S.singleMatch}>{t.trim()}</div>
+                        {i < arr.length - 1 && <div style={S.singleVs}>VS</div>}
+                      </React.Fragment>
+                    ))
+                  ) : (
+                    <div style={S.singleMatch}>{pick.match_name}</div>
+                  )}
+                </div>
+                <div style={S.singleMeta}>
+                  <span>📅 {fmtDate(pick.match_date)}</span>
+                  <span>🕐 {fmtTime(pick.match_date)}</span>
+                </div>
+                <div style={S.pronBox}>
+                  <div style={S.pronLabel}>Pronóstico</div>
+                  <div style={S.pronVal}>{pronLabel}</div>
+                </div>
+              </>
+            ) : (
+              /* ── PARLAY ── */
+              (pick.selections || []).map((sel, i) => {
+                const selPron = sel.market_label || sel.pick || '';
+                const hasScore = sel.score_home != null && sel.score_away != null;
                 return (
-                  <div key={idx} className="bg-slate-900/50 rounded-xl p-3 border border-slate-800/50 flex flex-col relative overflow-hidden">
-                    {/* Indicador de estado de la selección si el parlay está resuelto o si la selección específica lo está */}
-                    {sel.score_home != null && sel.score_away != null && (
-                      <div className="absolute right-0 top-0 bottom-0 flex items-center justify-center px-3 bg-slate-950/40 border-l border-slate-800/50">
-                        <span className="font-black text-emerald-400 text-sm">{sel.score_home} - {sel.score_away}</span>
-                      </div>
+                  <div key={i} style={S.selCard}>
+                    {hasScore && (
+                      <div style={S.selScore}>{sel.score_home} - {sel.score_away}</div>
                     )}
-                    
-                    <div className="text-[10px] text-emerald-400 font-bold uppercase flex items-center gap-1 mb-1 opacity-80">
-                      {sel.country_flag && <CountryFlag code={sel.country_flag} />}
-                      {sel.league_name || sel.league || "Competición"}
+                    <div style={S.selLeague}>
+                      {flagEmoji(sel.country_flag)} {sel.league_name || sel.league || 'Competición'}
                     </div>
-                    <div className="text-sm font-bold text-white mb-2 pr-12 leading-tight">
-                      {sel.match_name}
-                    </div>
-                    <div className="flex justify-between items-end mt-auto pt-2 border-t border-slate-800/50">
-                      <div className="flex flex-col">
-                        <span className="text-[9px] text-slate-500 font-bold uppercase">Pronóstico</span>
-                        <span className="text-xs font-black text-blue-300">{sel.pick}</span>
+                    <div style={S.selMatch}>{sel.match_name}</div>
+                    <div style={S.selBottom}>
+                      <div>
+                        <div style={S.selPronLabel}>Pronóstico</div>
+                        <div style={S.selPronVal}>{selPron}</div>
                       </div>
-                      <div className="flex flex-col items-end">
-                        <span className="text-[9px] text-slate-500 font-bold uppercase">Hora & Cuota</span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] text-slate-400 flex items-center gap-1"><Clock className="w-3 h-3" /> {selTimeStr}</span>
-                          <span className="text-sm font-black text-emerald-400">@{sel.odds}</span>
+                      <div>
+                        <div style={S.selTimeLabel}>Hora & Cuota</div>
+                        <div style={S.selOddsRow}>
+                          <span style={S.selTime}>🕐 {fmtTime(sel.match_time)}</span>
+                          <span style={S.selOddsBadge}>@{sel.odds}</span>
                         </div>
                       </div>
                     </div>
                   </div>
                 );
-              })}
-            </div>
-          )}
-
-          <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 text-center relative overflow-hidden backdrop-blur-sm mt-2">
-            {!pick.is_parlay && (
-              <>
-                <div className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Pronóstico</div>
-                <div className="text-2xl font-black text-white mb-3 leading-tight">{pick.pick}</div>
-              </>
+              })
             )}
-            
-            <div className={`flex justify-center gap-6 ${!pick.is_parlay ? 'border-t border-slate-800 pt-3' : ''}`}>
-              <div>
-                <div className="text-slate-500 text-[10px] uppercase font-bold">Cuota Total</div>
-                <div className="text-emerald-400 font-black text-xl">@{pick.odds}</div>
-              </div>
-              <div>
-                <div className="text-slate-500 text-[10px] uppercase font-bold">Stake</div>
-                <div className="text-blue-400 font-black text-xl">{pick.stake}/10</div>
-              </div>
-            </div>
           </div>
         </div>
 
-        {/* Status Overlay (If Resolved) */}
+        {/* ── FOOTER ── */}
+        <div style={S.footer}>
+          <span style={S.footerAccent}>betroyaleclub.com</span>
+          <span style={S.footerDot}>◆</span>
+          <span style={S.footerText}>Invirtiendo con Inteligencia</span>
+          <span style={S.footerDot}>◆</span>
+          <span style={S.footerText}>@BetRoyaleClub</span>
+        </div>
+
+        {/* ── STAMP ESTADO ── */}
         {isResolved && (
-          <div className={`absolute inset-0 z-20 flex flex-col items-center justify-center backdrop-blur-md bg-slate-950/60 transition-all`}>
-            {isWon && (
-              <div className="transform -rotate-12 flex flex-col items-center">
-                <CheckCircle className="w-24 h-24 text-emerald-500 mb-2 drop-shadow-[0_0_15px_rgba(16,185,129,0.5)]" />
-                <span className="text-5xl font-black text-emerald-500 tracking-widest drop-shadow-[0_0_15px_rgba(16,185,129,0.5)] border-4 border-emerald-500 px-6 py-2 rounded-xl">WIN</span>
-                {(!pick.is_parlay && pick.score_home != null && pick.score_away != null) && (
-                  <div className="mt-4 bg-emerald-950/80 px-4 py-2 rounded-lg border border-emerald-800/50 text-emerald-200 font-bold text-xl">
-                    {pick.score_home} - {pick.score_away}
-                  </div>
-                )}
-              </div>
-            )}
-            {isLost && (
-              <div className="transform -rotate-12 flex flex-col items-center">
-                <XCircle className="w-24 h-24 text-rose-500 mb-2 drop-shadow-[0_0_15px_rgba(244,63,94,0.5)]" />
-                <span className="text-5xl font-black text-rose-500 tracking-widest drop-shadow-[0_0_15px_rgba(244,63,94,0.5)] border-4 border-rose-500 px-6 py-2 rounded-xl">LOSS</span>
-                {(!pick.is_parlay && pick.score_home != null && pick.score_away != null) && (
-                  <div className="mt-4 bg-rose-950/80 px-4 py-2 rounded-lg border border-rose-800/50 text-rose-200 font-bold text-xl">
-                    {pick.score_home} - {pick.score_away}
-                  </div>
-                )}
-              </div>
-            )}
-            {isVoid && (
-              <div className="transform -rotate-12 flex flex-col items-center">
-                <MinusCircle className="w-24 h-24 text-slate-400 mb-2" />
-                <span className="text-5xl font-black text-slate-400 tracking-widest border-4 border-slate-400 px-6 py-2 rounded-xl">VOID</span>
-              </div>
-            )}
+          <div style={S.stamp}>
+            <div style={S.stampInner}>
+              <div style={S.stampText}>{statusCfg.stamp}</div>
+              {!isParlay && pick.score_home != null && pick.score_away != null && (
+                <div style={S.stampScore}>{pick.score_home} — {pick.score_away}</div>
+              )}
+            </div>
           </div>
         )}
-
-        {/* Footer */}
-        <div className="text-center z-10 border-t border-slate-800 pt-4 mt-4">
-          <p className="text-slate-500 text-xs font-medium">Únete a nuestro canal VIP de Telegram</p>
-          <p className="text-slate-400 text-sm font-bold mt-1">@BetRoyaleClub</p>
-        </div>
       </div>
 
-      {/* Controles de descarga (no aparecen en la imagen) */}
+      {/* Botón de descarga (no aparece en la captura) */}
       <button
         onClick={downloadTicket}
         disabled={isGenerating}
-        className="w-[400px] flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg transition-all disabled:opacity-50"
+        style={{
+          width: 800,
+          background: `linear-gradient(90deg, ${theme.accent}, ${theme.accentText})`,
+          color: '#000',
+          fontWeight: 800,
+          fontSize: 15,
+          padding: '14px 0',
+          borderRadius: 12,
+          border: 'none',
+          cursor: isGenerating ? 'not-allowed' : 'pointer',
+          opacity: isGenerating ? 0.6 : 1,
+          letterSpacing: 1,
+        }}
       >
-        {isGenerating ? (
-          <span className="animate-pulse">Generando Imagen...</span>
-        ) : (
-          <>Descargar Ticket HD</>
-        )}
+        {isGenerating ? '⏳ Generando imagen HD...' : '📥 Descargar Ticket HD (4:3)'}
       </button>
     </div>
   );
