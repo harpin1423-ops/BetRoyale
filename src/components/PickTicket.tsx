@@ -125,9 +125,9 @@ function getTheme(pickTypeName: string, pickTypeSlug: string): Theme {
 /* ─────────────────── HELPERS ─────────────────── */
 const STATUS_CONFIG: Record<string, { label: string; bg: string; color: string; stamp: string; stampColor: string; stampBorder: string }> = {
   pending:  { label: 'PENDIENTE', bg: 'rgba(251,191,36,0.15)',  color: '#fbbf24', stamp: 'PENDIENTE', stampColor: '#fbbf24', stampBorder: '#fbbf24' },
-  won:      { label: 'GANADO ✓',  bg: 'rgba(16,185,129,0.15)', color: '#10b981', stamp: 'WIN',       stampColor: '#10b981', stampBorder: '#10b981' },
-  lost:     { label: 'PERDIDO ✗', bg: 'rgba(239,68,68,0.15)',  color: '#ef4444', stamp: 'LOSS',      stampColor: '#ef4444', stampBorder: '#ef4444' },
-  void:     { label: 'NULO',      bg: 'rgba(148,163,184,0.15)', color: '#94a3b8', stamp: 'VOID',      stampColor: '#94a3b8', stampBorder: '#94a3b8' },
+  won:      { label: 'GANADO ✓',  bg: 'rgba(16,185,129,0.15)', color: '#10b981', stamp: 'GANADO',    stampColor: '#10b981', stampBorder: '#10b981' },
+  lost:     { label: 'PERDIDO ✗', bg: 'rgba(239,68,68,0.15)',  color: '#ef4444', stamp: 'PERDIDO',   stampColor: '#ef4444', stampBorder: '#ef4444' },
+  void:     { label: 'NULO',      bg: 'rgba(148,163,184,0.15)', color: '#94a3b8', stamp: 'NULO',      stampColor: '#94a3b8', stampBorder: '#94a3b8' },
 };
 
 function fmtTime(iso: string) {
@@ -333,21 +333,21 @@ export function PickTicket({ pick }: PickTicketProps) {
       transform: 'translateY(-50%)',
       fontSize: 14, fontWeight: 900, color: theme.oddsColor,
     },
-    // STAMP — cinta diagonal esquina superior derecha
+    // STAMP — cinta diagonal esquina INFERIOR derecha
     stampRibbon: {
       position: 'absolute' as const,
-      top: 36, right: -52,
+      bottom: 42, right: -60,
       zIndex: 20,
-      width: 220,
-      padding: '10px 0',
-      transform: 'rotate(35deg)',
+      width: 240,
+      padding: '11px 0',
+      transform: 'rotate(-35deg)',
       background: statusCfg.stampColor,
-      boxShadow: `0 0 24px ${statusCfg.stampColor}99, 0 2px 8px rgba(0,0,0,0.6)`,
+      boxShadow: `0 0 28px ${statusCfg.stampColor}bb, 0 2px 10px rgba(0,0,0,0.7)`,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       overflow: 'hidden',
     },
     stampRibbonText: {
-      fontSize: 17, fontWeight: 900, letterSpacing: 3,
+      fontSize: 16, fontWeight: 900, letterSpacing: 3,
       color: pick.status === 'void' ? '#1e293b' : '#000',
       textShadow: 'none',
     },
