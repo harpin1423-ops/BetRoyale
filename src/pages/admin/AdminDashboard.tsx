@@ -3235,7 +3235,12 @@ export function AdminDashboard() {
                                   </>
                                 ) : (
                                   <>
-                                    <td className="p-4 text-muted-foreground">{league.country_name || '-'}</td>
+                                    <td className="p-4 text-muted-foreground">
+                                      <div className="flex items-center gap-2">
+                                        <CountryFlag code={league.country_flag} />
+                                        {league.country_name || '-'}
+                                      </div>
+                                    </td>
                                     <td className="p-4 font-medium">
                                       <div className="flex items-center gap-2">
                                         {league.name}
@@ -3938,7 +3943,7 @@ export function AdminDashboard() {
                       <SearchableSelect
                         value={selectedStatsPlan}
                         onChange={(value) => setSelectedStatsPlan(value)}
-                        className="w-32"
+                        className="w-64"
                         placeholder="Todos los Planes"
                         options={[
                           { value: "all", label: "Todos los Planes" },

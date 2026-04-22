@@ -150,7 +150,7 @@ countriesRouter.post("/bulk-delete", authenticateToken, requireAdmin, async (req
 leaguesRouter.get("/", async (_req, res) => {
   try {
     const [filas] = await pool.query(`
-      SELECT l.*, c.name AS country_name 
+      SELECT l.*, c.name AS country_name, c.flag AS country_flag
       FROM leagues l 
       LEFT JOIN countries c ON l.country_id = c.id 
       ORDER BY l.id DESC
