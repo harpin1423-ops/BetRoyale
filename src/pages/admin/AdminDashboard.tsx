@@ -141,8 +141,8 @@ type QuickTeamTarget = 'home_team' | 'away_team' | { selectionIndex: number; fie
 const CUP_LEAGUES_MAPPING: Record<string, string[]> = {
   "DFB Pokal": ["Bundesliga", "2. Bundesliga"],
   "Copa del Rey": ["La Liga", "Segunda División"],
-  "FA Cup": ["Premier League", "Championship"],
-  "EFL Cup": ["Premier League", "Championship"],
+  "FA Cup": ["Premier League", "Championship", "League One", "League Two"],
+  "EFL Cup": ["Premier League", "Championship", "League One", "League Two"],
   "Coppa Italia": ["Serie A", "Serie B"],
   "Coupe de France": ["Ligue 1", "Ligue 2"],
   "Copa Colombia": ["Liga BetPlay", "Torneo BetPlay"],
