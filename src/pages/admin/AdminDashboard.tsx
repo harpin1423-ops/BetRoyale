@@ -1024,6 +1024,19 @@ export function AdminDashboard() {
         newData.match_name = "";
       }
 
+      // Si cambia equipo local o visitante, armamos automáticamente el partido.
+      if (name === 'home_team' || name === 'away_team') {
+        const homeId = name === 'home_team' ? value : prev.home_team;
+        const awayId = name === 'away_team' ? value : prev.away_team;
+        const homeName = teams.find(t => t.id.toString() === homeId)?.name || "";
+        const awayName = teams.find(t => t.id.toString() === awayId)?.name || "";
+
+        // Solo actualizamos el evento cuando ambos equipos están definidos.
+        if (homeName && awayName) {
+          newData.match_name = `${homeName} vs ${awayName}`;
+        }
+      }
+
       // Devolvemos el estado coherente con país, liga y equipos.
       return newData;
     });
