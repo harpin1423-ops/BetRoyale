@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="BetRoyale Club">
+  <rect width="1024" height="1024" fill="#07111f"/>
+  <circle cx="512" cy="512" r="392" fill="#0d1b2f"/>
+  <circle cx="512" cy="512" r="350" fill="none" stroke="#d4af37" stroke-width="44"/>
+  <path fill="#d4af37" d="M432 218h160l-30 80 70-36-22 100H414l-22-100 70 36-30-80Z"/>
+  <text x="512" y="585" text-anchor="middle" font-family="Arial Black, Arial, sans-serif" font-size="290" font-weight="900" fill="#d4af37" letter-spacing="-36">BR</text>
+  <text x="512" y="742" text-anchor="middle" font-family="Arial, sans-serif" font-size="86" font-weight="800" fill="#f7f7f7" letter-spacing="18">CLUB</text>
+</svg>
