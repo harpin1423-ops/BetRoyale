@@ -4,8 +4,8 @@ import { Menu, X, User, Lock } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
 
-// Ruta pública del logo oficial con fondo sólido para evitar transparencias no deseadas.
-const BRAND_LOGO_SRC = "/icon-512.png";
+// Usamos el logo transparente recortado en círculo de alta calidad.
+const BRAND_LOGO_SRC = "/logo_final_80.png";
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -15,8 +15,10 @@ export function Navbar() {
     <nav className="sticky top-0 z-50 w-full border-b border-white/10 bg-background/80 backdrop-blur-md">
       <div className="container mx-auto flex h-16 items-center justify-between px-4 md:px-6">
         <Link to="/" className="flex items-center gap-3" aria-label="BetRoyale Club">
-          {/* Logo oficial de BetRoyale Club con fondo sólido. */}
-          <img src={BRAND_LOGO_SRC} alt="BetRoyale Club" className="h-10 w-10 rounded-md object-cover shadow-[0_0_18px_rgba(212,175,55,0.18)]" />
+          {/* Técnica de zoom circular premium aplicada para consistencia con los tickets. */}
+          <div className="flex items-center justify-center overflow-hidden rounded-full shrink-0 shadow-[0_0_18px_rgba(212,175,55,0.18)]" style={{ width: 40, height: 40 }}>
+            <img src={BRAND_LOGO_SRC} alt="BetRoyale Club" style={{ width: "160%", height: "160%", maxWidth: "none", maxHeight: "none", flexShrink: 0, objectFit: "contain", imageRendering: "high-quality" }} />
+          </div>
           {/* Texto de marca visible para mantener legibilidad en tamaños pequeños. */}
           <span className="font-display text-xl font-bold tracking-tight">BetRoyale Club</span>
         </Link>
