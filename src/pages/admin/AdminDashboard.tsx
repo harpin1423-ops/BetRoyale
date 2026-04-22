@@ -2287,19 +2287,19 @@ export function AdminDashboard() {
                         <table className="w-full text-left border-collapse">
                           <thead>
                             <tr className="bg-white/5 border-b border-white/10">
-                              <th className="px-5 py-5 text-xs font-black text-primary uppercase tracking-[0.2em] w-[150px]">País</th>
-                              <th className="px-5 py-5 text-xs font-black text-primary uppercase tracking-[0.2em] w-[220px]">Liga</th>
-                              <th className="px-5 py-5 text-xs font-black text-primary uppercase tracking-[0.2em] min-w-[300px]">Evento / Partido</th>
-                              <th className="px-5 py-5 text-xs font-black text-primary uppercase tracking-[0.2em] w-[220px]">Fecha</th>
-                              <th className="px-5 py-5 text-xs font-black text-primary uppercase tracking-[0.2em] w-[300px]">Mercado</th>
-                              <th className="px-5 py-5 text-xs font-black text-primary uppercase tracking-[0.2em] w-[120px] text-center">Cuota</th>
-                              <th className="px-5 py-5 text-xs font-black text-primary uppercase tracking-[0.2em] w-[60px]"></th>
+                              <th className="px-3 py-4 text-xs font-black text-primary uppercase tracking-[0.2em] w-[180px]">País</th>
+                              <th className="px-3 py-4 text-xs font-black text-primary uppercase tracking-[0.2em] w-[200px]">Liga</th>
+                              <th className="px-3 py-4 text-xs font-black text-primary uppercase tracking-[0.2em] min-w-[280px]">Evento / Partido</th>
+                              <th className="px-3 py-4 text-xs font-black text-primary uppercase tracking-[0.2em] w-[200px]">Fecha</th>
+                              <th className="px-3 py-4 text-xs font-black text-primary uppercase tracking-[0.2em] w-[280px]">Mercado</th>
+                              <th className="px-3 py-4 text-xs font-black text-primary uppercase tracking-[0.2em] w-[100px] text-center">Cuota</th>
+                              <th className="px-3 py-4 text-xs font-black text-primary uppercase tracking-[0.2em] w-[50px]"></th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-white/5">
                             {formData.selections.map((sel, index) => (
                               <tr key={index} className="hover:bg-white/[0.02] transition-colors">
-                                <td className="px-5 py-8">
+                                <td className="px-3 py-6">
                                   <SearchableSelect
                                     size="sm"
                                     options={countries.map(c => ({
@@ -2312,7 +2312,7 @@ export function AdminDashboard() {
                                     placeholder="País"
                                   />
                                 </td>
-                                <td className="px-5 py-8">
+                                <td className="px-3 py-6">
                                   <SearchableSelect
                                     size="sm"
                                     options={leagues
@@ -2328,7 +2328,7 @@ export function AdminDashboard() {
                                     disabled={!sel.country_id}
                                   />
                                 </td>
-                                <td className="px-5 py-8">
+                                <td className="px-3 py-6">
                                   <div className="grid grid-cols-1 gap-2">
                                     {/* Equipo local de la selección del parlay. */}
                                     <SearchableSelect
@@ -2407,7 +2407,7 @@ export function AdminDashboard() {
                                     )}
                                   </div>
                                 </td>
-                                <td className="px-5 py-8">
+                                <td className="px-3 py-6">
                                   <input
                                     type="datetime-local"
                                     name="match_time"
@@ -2417,7 +2417,7 @@ export function AdminDashboard() {
                                     className="w-full bg-background/50 border border-white/10 rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-primary transition-all text-foreground"
                                   />
                                 </td>
-                                <td className="px-5 py-8">
+                                <td className="px-3 py-6">
                                   <SearchableSelect
                                     size="sm"
                                     options={markets.map(p => ({
@@ -2430,7 +2430,7 @@ export function AdminDashboard() {
                                     placeholder="Mercado"
                                   />
                                 </td>
-                                <td className="px-5 py-8">
+                                <td className="px-3 py-6">
                                   <input
                                     type="number"
                                     name="odds"
@@ -2442,7 +2442,7 @@ export function AdminDashboard() {
                                     className="w-full bg-background/50 border border-white/10 rounded-xl px-3 py-3 text-sm font-black text-primary focus:outline-none focus:border-primary transition-all text-center"
                                   />
                                 </td>
-                                <td className="px-5 py-8 text-center">
+                                <td className="px-3 py-6 text-center">
                                   <button
                                     type="button"
                                     onClick={() => removeSelection(index)}

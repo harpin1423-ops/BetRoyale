@@ -219,7 +219,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
           !selectedOption && "text-muted-foreground/30"
         )}
       >
-        <div className="flex items-center gap-3 truncate">
+        <div className="flex items-center gap-3">
           {selectedOption?.icon}
           <span className={cn("truncate font-medium", selectedOption ? "text-foreground" : "")}>
             {selectedOption ? selectedOption.label : placeholder}
