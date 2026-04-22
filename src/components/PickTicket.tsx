@@ -527,7 +527,6 @@ export function PickTicket({ pick }: PickTicketProps) {
           <span style={S.footerText}>@BetRoyaleClub</span>
         </div>
 
-      )}
       </div>
 
       {/* Botón de descarga (no aparece en la captura) */}
