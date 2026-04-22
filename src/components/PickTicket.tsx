@@ -568,20 +568,20 @@ function BrandLogo({ size }: { size: number }) {
         borderRadius: "50%",
         overflow: "hidden",
         flexShrink: 0,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
+        position: "relative",
       }}
     >
       <img
         alt="BetRoyale Club"
         src="/logo_final_80.png"
         style={{
+          position: "absolute",
+          top: "-9%",
+          left: "-9%",
           width: "118%",
           height: "118%",
-          objectFit: "cover",
-          imageRendering: "auto",
-          WebkitBackfaceVisibility: "hidden",
+          maxWidth: "none",
+          imageRendering: "high-quality",
         }}
         crossOrigin="anonymous"
       />
