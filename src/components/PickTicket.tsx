@@ -580,8 +580,8 @@ function BrandLogo({ size }: { size: number }) {
           width: "100%",
           height: "100%",
           objectFit: "cover",
-          // Escalamos agresivamente para que el logo llene el círculo y se recorte cualquier borde de la imagen original
-          transform: "scale(1.65)",
+          // Ajustamos la escala para que encuadre perfectamente sin tocar los bordes
+          transform: "scale(1.18)",
         }}
         crossOrigin="anonymous"
       />
