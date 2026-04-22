@@ -579,6 +579,7 @@ function BrandLogo({ size }: { size: number }) {
         style={{
           width: "118%",
           height: "118%",
+          flexShrink: 0, // CRUCIAL: Evita que flexbox encoja la imagen de vuelta a 80px
           objectFit: "contain",
           imageRendering: "high-quality",
         }}
