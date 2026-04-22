@@ -141,13 +141,43 @@ async function enriquecerSeleccionesParaTelegram(rawSelections: any): Promise<an
     return [];
   }
 
-  // Extraemos IDs únicos de equipos para resolver nombres dinámicos.
+  // Extraemos IDs únicos para consulta en lote.
+  const leagueIds = [...new Set(selecciones.map((s) => s.league_id).filter(Boolean))];
+  const marketIds = [...new Set(selecciones.map((s) => s.pick).filter(Boolean))];
   const teamIds = [...new Set([
     ...selecciones.map((s) => s.home_team).filter(Boolean),
     ...selecciones.map((s) => s.away_team).filter(Boolean)
   ])];
 
+  // Mapas para resolver datos relacionados
+  const leagueMap = new Map<string, any>();
+  const marketMap = new Map<string, any>();
   const teamMap = new Map<string, string>();
+
+  // Consultar Ligas
+  if (leagueIds.length > 0) {
+    const placeholders = leagueIds.map(() => "?").join(",");
+    const [leagueRows]: any = await pool.query(
+      `SELECT l.id, l.name, c.name AS country_name, c.flag AS country_flag
+       FROM leagues l
+       LEFT JOIN countries c ON l.country_id = c.id
+       WHERE l.id IN (${placeholders})`,
+      leagueIds
+    );
+    leagueRows.forEach((l: any) => leagueMap.set(String(l.id), l));
+  }
+
+  // Consultar Mercados
+  if (marketIds.length > 0) {
+    const placeholders = marketIds.map(() => "?").join(",");
+    const [marketRows]: any = await pool.query(
+      `SELECT id, label, acronym FROM markets WHERE id IN (${placeholders})`,
+      marketIds
+    );
+    marketRows.forEach((m: any) => marketMap.set(String(m.id), m));
+  }
+
+  // Consultar Equipos (para nombres dinámicos)
   if (teamIds.length > 0) {
     const placeholders = teamIds.map(() => "?").join(",");
     const [teamRows]: any = await pool.query(
