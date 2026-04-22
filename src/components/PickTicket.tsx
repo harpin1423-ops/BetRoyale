@@ -127,7 +127,7 @@ const TICKET_WIDTH = 960;
 const TICKET_HEIGHT = 720;
 
 // Alto del header del ticket.
-const TICKET_HEADER_HEIGHT = 96;
+const TICKET_HEADER_HEIGHT = 150;
 
 // Alto del footer del ticket.
 const TICKET_FOOTER_HEIGHT = 45;
@@ -789,7 +789,7 @@ export function PickTicket({ pick }: { pick: PickData }) {
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-            <BrandLogo size={80} />
+            <BrandLogo size={130} />
             <div>
               <div
                 style={{
