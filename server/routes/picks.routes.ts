@@ -51,6 +51,82 @@ function parseSeleccionesParlay(rawSelections: any): any[] {
 }
 
 /**
+ * <summary>
+ * Valida y normaliza las selecciones de un parlay antes de guardarlas o enviarlas a Telegram.
+ * </summary>
+ * @param rawSelections - Selecciones recibidas desde el panel de administración.
+ * @returns Resultado con selecciones limpias o mensaje de error para el administrador.
+ */
+function validarSeleccionesParlay(rawSelections: any): { valid: boolean; selections: any[]; error?: string } {
+  // Convertimos el payload a arreglo para soportar clientes que envíen JSON string.
+  const selections = parseSeleccionesParlay(rawSelections);
+
+  // Un parlay necesita al menos una selección explícita.
+  if (selections.length === 0) {
+    return { valid: false, selections: [], error: "Agrega al menos una selección al parlay" };
+  }
+
+  // Normalizamos cada selección y detenemos el proceso si falta información crítica.
+  for (let index = 0; index < selections.length; index += 1) {
+    // Tomamos la selección actual para validar sus campos.
+    const selection = selections[index] || {};
+
+    // Validamos la liga de la selección para poder resolver país/bandera en Telegram.
+    if (!selection.league_id) {
+      return { valid: false, selections: [], error: `Selecciona la liga en la selección ${index + 1}` };
+    }
+
+    // Validamos el partido final que verá el usuario en Telegram y estadísticas.
+    if (!String(selection.match_name || "").trim()) {
+      return { valid: false, selections: [], error: `Selecciona o escribe el partido en la selección ${index + 1}` };
+    }
+
+    // Validamos fecha/hora propia porque los parlays no usan una hora general.
+    if (!selection.match_time) {
+      return { valid: false, selections: [], error: `Selecciona fecha y hora en la selección ${index + 1}` };
+    }
+
+    // Validamos mercado para que el bot no publique IDs vacíos.
+    if (!selection.pick) {
+      return { valid: false, selections: [], error: `Selecciona el pronóstico en la selección ${index + 1}` };
+    }
+
+    // Convertimos cuota a número para validar rango operativo.
+    const odds = Number(selection.odds);
+
+    // Una cuota debe ser mayor que 1 para que el parlay tenga sentido.
+    if (!Number.isFinite(odds) || odds <= 1) {
+      return { valid: false, selections: [], error: `La cuota de la selección ${index + 1} debe ser mayor a 1` };
+    }
+  }
+
+  // Devolvemos selecciones limpias, conservando IDs de equipos para futuras ediciones.
+  const normalizedSelections = selections.map((selection) => ({
+    // Conservamos campos adicionales existentes sin perder compatibilidad.
+    ...selection,
+    // Normalizamos país opcional como texto estable.
+    country_id: selection.country_id ? String(selection.country_id) : "",
+    // Normalizamos liga como texto para comparaciones consistentes.
+    league_id: String(selection.league_id),
+    // Normalizamos equipo local opcional para reabrir el editor con selección.
+    home_team: selection.home_team ? String(selection.home_team) : "",
+    // Normalizamos equipo visitante opcional para reabrir el editor con selección.
+    away_team: selection.away_team ? String(selection.away_team) : "",
+    // Guardamos el partido final limpio para Telegram.
+    match_name: String(selection.match_name).trim(),
+    // Guardamos datetime-local como texto Colombia para el formatter del bot.
+    match_time: String(selection.match_time),
+    // Normalizamos mercado como texto para resolverlo después.
+    pick: String(selection.pick),
+    // Guardamos cuota con dos decimales para que el mensaje sea consistente.
+    odds: Number(selection.odds).toFixed(2),
+  }));
+
+  // Entregamos resultado válido con selecciones normalizadas.
+  return { valid: true, selections: normalizedSelections };
+}
+
+/**
  * Enriquece las selecciones de parlay con liga, país, bandera y mercado legible.
  *
  * @param rawSelections - Selecciones originales guardadas en el pick.
@@ -65,53 +141,35 @@ async function enriquecerSeleccionesParaTelegram(rawSelections: any): Promise<an
     return [];
   }
 
-  // Extraemos IDs únicos de ligas y mercados para consultar en lote.
-  const leagueIds = [...new Set(selecciones.map((s) => s.league_id).filter(Boolean))];
-  const marketIds = [...new Set(selecciones.map((s) => s.pick).filter(Boolean))];
+  // Extraemos IDs únicos de equipos para resolver nombres dinámicos.
+  const teamIds = [...new Set([
+    ...selecciones.map((s) => s.home_team).filter(Boolean),
+    ...selecciones.map((s) => s.away_team).filter(Boolean)
+  ])];
 
-  // Mapa para resolver liga, país y bandera por ID.
-  const leagueMap = new Map<string, any>();
-
-  // Consultamos ligas si el parlay trae league_id.
-  if (leagueIds.length > 0) {
-    const placeholders = leagueIds.map(() => "?").join(",");
-    const [leagueRows]: any = await pool.query(
-      `SELECT l.id, l.name, c.name AS country_name, c.flag AS country_flag
-       FROM leagues l
-       LEFT JOIN countries c ON l.country_id = c.id
-       WHERE l.id IN (${placeholders})`,
-      leagueIds
+  const teamMap = new Map<string, string>();
+  if (teamIds.length > 0) {
+    const placeholders = teamIds.map(() => "?").join(",");
+    const [teamRows]: any = await pool.query(
+      `SELECT id, name FROM teams WHERE id IN (${placeholders})`,
+      teamIds
     );
-
-    // Indexamos por string para tolerar IDs numéricos o texto desde JSON.
-    leagueRows.forEach((league: any) => {
-      leagueMap.set(String(league.id), league);
-    });
-  }
-
-  // Mapa para resolver mercados por ID/acrónimo.
-  const marketMap = new Map<string, any>();
-
-  // Consultamos mercados si el parlay trae pick/acrónimo.
-  if (marketIds.length > 0) {
-    const placeholders = marketIds.map(() => "?").join(",");
-    const [marketRows]: any = await pool.query(
-      `SELECT id, label, acronym
-       FROM markets
-       WHERE id IN (${placeholders})`,
-      marketIds
-    );
-
-    // Indexamos por ID del mercado.
-    marketRows.forEach((market: any) => {
-      marketMap.set(String(market.id), market);
-    });
+    teamRows.forEach((t: any) => teamMap.set(String(t.id), t.name));
   }
 
   // Combinamos cada selección con sus datos relacionados.
   return selecciones.map((selection) => {
     const league = leagueMap.get(String(selection.league_id));
     const market = marketMap.get(String(selection.pick));
+    
+    // Resolvemos equipos si tienen ID, de lo contrario usamos el texto que ya venía.
+    const hName = teamMap.get(String(selection.home_team));
+    const aName = teamMap.get(String(selection.away_team));
+    
+    let finalMatchName = selection.match_name;
+    if (hName && aName) {
+      finalMatchName = `${hName} vs ${aName}`;
+    }
 
     // Devolvemos una selección enriquecida manteniendo los campos originales.
     return {
@@ -121,6 +179,7 @@ async function enriquecerSeleccionesParaTelegram(rawSelections: any): Promise<an
       country_flag: league?.country_flag || selection.country_flag || "",
       market_label: market?.label || selection.market_label || selection.pick,
       market_acronym: market?.acronym || selection.market_acronym || "",
+      match_name: finalMatchName,
     };
   });
 }
@@ -142,12 +201,16 @@ async function obtenerPickParaTelegram(pickId: string | number): Promise<any | n
             c.flag AS country_flag,
             COALESCE(l.name, p.league, '') AS league_name,
             m.label AS market_label,
-            m.acronym AS market_acronym
+            m.acronym AS market_acronym,
+            ht.name AS home_team_name,
+            at.name AS away_team_name
      FROM picks p
      LEFT JOIN pick_types pt ON p.pick_type_id = pt.id
      LEFT JOIN leagues l ON p.league_id = l.id
      LEFT JOIN countries c ON l.country_id = c.id
      LEFT JOIN markets m ON p.pick = m.id
+     LEFT JOIN teams ht ON p.home_team_id = ht.id
+     LEFT JOIN teams at ON p.away_team_id = at.id
      WHERE p.id = ?
      LIMIT 1`,
     [pickId]
@@ -164,12 +227,18 @@ async function obtenerPickParaTelegram(pickId: string | number): Promise<any | n
   // Enriquecemos selecciones si el pick publicado es un parlay.
   const selecciones = await enriquecerSeleccionesParaTelegram(pick.selections);
 
+  // Resolvemos el nombre del partido dinámicamente si tenemos los IDs de los equipos.
+  let dynamicMatchName = pick.match_name;
+  if (pick.home_team_name && pick.away_team_name) {
+    dynamicMatchName = `${pick.home_team_name} vs ${pick.away_team_name}`;
+  }
+
   // Devolvemos textos legibles para picks simples y parlays.
   return {
     ...pick,
     league: pick.is_parlay ? "Parlay" : pick.league_name,
     pick: pick.is_parlay ? "Parlay" : pick.pick,
-    match_name: pick.is_parlay ? "Parlay" : pick.match_name,
+    match_name: pick.is_parlay ? "Parlay" : dynamicMatchName,
     selections: selecciones,
   };
 }
@@ -530,11 +599,25 @@ router.post("/", authenticateToken, requireAdmin, async (req, res) => {
     pick_type_id, analysis, is_parlay, selections,
   } = req.body;
 
+  // Preparamos las selecciones limpias cuando el pick es parlay.
+  let seleccionesParlayNormalizadas: any[] = [];
+
   // Validación diferenciada para parlays vs picks individuales
   if (is_parlay) {
     if (!match_date || !odds || !stake || !pick_type_id || !selections?.length) {
       return res.status(400).json({ error: "Faltan campos obligatorios para el parlay" });
     }
+
+    // Validamos cada selección para que Telegram reciba partido, liga, hora, mercado y cuota.
+    const validation = validarSeleccionesParlay(selections);
+
+    // Si falta información de una selección, devolvemos el error concreto al admin.
+    if (!validation.valid) {
+      return res.status(400).json({ error: validation.error || "Selecciones de parlay inválidas" });
+    }
+
+    // Usamos la versión normalizada como única fuente para guardar el parlay.
+    seleccionesParlayNormalizadas = validation.selections;
   } else {
     if (!match_date || !league_id || !match_name || !pick || !odds || !stake || !pick_type_id) {
       return res.status(400).json({ error: "Faltan campos obligatorios" });
@@ -557,8 +640,8 @@ router.post("/", authenticateToken, requireAdmin, async (req, res) => {
     const [resultado] = await pool.query(
       `INSERT INTO picks 
        (match_date, league_id, match_name, pick, odds, stake, pick_type_id, 
-        analysis, is_parlay, selections, league, pick_type) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        analysis, is_parlay, selections, league, pick_type, home_team_id, away_team_id) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         fechaFormateada,
         is_parlay ? null : league_id,
@@ -569,9 +652,11 @@ router.post("/", authenticateToken, requireAdmin, async (req, res) => {
         pick_type_id,
         analysis || null,
         is_parlay ? true : false,
-        is_parlay ? JSON.stringify(selections) : null,
+        is_parlay ? JSON.stringify(seleccionesParlayNormalizadas) : null,
         is_parlay ? "Parlay" : "",
         slugTipo,
+        is_parlay ? null : (req.body.home_team || null),
+        is_parlay ? null : (req.body.away_team || null)
       ]
     );
 
@@ -619,11 +704,25 @@ router.put("/:id", authenticateToken, requireAdmin, async (req, res) => {
     pick_type_id, analysis, is_parlay, selections,
   } = req.body;
 
+  // Preparamos las selecciones limpias cuando el pick editado es parlay.
+  let seleccionesParlayNormalizadas: any[] = [];
+
   // Validación de campos requeridos según tipo
   if (is_parlay) {
     if (!match_date || !odds || !stake || !pick_type_id || !selections?.length) {
       return res.status(400).json({ error: "Faltan campos obligatorios para el parlay" });
     }
+
+    // Validamos cada selección para que al editar no se pierdan datos del bot.
+    const validation = validarSeleccionesParlay(selections);
+
+    // Si falta un dato clave, bloqueamos el guardado con mensaje claro.
+    if (!validation.valid) {
+      return res.status(400).json({ error: validation.error || "Selecciones de parlay inválidas" });
+    }
+
+    // Guardamos solamente las selecciones ya normalizadas.
+    seleccionesParlayNormalizadas = validation.selections;
   } else {
     if (!match_date || !league_id || !match_name || !pick || !odds || !stake || !pick_type_id) {
       return res.status(400).json({ error: "Faltan campos obligatorios" });
@@ -647,7 +746,7 @@ router.put("/:id", authenticateToken, requireAdmin, async (req, res) => {
       `UPDATE picks SET 
        match_date = ?, league_id = ?, match_name = ?, pick = ?, odds = ?, 
        stake = ?, pick_type_id = ?, analysis = ?, is_parlay = ?, 
-       selections = ?, league = ?, pick_type = ? 
+       selections = ?, league = ?, pick_type = ?, home_team_id = ?, away_team_id = ? 
        WHERE id = ?`,
       [
         fechaFormateada,
@@ -657,9 +756,11 @@ router.put("/:id", authenticateToken, requireAdmin, async (req, res) => {
         odds, stake, pick_type_id,
         analysis || null,
         is_parlay ? true : false,
-        is_parlay ? JSON.stringify(selections) : null,
+        is_parlay ? JSON.stringify(seleccionesParlayNormalizadas) : null,
         is_parlay ? "Parlay" : "",
         slugTipo,
+        is_parlay ? null : (req.body.home_team || null),
+        is_parlay ? null : (req.body.away_team || null),
         id,
       ]
     );

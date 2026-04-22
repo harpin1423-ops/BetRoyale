@@ -134,6 +134,9 @@ const formatPromoDateForDisplay = (value: unknown) => {
   return `${day}/${month}/${year}, ${timePart} COL`;
 };
 
+// Tipamos los destinos donde el panel puede crear equipos rápidamente.
+type QuickTeamTarget = 'home_team' | 'away_team' | { selectionIndex: number; field: 'home_team' | 'away_team' };
+
 export function AdminDashboard() {
   // Leemos la sesión del administrador una sola vez para evitar declaraciones duplicadas.
   const { token, logout } = useAuth();
@@ -244,6 +247,8 @@ export function AdminDashboard() {
   const [leagueSearch, setLeagueSearch] = useState("");
   const [countrySearch, setCountrySearch] = useState("");
   const [teamSearch, setTeamSearch] = useState("");
+  // Guardamos el país usado para filtrar la tabla de equipos.
+  const [teamCountryFilter, setTeamCountryFilter] = useState("");
   const [teamLeagueFilter, setTeamLeagueFilter] = useState("");
 
   // Picks filters and bulk actions
@@ -579,6 +584,13 @@ export function AdminDashboard() {
   const handleTeamSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmittingTeam) return;
+
+    // Validamos nombre, país y liga para evitar enviar equipos incompletos.
+    if (!teamForm.name.trim() || !teamForm.country_id || !teamForm.league_id) {
+      toast.error("Completa país, liga y nombre del equipo.");
+      return;
+    }
+
     setIsSubmittingTeam(true);
 
     try {
@@ -607,6 +619,51 @@ export function AdminDashboard() {
     } finally {
       setIsSubmittingTeam(false);
     }
+  };
+
+  /**
+   * @summary Actualiza el país del formulario de equipos y limpia la liga dependiente.
+   * @param value - ID del país seleccionado desde el panel de administración.
+   */
+  const handleTeamFormCountryChange = (value: string) => {
+    // Al cambiar país, la liga previa deja de ser confiable.
+    setTeamForm(prev => ({ ...prev, country_id: value, league_id: "" }));
+  };
+
+  /**
+   * @summary Actualiza el filtro de país de equipos y limpia el filtro de liga.
+   * @param value - ID del país usado para filtrar la tabla de equipos.
+   */
+  const handleTeamCountryFilterChange = (value: string) => {
+    // Guardamos el país activo del filtro.
+    setTeamCountryFilter(value);
+
+    // Limpiamos liga porque las ligas visibles dependen del país seleccionado.
+    setTeamLeagueFilter("");
+  };
+
+  /**
+   * @summary Carga un equipo existente en el formulario para editarlo.
+   * @param team - Registro de equipo seleccionado desde la tabla del panel.
+   */
+  const editTeam = (team: any) => {
+    // Buscamos la liga para recuperar país si el registro del equipo no lo trae.
+    const teamLeague = leagues.find(l => l.id?.toString() === team.league_id?.toString());
+
+    // Resolvemos país desde el equipo o desde su liga.
+    const countryId = team.country_id?.toString() || teamLeague?.country_id?.toString() || "";
+
+    // Cargamos el formulario con valores normalizados como string.
+    setTeamForm({
+      id: team.id,
+      name: team.name || "",
+      league_id: team.league_id?.toString() || "",
+      country_id: countryId
+    });
+
+    // Sincronizamos filtros para que el equipo editado quede visible.
+    setTeamCountryFilter(countryId);
+    setTeamLeagueFilter(team.league_id?.toString() || "");
   };
 
   const deleteTeam = async (id: number, name: string) => {
@@ -860,8 +917,18 @@ export function AdminDashboard() {
     });
   };
 
-  const handleQuickTeamCreate = async (name: string, field: 'home_team' | 'away_team' | number) => {
-    if (!formData.league_id || !formData.country_id) {
+  const handleQuickTeamCreate = async (name: string, field: QuickTeamTarget) => {
+    // Buscamos la selección de parlay si la creación viene desde una fila combinada.
+    const selection = typeof field === 'object' ? formData.selections[field.selectionIndex] : null;
+
+    // Usamos país principal para picks simples y país de la selección para parlays.
+    const countryId = selection ? selection.country_id : formData.country_id;
+
+    // Usamos liga principal para picks simples y liga de la selección para parlays.
+    const leagueId = selection ? selection.league_id : formData.league_id;
+
+    // Sin país/liga no podemos asociar el equipo de forma correcta.
+    if (!leagueId || !countryId) {
       toast.error("Selecciona primero el país y la liga para agregar un equipo.");
       return;
     }
@@ -875,8 +942,8 @@ export function AdminDashboard() {
         },
         body: JSON.stringify({
           name: name.trim(),
-          league_id: parseInt(formData.league_id),
-          country_id: parseInt(formData.country_id)
+          league_id: parseInt(leagueId),
+          country_id: parseInt(countryId)
         })
       });
       const data = await res.json();
@@ -885,9 +952,38 @@ export function AdminDashboard() {
       toast.success(`Equipo "${name}" creado exitosamente`);
       fetchTeams();
 
-      if (typeof field === 'number') {
-        // Handle parlay selection
-        handleSelectionChange(field, { target: { name: 'match_name', value: name } } as any);
+      if (typeof field === 'object') {
+        setFormData(prev => {
+          // Copiamos selecciones para no mutar el estado original.
+          const newSelections = [...prev.selections];
+
+          // Copiamos la selección objetivo antes de escribir el nuevo equipo.
+          const currentSelection = { ...newSelections[field.selectionIndex], [field.field]: data.id.toString() };
+
+          // Resolvemos el equipo local con el nuevo nombre si aplica.
+          const homeName = field.field === 'home_team' ? name : (teams.find(t => t.id.toString() === currentSelection.home_team)?.name || "");
+
+          // Resolvemos el equipo visitante con el nuevo nombre si aplica.
+          const awayName = field.field === 'away_team' ? name : (teams.find(t => t.id.toString() === currentSelection.away_team)?.name || "");
+
+          // Si ya existen ambos equipos, armamos automáticamente el partido.
+          if (homeName && awayName) {
+            currentSelection.match_name = `${homeName} vs ${awayName}`;
+          }
+
+          // Guardamos la selección actualizada en su posición.
+          newSelections[field.selectionIndex] = currentSelection;
+
+          // Recalculamos la cuota total del parlay después de editar selecciones.
+          const totalOdds = newSelections.reduce((acc, sel) => acc * (parseFloat(sel.odds) || 1), 1);
+
+          // Devolvemos el formulario con selección y cuota total actualizadas.
+          return {
+            ...prev,
+            selections: newSelections,
+            odds: newSelections.length > 0 && totalOdds > 1 ? totalOdds.toFixed(2) : ""
+          };
+        });
       } else {
         setFormData(prev => {
           const newState = { ...prev, [field]: data.id.toString() };
@@ -909,7 +1005,28 @@ export function AdminDashboard() {
   };
 
   const handleSelectChange = (name: string, value: string) => {
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData(prev => {
+      // Escribimos el valor seleccionado en el campo del formulario.
+      const newData = { ...prev, [name]: value };
+
+      // Si cambia el país, limpiamos liga y equipos para evitar cruces inválidos.
+      if (name === 'country_id') {
+        newData.league_id = "";
+        newData.home_team = "";
+        newData.away_team = "";
+        newData.match_name = "";
+      }
+
+      // Si cambia la liga, limpiamos equipos porque pertenecen a otra competición.
+      if (name === 'league_id') {
+        newData.home_team = "";
+        newData.away_team = "";
+        newData.match_name = "";
+      }
+
+      // Devolvemos el estado coherente con país, liga y equipos.
+      return newData;
+    });
   };
 
   const addSelection = () => {
@@ -917,7 +1034,7 @@ export function AdminDashboard() {
       ...prev,
       selections: [
         ...prev.selections,
-        { country_id: "", league_id: "", match_name: "", match_time: "", pick: "", odds: "" }
+        { country_id: "", league_id: "", home_team: "", away_team: "", match_name: "", match_time: "", pick: "", odds: "" }
       ]
     }));
   };
@@ -942,7 +1059,37 @@ export function AdminDashboard() {
 
     setFormData(prev => {
       const newSelections = [...prev.selections];
-      newSelections[index] = { ...newSelections[index], [name]: value };
+      const updatedSelection = { ...newSelections[index], [name]: value };
+
+      // Si cambia el país de una selección, limpiamos liga/equipos de esa fila.
+      if (name === 'country_id') {
+        updatedSelection.league_id = "";
+        updatedSelection.home_team = "";
+        updatedSelection.away_team = "";
+        updatedSelection.match_name = "";
+      }
+
+      // Si cambia la liga de una selección, limpiamos equipos de esa fila.
+      if (name === 'league_id') {
+        updatedSelection.home_team = "";
+        updatedSelection.away_team = "";
+        updatedSelection.match_name = "";
+      }
+
+      // Si cambia equipo local o visitante, armamos automáticamente el partido.
+      if (name === 'home_team' || name === 'away_team') {
+        const homeId = name === 'home_team' ? value : updatedSelection.home_team;
+        const awayId = name === 'away_team' ? value : updatedSelection.away_team;
+        const homeName = teams.find(t => t.id.toString() === homeId)?.name || "";
+        const awayName = teams.find(t => t.id.toString() === awayId)?.name || "";
+
+        // Solo actualizamos el evento cuando ambos equipos están definidos.
+        if (homeName && awayName) {
+          updatedSelection.match_name = `${homeName} vs ${awayName}`;
+        }
+      }
+
+      newSelections[index] = updatedSelection;
 
       const totalOdds = newSelections.reduce((acc, sel) => acc * (parseFloat(sel.odds) || 1), 1);
 
@@ -1015,6 +1162,8 @@ export function AdminDashboard() {
           match_date: "",
           country_id: "",
           league_id: "",
+          home_team: "",
+          away_team: "",
           match_name: "",
           pick: "",
           odds: "",
@@ -1035,21 +1184,18 @@ export function AdminDashboard() {
           match_date: "",
           country_id: "",
           league_id: "",
+          home_team: "",
+          away_team: "",
           match_name: "",
           pick: "",
           odds: "",
           stake: "1",
           pick_type_id: pickTypes.length > 0 ? pickTypes[0].id.toString() : "1",
           analysis: "",
-          is_parlay: false,
-          selections: []
         });
       }
-
     } catch (error: any) {
       toast.error(error.message);
-    } finally {
-      setIsSubmittingPick(false);
     }
   };
 
@@ -1075,10 +1221,29 @@ export function AdminDashboard() {
       }
     }
 
+    // Intentar deducir equipos si no vienen IDs explícitos (compatibilidad con picks viejos)
+    let homeTeamId = pick.home_team_id ? pick.home_team_id.toString() : "";
+    let awayTeamId = pick.away_team_id ? pick.away_team_id.toString() : "";
+
+    // Si no hay IDs guardados, intentamos encontrarlos por nombre en la liga actual
+    if (!homeTeamId && !awayTeamId && pick.match_name && pick.match_name.includes(" vs ")) {
+      const parts = pick.match_name.split(" vs ");
+      if (parts.length === 2) {
+        const hName = parts[0].trim();
+        const aName = parts[1].trim();
+        const hTeam = teams.find(t => t.name.toLowerCase() === hName.toLowerCase() && t.league_id === pick.league_id);
+        const aTeam = teams.find(t => t.name.toLowerCase() === aName.toLowerCase() && t.league_id === pick.league_id);
+        if (hTeam) homeTeamId = hTeam.id.toString();
+        if (aTeam) awayTeamId = aTeam.id.toString();
+      }
+    }
+
     setFormData({
       match_date: localISOTime,
       country_id: countryId,
       league_id: pick.league_id ? pick.league_id.toString() : "",
+      home_team: homeTeamId,
+      away_team: awayTeamId,
       match_name: pick.match_name || "",
       pick: pick.pick ? pick.pick.toString() : "",
       odds: pick.odds ? pick.odds.toString() : "",
@@ -1098,6 +1263,8 @@ export function AdminDashboard() {
       match_date: "",
       country_id: "",
       league_id: "",
+      home_team: "",
+      away_team: "",
       match_name: "",
       pick: "",
       odds: "",
@@ -1987,22 +2154,38 @@ export function AdminDashboard() {
                                   />
                                 </td>
                                 <td className="px-5 py-8">
-                                  <SearchableSelect
-                                    size="sm"
-                                    options={teams
-                                      .filter(t => !sel.league_id || t.league_id.toString() === sel.league_id)
-                                      .map(t => ({ value: t.id, label: t.name }))}
-                                    value={teams.find(t => t.name === sel.match_name)?.id || ""}
-                                    onChange={(val) => {
-                                      const teamName = teams.find(t => t.id.toString() === val)?.name || "";
-                                      handleSelectionChange(index, { target: { name: 'match_name', value: teamName } } as any);
-                                    }}
-                                    onCreatable={(query) => handleQuickTeamCreate(query, index)}
-                                    required
-                                    placeholder="Evento / Partido"
-                                    disabled={!sel.league_id}
-                                  />
-                                  <div className="mt-2">
+                                  <div className="grid grid-cols-1 gap-2">
+                                    {/* Equipo local de la selección del parlay. */}
+                                    <SearchableSelect
+                                      size="sm"
+                                      options={teams
+                                        .filter(t => !sel.league_id || t.league_id.toString() === sel.league_id)
+                                        .filter(t => t.id.toString() !== sel.away_team)
+                                        .map(t => ({ value: t.id, label: t.name }))}
+                                      value={sel.home_team || ""}
+                                      onChange={(val) => handleSelectionChange(index, { target: { name: 'home_team', value: val } } as any)}
+                                      onCreatable={(query) => handleQuickTeamCreate(query, { selectionIndex: index, field: 'home_team' })}
+                                      required
+                                      placeholder="Equipo local"
+                                      disabled={!sel.league_id}
+                                    />
+                                    {/* Equipo visitante de la selección del parlay. */}
+                                    <SearchableSelect
+                                      size="sm"
+                                      options={teams
+                                        .filter(t => !sel.league_id || t.league_id.toString() === sel.league_id)
+                                        .filter(t => t.id.toString() !== sel.home_team)
+                                        .map(t => ({ value: t.id, label: t.name }))}
+                                      value={sel.away_team || ""}
+                                      onChange={(val) => handleSelectionChange(index, { target: { name: 'away_team', value: val } } as any)}
+                                      onCreatable={(query) => handleQuickTeamCreate(query, { selectionIndex: index, field: 'away_team' })}
+                                      required
+                                      placeholder="Equipo visitante"
+                                      disabled={!sel.league_id}
+                                    />
+                                  </div>
+                                  <div className="mt-3">
+                                    {/* Campo final editable que Telegram y estadísticas usarán como partido. */}
                                     <input
                                       type="text"
                                       name="match_name"
@@ -3389,6 +3572,239 @@ export function AdminDashboard() {
               </div>
             </div>
           )}
+
+          {activeTab === "teams" && (() => {
+            // Ligas disponibles para el formulario según el país seleccionado.
+            const formLeagues = leagues.filter(l => !teamForm.country_id || l.country_id?.toString() === teamForm.country_id);
+
+            // Ligas disponibles para el filtro de tabla según el país seleccionado.
+            const filterLeagues = leagues.filter(l => !teamCountryFilter || l.country_id?.toString() === teamCountryFilter);
+
+            // Equipos filtrados por país, liga y texto de búsqueda.
+            const filteredTeams = teams.filter(team => {
+              // Buscamos la liga del equipo para resolver su país si hace falta.
+              const teamLeague = leagues.find(l => l.id?.toString() === team.league_id?.toString());
+
+              // Resolvemos país desde el equipo o desde su liga.
+              const countryId = team.country_id?.toString() || teamLeague?.country_id?.toString() || "";
+
+              // Resolvemos liga como string para comparar con el filtro.
+              const leagueId = team.league_id?.toString() || "";
+
+              // Validamos coincidencia por país.
+              const matchesCountry = !teamCountryFilter || countryId === teamCountryFilter;
+
+              // Validamos coincidencia por liga.
+              const matchesLeague = !teamLeagueFilter || leagueId === teamLeagueFilter;
+
+              // Validamos coincidencia por nombre del equipo.
+              const matchesSearch = !teamSearch || String(team.name || "").toLowerCase().includes(teamSearch.toLowerCase());
+
+              // Devolvemos solo equipos compatibles con filtros activos.
+              return matchesCountry && matchesLeague && matchesSearch;
+            });
+
+            // Renderizamos el módulo completo de equipos.
+            return (
+              <div className="w-full">
+                <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-8">
+                  <div>
+                    <h2 className="text-2xl font-bold mb-2">Gestionar Equipos</h2>
+                    <p className="text-sm text-muted-foreground">Asocia cada equipo a su país y liga correcta para picks simples y parlays.</p>
+                  </div>
+                  <div className="text-xs text-muted-foreground bg-card border border-white/10 rounded-xl px-4 py-3">
+                    <span className="font-bold text-primary">{filteredTeams.length}</span> equipos visibles
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+                  <div className="xl:col-span-1">
+                    <div className="bg-card p-6 rounded-2xl border border-white/10 shadow-xl">
+                      <h3 className="text-lg font-bold mb-5">{teamForm.id ? "Editar Equipo" : "Nuevo Equipo"}</h3>
+
+                      <form onSubmit={handleTeamSubmit} className="space-y-4">
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-muted-foreground">País</label>
+                          <SearchableSelect
+                            value={teamForm.country_id}
+                            onChange={handleTeamFormCountryChange}
+                            placeholder="Seleccionar país..."
+                            options={countries.map(country => ({
+                              value: country.id,
+                              label: country.name,
+                              icon: <CountryFlag countryCode={country.flag} className="w-5 h-4" />
+                            }))}
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-muted-foreground">Liga</label>
+                          <SearchableSelect
+                            value={teamForm.league_id}
+                            onChange={(value) => setTeamForm(prev => ({ ...prev, league_id: value }))}
+                            placeholder="Seleccionar liga..."
+                            disabled={!teamForm.country_id}
+                            options={formLeagues.map(league => ({
+                              value: league.id,
+                              label: league.name
+                            }))}
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-muted-foreground">Nombre del equipo</label>
+                          <input
+                            type="text"
+                            value={teamForm.name}
+                            onChange={(e) => setTeamForm(prev => ({ ...prev, name: e.target.value }))}
+                            required
+                            placeholder="Ej: Atlético Nacional"
+                            className="w-full bg-background border border-white/10 rounded-xl px-5 py-4 text-sm text-foreground focus:outline-none focus:border-primary transition-all"
+                          />
+                        </div>
+
+                        <div className="flex gap-2 pt-2">
+                          <button
+                            type="submit"
+                            disabled={isSubmittingTeam}
+                            className="flex-1 py-3 rounded-xl bg-primary text-primary-foreground font-bold text-sm hover:bg-primary/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                          >
+                            {isSubmittingTeam ? (
+                              <>
+                                <Activity className="h-4 w-4 animate-spin" />
+                                {teamForm.id ? "Actualizando..." : "Creando..."}
+                              </>
+                            ) : (
+                              teamForm.id ? "Actualizar Equipo" : "Crear Equipo"
+                            )}
+                          </button>
+
+                          {teamForm.id && (
+                            <button
+                              type="button"
+                              onClick={() => setTeamForm({ id: null, name: "", league_id: "", country_id: "" })}
+                              className="px-4 py-3 rounded-xl bg-white/10 text-white font-bold text-sm hover:bg-white/20 transition-all"
+                            >
+                              Cancelar
+                            </button>
+                          )}
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+
+                  <div className="xl:col-span-2">
+                    <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="relative md:col-span-1 group">
+                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                          <Search className="h-5 w-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                        </div>
+                        <input
+                          type="text"
+                          placeholder="Buscar equipo..."
+                          value={teamSearch}
+                          onChange={(e) => setTeamSearch(e.target.value)}
+                          className="w-full bg-card border border-white/10 rounded-2xl pl-12 pr-4 py-4 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all shadow-lg"
+                        />
+                      </div>
+
+                      <SearchableSelect
+                        value={teamCountryFilter}
+                        onChange={handleTeamCountryFilterChange}
+                        placeholder="Filtrar país..."
+                        options={[
+                          { value: "", label: "Todos los países" },
+                          ...countries.map(country => ({
+                            value: country.id,
+                            label: country.name,
+                            icon: <CountryFlag countryCode={country.flag} className="w-5 h-4" />
+                          }))
+                        ]}
+                      />
+
+                      <SearchableSelect
+                        value={teamLeagueFilter}
+                        onChange={(value) => setTeamLeagueFilter(value)}
+                        placeholder="Filtrar liga..."
+                        disabled={filterLeagues.length === 0}
+                        options={[
+                          { value: "", label: "Todas las ligas" },
+                          ...filterLeagues.map(league => ({
+                            value: league.id,
+                            label: league.name
+                          }))
+                        ]}
+                      />
+                    </div>
+
+                    <div className="bg-card border border-white/10 rounded-2xl overflow-hidden shadow-xl">
+                      <div className="overflow-x-auto custom-scrollbar">
+                        <table className="w-full text-left text-sm">
+                          <thead className="bg-primary/20 border-b border-primary/30 sticky top-0 z-10 backdrop-blur-md">
+                            <tr>
+                              <th className="p-4 text-xs font-bold text-primary uppercase tracking-wider">País</th>
+                              <th className="p-4 text-xs font-bold text-primary uppercase tracking-wider">Liga</th>
+                              <th className="p-4 text-xs font-bold text-primary uppercase tracking-wider">Equipo</th>
+                              <th className="p-4 text-xs font-bold text-primary uppercase tracking-wider text-right">Acciones</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-white/10">
+                            {filteredTeams.length === 0 ? (
+                              <tr>
+                                <td colSpan={4} className="p-12 text-center text-muted-foreground italic">
+                                  No hay equipos que coincidan con los filtros.
+                                </td>
+                              </tr>
+                            ) : (
+                              filteredTeams.map(team => {
+                                // Buscamos la liga del equipo para mostrar nombre legible.
+                                const teamLeague = leagues.find(l => l.id?.toString() === team.league_id?.toString());
+
+                                // Buscamos el país desde el equipo o desde su liga.
+                                const teamCountry = countries.find(country => country.id?.toString() === (team.country_id?.toString() || teamLeague?.country_id?.toString() || ""));
+
+                                // Renderizamos una fila compacta y editable.
+                                return (
+                                  <tr key={team.id} className="hover:bg-white/5 transition-all">
+                                    <td className="p-4">
+                                      <div className="flex items-center gap-2">
+                                        {teamCountry?.flag && <CountryFlag countryCode={teamCountry.flag} className="w-5 h-4" />}
+                                        <span className="text-muted-foreground">{teamCountry?.name || "-"}</span>
+                                      </div>
+                                    </td>
+                                    <td className="p-4 text-muted-foreground">{teamLeague?.name || "-"}</td>
+                                    <td className="p-4 font-bold text-white">{team.name}</td>
+                                    <td className="p-4">
+                                      <div className="flex items-center justify-end gap-2">
+                                        <button
+                                          onClick={() => editTeam(team)}
+                                          className="p-1.5 rounded hover:bg-blue-500/20 text-blue-400 transition-colors"
+                                          title="Editar"
+                                        >
+                                          <Edit className="w-4 h-4" />
+                                        </button>
+                                        <button
+                                          onClick={() => deleteTeam(team.id, team.name)}
+                                          className="p-1.5 rounded hover:bg-destructive/20 text-destructive transition-colors"
+                                          title="Eliminar"
+                                        >
+                                          <Trash2 className="w-4 h-4" />
+                                        </button>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                );
+                              })
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
 
           {activeTab === "stats" && (() => {
             const currentPerfStats = performanceStats ? (performanceStats[selectedStatsPlan] || { totalPicks: 0, won: 0, lost: 0, voided: 0, hitRate: "0.00", yield: "0.00", profit: "0.00" }) : null;

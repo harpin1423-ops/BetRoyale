@@ -267,11 +267,19 @@ export async function initDB(): Promise<void> {
         status       VARCHAR(20) DEFAULT 'pending',
         is_parlay    BOOLEAN DEFAULT FALSE,
         selections   JSON,
+        home_team_id INT,
+        away_team_id INT,
         created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (pick_type_id) REFERENCES pick_types(id),
-        FOREIGN KEY (league_id)    REFERENCES leagues(id)
+        FOREIGN KEY (league_id)    REFERENCES leagues(id),
+        FOREIGN KEY (home_team_id) REFERENCES teams(id) ON DELETE SET NULL,
+        FOREIGN KEY (away_team_id) REFERENCES teams(id) ON DELETE SET NULL
       )
     `);
+
+    // ── 6.1. Migraciones de picks ───────────────────────────────────────────
+    await conexion.query(`ALTER TABLE picks ADD COLUMN IF NOT EXISTS home_team_id INT`).catch(() => {});
+    await conexion.query(`ALTER TABLE picks ADD COLUMN IF NOT EXISTS away_team_id INT`).catch(() => {});
 
     // ── 7. Tabla: pick_tracking ──────────────────────────────────────────────
     // Mensajes de seguimiento opcionales para un pick (ej: "Partido suspendido")
