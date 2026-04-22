@@ -53,7 +53,7 @@ const PAISES_ISO = {
 // ─── Ligas predefinidas por país ─────────────────────────────────────────────
 // Se usan para sembrar la BD con ligas de fútbol populares al iniciar
 const LIGAS_INICIALES = [
-    { pais: "Inglaterra", ligas: ["Premier League", "Championship", "FA Cup", "EFL Cup"] },
+    { pais: "Inglaterra", ligas: ["Premier League", "Championship", "League One", "FA Cup", "EFL Cup"] },
     { pais: "España", ligas: ["La Liga", "Segunda División", "Copa del Rey"] },
     { pais: "Italia", ligas: ["Serie A", "Serie B", "Coppa Italia"] },
     { pais: "Alemania", ligas: ["Bundesliga", "2. Bundesliga", "DFB Pokal"] },
@@ -167,6 +167,18 @@ const EQUIPOS_INICIALES = [
     },
     {
         pais: "Inglaterra",
+        liga: "League One",
+        equipos: [
+            "Barnsley", "Birmingham City", "Blackpool", "Bolton Wanderers", "Bristol Rovers",
+            "Burton Albion", "Cambridge United", "Charlton Athletic", "Crawley Town",
+            "Exeter City", "Huddersfield Town", "Leyton Orient", "Lincoln City",
+            "Mansfield Town", "Northampton Town", "Peterborough United", "Reading",
+            "Rotherham United", "Shrewsbury Town", "Stevenage", "Stockport County",
+            "Wigan Athletic", "Wrexham", "Wycombe Wanderers"
+        ]
+    },
+    {
+        pais: "Inglaterra",
         liga: "FA Cup",
         equipos: [
             "Arsenal", "Aston Villa", "Bournemouth", "Brentford", "Brighton & Hove Albion",
@@ -178,7 +190,13 @@ const EQUIPOS_INICIALES = [
             "Derby County", "Hull City", "Leeds United", "Luton Town", "Middlesbrough",
             "Millwall", "Norwich City", "Oxford United", "Plymouth Argyle", "Portsmouth",
             "Preston North End", "Queens Park Rangers", "Sheffield United", "Sheffield Wednesday",
-            "Stoke City", "Sunderland", "Swansea City", "Watford", "West Bromwich Albion"
+            "Stoke City", "Sunderland", "Swansea City", "Watford", "West Bromwich Albion",
+            "Barnsley", "Birmingham City", "Blackpool", "Bolton Wanderers", "Bristol Rovers",
+            "Burton Albion", "Cambridge United", "Charlton Athletic", "Crawley Town",
+            "Exeter City", "Huddersfield Town", "Leyton Orient", "Lincoln City",
+            "Mansfield Town", "Northampton Town", "Peterborough United", "Reading",
+            "Rotherham United", "Shrewsbury Town", "Stevenage", "Stockport County",
+            "Wigan Athletic", "Wrexham", "Wycombe Wanderers"
         ]
     },
     {
@@ -194,7 +212,13 @@ const EQUIPOS_INICIALES = [
             "Derby County", "Hull City", "Leeds United", "Luton Town", "Middlesbrough",
             "Millwall", "Norwich City", "Oxford United", "Plymouth Argyle", "Portsmouth",
             "Preston North End", "Queens Park Rangers", "Sheffield United", "Sheffield Wednesday",
-            "Stoke City", "Sunderland", "Swansea City", "Watford", "West Bromwich Albion"
+            "Stoke City", "Sunderland", "Swansea City", "Watford", "West Bromwich Albion",
+            "Barnsley", "Birmingham City", "Blackpool", "Bolton Wanderers", "Bristol Rovers",
+            "Burton Albion", "Cambridge United", "Charlton Athletic", "Crawley Town",
+            "Exeter City", "Huddersfield Town", "Leyton Orient", "Lincoln City",
+            "Mansfield Town", "Northampton Town", "Peterborough United", "Reading",
+            "Rotherham United", "Shrewsbury Town", "Stevenage", "Stockport County",
+            "Wigan Athletic", "Wrexham", "Wycombe Wanderers"
         ]
     },
     {
