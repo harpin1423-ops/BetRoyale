@@ -1297,6 +1297,31 @@ export function AdminDashboard() {
     }
   };
 
+  const resendPickToTelegram = async (pickId: number) => {
+    if (!confirm("¿Seguro que deseas reenviar este pick a Telegram? Esto enviará una notificación a todos los canales correspondientes al plan de este pick.")) {
+      return;
+    }
+    
+    try {
+      const res = await fetch(`/api/picks/${pickId}/resend-telegram`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+      
+      const data = await res.json();
+      
+      if (!res.ok) {
+        throw new Error(data.error || "Error al reenviar el pick");
+      }
+      
+      toast.success(data.message || "Pick reenviado exitosamente a Telegram");
+    } catch (error: any) {
+      toast.error(error.message);
+    }
+  };
+
   const handleEditPick = (pick: any) => {
     const date = new Date(pick.match_date);
     const tzOffset = date.getTimezoneOffset() * 60000;
@@ -2849,7 +2874,10 @@ export function AdminDashboard() {
                                         </button>
                                       </>
                                     )}
-                                    <button onClick={() => handleEditPick(pick)} className="p-1.5 rounded hover:bg-blue-500/20 text-blue-400 transition-colors ml-2" title="Editar">
+                                    <button onClick={() => resendPickToTelegram(pick.id)} className="p-1.5 rounded hover:bg-emerald-500/20 text-emerald-400 transition-colors ml-2" title="Reenviar a Telegram">
+                                      <Send className="w-4 h-4" />
+                                    </button>
+                                    <button onClick={() => handleEditPick(pick)} className="p-1.5 rounded hover:bg-blue-500/20 text-blue-400 transition-colors" title="Editar">
                                       <Edit className="w-4 h-4" />
                                     </button>
                                     <button onClick={() => deletePick(pick.id, pick.match_name)} className="p-1.5 rounded hover:bg-destructive/20 text-destructive transition-colors" title="Eliminar">

@@ -834,6 +834,43 @@ router.put("/:id", authenticateToken, requireAdmin, async (req, res) => {
   }
 });
 
+// ─── POST /api/picks/:id/resend-telegram ─────────────────────────────────────
+/**
+ * Reenvía manualmente la notificación de un pick a Telegram.
+ * Útil cuando el administrador necesita reenviar tras una corrección manual.
+ */
+router.post("/:id/resend-telegram", authenticateToken, requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const pickTelegram = await obtenerPickParaTelegram(id);
+    if (!pickTelegram) {
+      return res.status(404).json({ error: "Pick no encontrado" });
+    }
+
+    const channelIds = await obtenerCanalesTelegramParaPick(pickTelegram);
+    if (channelIds.length === 0) {
+      return res.status(400).json({ error: "Este plan no tiene canales de Telegram configurados o el pick no pertenece a un plan con notificaciones." });
+    }
+
+    const mensaje = formatPickParaTelegram(pickTelegram);
+    let successCount = 0;
+
+    for (const channelId of channelIds) {
+      const enviado = await sendTelegramMessage(channelId, mensaje);
+      if (enviado) successCount++;
+    }
+
+    if (successCount === 0) {
+      return res.status(500).json({ error: "No se pudo enviar el mensaje a Telegram. Verifica la configuración del bot." });
+    }
+
+    return res.json({ message: `Notificación reenviada a ${successCount} canal(es).` });
+  } catch (error: any) {
+    console.error("[PICKS] Error reenviando pick a Telegram:", error);
+    return res.status(500).json({ error: "Error interno al reenviar a Telegram" });
+  }
+});
+
 // ─── PATCH /api/picks/bulk/status ────────────────────────────────────────────
 /**
  * Actualiza el estado de múltiples picks a la vez.
