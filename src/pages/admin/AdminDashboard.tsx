@@ -137,6 +137,41 @@ const formatPromoDateForDisplay = (value: unknown) => {
 // Tipamos los destinos donde el panel puede crear equipos rápidamente.
 type QuickTeamTarget = 'home_team' | 'away_team' | { selectionIndex: number; field: 'home_team' | 'away_team' };
 
+// Mapeo de ligas tipo Copa a sus ligas fuente (para mostrar equipos de múltiples divisiones)
+const CUP_LEAGUES_MAPPING: Record<string, string[]> = {
+  "DFB Pokal": ["Bundesliga", "2. Bundesliga"],
+  "Copa del Rey": ["La Liga", "Segunda División"],
+  "FA Cup": ["Premier League", "Championship"],
+  "EFL Cup": ["Premier League", "Championship"],
+  "Coppa Italia": ["Serie A", "Serie B"],
+  "Coupe de France": ["Ligue 1", "Ligue 2"],
+  "Copa Colombia": ["Liga BetPlay", "Torneo BetPlay"],
+  "Copa Argentina": ["Liga Profesional", "Primera Nacional"],
+  "Copa de la Liga Profesional": ["Liga Profesional"]
+};
+
+/**
+ * Obtiene los IDs de todas las ligas compatibles para una liga seleccionada (Copa + Fuentes)
+ * Esto permite que las Copas puedan usar equipos de Primera y Segunda división.
+ */
+const getCompatibleLeagueIds = (selectedLeagueId: string | number | null, leagues: any[]) => {
+  if (!selectedLeagueId) return [];
+  const selectedLeague = leagues.find(l => l.id.toString() === selectedLeagueId.toString());
+  if (!selectedLeague) return [selectedLeagueId.toString()];
+
+  const leagueName = selectedLeague.name;
+  const sources = CUP_LEAGUES_MAPPING[leagueName];
+  
+  if (!sources) return [selectedLeagueId.toString()];
+
+  // Buscamos los IDs de las ligas fuente en el mismo país
+  const sourceLeagueIds = leagues
+    .filter(l => l.country_id === selectedLeague.country_id && (l.name === leagueName || sources.includes(l.name)))
+    .map(l => l.id.toString());
+
+  return sourceLeagueIds;
+};
+
 export function AdminDashboard() {
   // Leemos la sesión del administrador una sola vez para evitar declaraciones duplicadas.
   const { token, logout } = useAuth();
@@ -2218,7 +2253,11 @@ export function AdminDashboard() {
                             <label className="text-xs font-black text-primary uppercase tracking-[0.2em] pl-1">Equipo Local</label>
                             <SearchableSelect
                               options={teams
-                                .filter(t => !formData.league_id || t.league_id.toString() === formData.league_id)
+                                .filter(t => {
+                                  if (!formData.league_id) return true;
+                                  const compatibleIds = getCompatibleLeagueIds(formData.league_id, leagues);
+                                  return compatibleIds.includes(t.league_id.toString());
+                                })
                                 .map(t => ({ value: t.id, label: t.name }))}
                               value={formData.home_team}
                               onChange={(val) => handleSelectChange('home_team', val)}
@@ -2234,7 +2273,11 @@ export function AdminDashboard() {
                             <label className="text-xs font-black text-primary uppercase tracking-[0.2em] pl-1">Equipo Visitante</label>
                             <SearchableSelect
                               options={teams
-                                .filter(t => !formData.league_id || t.league_id.toString() === formData.league_id)
+                                .filter(t => {
+                                  if (!formData.league_id) return true;
+                                  const compatibleIds = getCompatibleLeagueIds(formData.league_id, leagues);
+                                  return compatibleIds.includes(t.league_id.toString());
+                                })
                                 .filter(t => t.id.toString() !== formData.home_team)
                                 .map(t => ({ value: t.id, label: t.name }))}
                               value={formData.away_team}
@@ -2334,7 +2377,11 @@ export function AdminDashboard() {
                                     <SearchableSelect
                                       size="sm"
                                       options={teams
-                                        .filter(t => !sel.league_id || t.league_id.toString() === sel.league_id)
+                                        .filter(t => {
+                                          if (!sel.league_id) return true;
+                                          const compatibleIds = getCompatibleLeagueIds(sel.league_id, leagues);
+                                          return compatibleIds.includes(t.league_id.toString());
+                                        })
                                         .filter(t => t.id.toString() !== sel.away_team)
                                         .map(t => ({ value: t.id, label: t.name }))}
                                       value={sel.home_team || ""}
@@ -2348,7 +2395,11 @@ export function AdminDashboard() {
                                     <SearchableSelect
                                       size="sm"
                                       options={teams
-                                        .filter(t => !sel.league_id || t.league_id.toString() === sel.league_id)
+                                        .filter(t => {
+                                          if (!sel.league_id) return true;
+                                          const compatibleIds = getCompatibleLeagueIds(sel.league_id, leagues);
+                                          return compatibleIds.includes(t.league_id.toString());
+                                        })
                                         .filter(t => t.id.toString() !== sel.home_team)
                                         .map(t => ({ value: t.id, label: t.name }))}
                                       value={sel.away_team || ""}
