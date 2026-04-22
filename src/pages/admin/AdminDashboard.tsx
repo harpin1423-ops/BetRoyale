@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { GoogleGenAI, Type } from "@google/genai";
-import { Trophy, PlusCircle, List, Users, Settings, LogOut, CheckCircle, XCircle, MinusCircle, Trash2, Edit, Tag, Globe, X, BarChart3, CheckCircle2, Activity, DollarSign, Search, ChevronLeft, ChevronRight, BrainCircuit, Loader2, Send, ExternalLink, Shield } from "lucide-react";
+import { Trophy, PlusCircle, List, Users, Settings, LogOut, CheckCircle, XCircle, MinusCircle, Trash2, Edit, Tag, Globe, X, BarChart3, CheckCircle2, Activity, DollarSign, Search, ChevronLeft, ChevronRight, BrainCircuit, Loader2, Send, ExternalLink, Shield, Camera } from "lucide-react";
 import { NORMALIZED_PICKS, getPickDisplay, getPlanName } from "../../lib/constants";
 import { getLocalizedStatus } from "../../lib/utils";
 import { useAuth } from "../../context/AuthContext";
 import { CountryFlag } from "../../components/CountryFlag";
 import { SearchableSelect } from "../../components/SearchableSelect";
+import { PickTicket } from "../../components/PickTicket";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from "recharts";
 import { toast } from "sonner";
 
@@ -203,6 +204,7 @@ export function AdminDashboard() {
   const [isSubmittingPickType, setIsSubmittingPickType] = useState(false);
   const [globalError, setGlobalError] = useState<string | null>(null);
   const [telegramFullConfig, setTelegramFullConfig] = useState({ telegram_channel_id: "", telegram_invite_link: "" });
+  const [ticketModalPick, setTicketModalPick] = useState<any | null>(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -2907,6 +2909,9 @@ export function AdminDashboard() {
                                     <button onClick={() => resendPickToTelegram(pick.id)} className="p-1.5 rounded hover:bg-emerald-500/20 text-emerald-400 transition-colors ml-2" title="Reenviar a Telegram">
                                       <Send className="w-4 h-4" />
                                     </button>
+                                    <button onClick={() => setTicketModalPick(pick)} className="p-1.5 rounded hover:bg-purple-500/20 text-purple-400 transition-colors ml-2" title="Generar Ticket para Redes">
+                                      <Camera className="w-4 h-4" />
+                                    </button>
                                     <button onClick={() => handleEditPick(pick)} className="p-1.5 rounded hover:bg-blue-500/20 text-blue-400 transition-colors" title="Editar">
                                       <Edit className="w-4 h-4" />
                                     </button>
@@ -4914,6 +4919,23 @@ export function AdminDashboard() {
                     Aceptar
                   </button>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Ticket Modal */}
+        {ticketModalPick && (
+          <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto">
+            <div className="relative">
+              <button 
+                onClick={() => setTicketModalPick(null)} 
+                className="absolute -top-12 right-0 p-2 text-white/50 hover:text-white transition-colors"
+              >
+                <X className="w-8 h-8" />
+              </button>
+              <div className="scale-75 sm:scale-100 origin-top">
+                <PickTicket pick={ticketModalPick} />
               </div>
             </div>
           </div>
