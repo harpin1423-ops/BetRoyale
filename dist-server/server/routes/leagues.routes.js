@@ -14,11 +14,11 @@ export const countriesRouter = Router();
 // RUTAS DE PAÍSES
 // ═══════════════════════════════════════════════════════════════════════════════
 // ─── GET /api/countries ──────────────────────────────────────────────────────
-/** Devuelve todos los países ordenados por ID descendente (los nuevos primero). */
+/** Devuelve todos los países ordenados por nombre ascendentemente. */
 countriesRouter.get("/", async (_req, res) => {
     try {
-        const [filas] = await pool.query("SELECT * FROM countries ORDER BY id DESC");
-        return res.json(filas);
+        const [filas] = await pool.query("SELECT * FROM countries ORDER BY name ASC");
+        res.json(filas);
     }
     catch (error) {
         console.error("[COUNTRIES] Error obteniendo países:", error);
@@ -128,7 +128,7 @@ leaguesRouter.get("/", async (_req, res) => {
       SELECT l.*, c.name AS country_name, c.flag AS country_flag
       FROM leagues l 
       LEFT JOIN countries c ON l.country_id = c.id 
-      ORDER BY l.id DESC
+      ORDER BY l.name ASC
     `);
         return res.json(filas);
     }
