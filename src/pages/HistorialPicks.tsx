@@ -42,6 +42,9 @@ interface PickHistorial {
   market_acronym: string;
   country_flag: string;
   is_parlay: boolean;
+  score_home?: number | null;
+  score_away?: number | null;
+  selections?: any[];
   analysis?: string;
 }
 
@@ -197,14 +200,40 @@ const FilaPick: React.FC<{ pick: PickHistorial; indice: number }> = ({ pick, ind
 
         {/* Nombre del partido o liga */}
         <td className="py-3 px-4">
-          <div className="font-medium text-white text-sm">{pick.match_name}</div>
+          <div className="font-medium text-white text-sm flex items-center gap-2">
+            {pick.match_name}
+            {!pick.is_parlay && pick.score_home !== undefined && pick.score_home !== null && (
+              <span className="bg-primary/20 text-primary px-1.5 py-0.5 rounded text-[10px] font-bold">
+                {pick.score_home} - {pick.score_away}
+              </span>
+            )}
+          </div>
           <div className="text-xs text-gray-500 mt-0.5">{pick.league_name}</div>
+          
+          {/* Detalles de Parlay si aplica */}
+          {pick.is_parlay && Array.isArray(pick.selections) && pick.selections.length > 0 && (
+            <div className="mt-2 space-y-1">
+              {pick.selections.map((sel: any, sIdx: number) => (
+                <div key={sIdx} className="text-[10px] text-gray-400 border-l border-white/10 pl-2">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-semibold text-gray-300">{sel.match_name}</span>
+                    {sel.score_home !== undefined && sel.score_home !== null && (
+                      <span className="text-primary font-bold">({sel.score_home}-{sel.score_away})</span>
+                    )}
+                  </div>
+                  <div className="opacity-60">
+                    {sel.market_label || sel.pick} @{Number(sel.odds).toFixed(2)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </td>
 
         {/* Pronóstico (mercado) */}
         <td className="py-3 px-4">
           <span className="bg-slate-700/50 text-gray-300 text-xs px-2 py-1 rounded-lg font-mono">
-            {pick.market_acronym || pick.pick}
+            {pick.is_parlay ? "Combinada" : (pick.market_acronym || pick.pick)}
           </span>
         </td>
 

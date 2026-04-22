@@ -183,8 +183,16 @@ export function AdminDashboard() {
     pick_type_id: "1",
     analysis: "",
     is_parlay: false,
-    selections: [] as any[]
+    selections: [] as any[],
+    api_fixture_id: "" as string | number,
+    auto_update: true
   });
+
+  // State for fixture search (API-Football)
+  const [fixtureSearchResults, setFixtureSearchResults] = useState<any[]>([]);
+  const [isSearchingFixtures, setIsSearchingFixtures] = useState(false);
+  const [fixtureSearchQuery, setFixtureSearchQuery] = useState("");
+  const [activeSelectionFixtureIndex, setActiveSelectionFixtureIndex] = useState<number | null>(null);
 
   // Market form state
   const [marketForm, setMarketForm] = useState({ id: null as number | null, label: "", acronym: "" });
@@ -1004,6 +1012,32 @@ export function AdminDashboard() {
     }
   };
 
+  /**
+   * Busca partidos en la API externa para vinculación automática.
+   */
+  const handleSearchFixtures = async () => {
+    if (!fixtureSearchQuery.trim() || isSearchingFixtures) return;
+    
+    setIsSearchingFixtures(true);
+    try {
+      const res = await fetch(`/api/scores/search?q=${encodeURIComponent(fixtureSearchQuery)}`, {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      const data = await res.json();
+      
+      if (!res.ok) throw new Error(data.error || "Error al buscar partidos");
+      
+      setFixtureSearchResults(Array.isArray(data) ? data : []);
+      if (Array.isArray(data) && data.length === 0) {
+        toast.info("No se encontraron partidos para esa búsqueda");
+      }
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setIsSearchingFixtures(false);
+    }
+  };
+
   const handleSelectChange = (name: string, value: string) => {
     setFormData(prev => {
       // Escribimos el valor seleccionado en el campo del formulario.
@@ -1047,7 +1081,7 @@ export function AdminDashboard() {
       ...prev,
       selections: [
         ...prev.selections,
-        { country_id: "", league_id: "", home_team: "", away_team: "", match_name: "", match_time: "", pick: "", odds: "" }
+        { country_id: "", league_id: "", home_team: "", away_team: "", match_name: "", match_time: "", pick: "", odds: "", api_fixture_id: "" }
       ]
     }));
   };
@@ -1144,7 +1178,12 @@ export function AdminDashboard() {
       const method = editingPickId ? "PUT" : "POST";
 
       // If it's a parlay, we use the date of the first selection as the main match_date
-      const submissionData = { ...formData };
+      const submissionData = { 
+        ...formData,
+        api_fixture_id: formData.api_fixture_id ? Number(formData.api_fixture_id) : null,
+        auto_update: formData.auto_update ? 1 : 0
+      };
+
       if (submissionData.is_parlay && submissionData.selections.length > 0) {
         submissionData.match_date = submissionData.selections[0].match_time;
         submissionData.match_name = `Parlay (${submissionData.selections.length} Selecciones)`;
@@ -1181,11 +1220,14 @@ export function AdminDashboard() {
           pick: "",
           odds: "",
           stake: "1",
-          pick_type_id: pickTypes.length > 0 ? pickTypes[0].id.toString() : "1",
           analysis: "",
           is_parlay: false,
-          selections: []
+          selections: [],
+          api_fixture_id: "",
+          auto_update: true
         });
+        setFixtureSearchQuery("");
+        setFixtureSearchResults([]);
       }
 
       // Background fetch
@@ -1205,7 +1247,11 @@ export function AdminDashboard() {
           stake: "1",
           pick_type_id: pickTypes.length > 0 ? pickTypes[0].id.toString() : "1",
           analysis: "",
+          api_fixture_id: "",
+          auto_update: true
         });
+        setFixtureSearchQuery("");
+        setFixtureSearchResults([]);
       }
     } catch (error: any) {
       toast.error(error.message);
@@ -1264,7 +1310,9 @@ export function AdminDashboard() {
       pick_type_id: pick.pick_type_id ? pick.pick_type_id.toString() : "1",
       analysis: pick.analysis || "",
       is_parlay: pick.is_parlay === 1 || pick.is_parlay === true,
-      selections: parsedSelections
+      selections: parsedSelections,
+      api_fixture_id: pick.api_fixture_id || "",
+      auto_update: pick.auto_update === 1 || pick.auto_update === true
     });
     setEditingPickId(pick.id);
     setActiveTab("new-pick");
@@ -1285,8 +1333,12 @@ export function AdminDashboard() {
       pick_type_id: pickTypes.length > 0 ? pickTypes[0].id.toString() : "1",
       analysis: "",
       is_parlay: false,
-      selections: []
+      selections: [],
+      api_fixture_id: "",
+      auto_update: true
     });
+    setFixtureSearchQuery("");
+    setFixtureSearchResults([]);
   };
 
   const updatePickStatus = async (id: number, status: string) => {
@@ -2050,6 +2102,116 @@ export function AdminDashboard() {
                         />
                       </div>
 
+                      {/* ─── Buscador de Partidos API-Football ─── */}
+                      <div className="md:col-span-12 p-6 bg-primary/5 border border-primary/20 rounded-3xl space-y-4">
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 bg-primary/10 rounded-xl">
+                              <Search className="w-5 h-5 text-primary" />
+                            </div>
+                            <div>
+                              <h3 className="text-sm font-black text-primary uppercase tracking-widest">Vinculación Automática</h3>
+                              <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Busca el partido en API-Football para marcadores automáticos</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                             <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground mr-1">Auto-Update</span>
+                             <button
+                                type="button"
+                                onClick={() => setFormData(prev => ({ ...prev, auto_update: !prev.auto_update }))}
+                                className={`w-12 h-6 rounded-full transition-all relative ${formData.auto_update ? 'bg-primary' : 'bg-white/10'}`}
+                             >
+                               <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${formData.auto_update ? 'left-7' : 'left-1'}`} />
+                             </button>
+                          </div>
+                        </div>
+
+                        <div className="flex gap-3">
+                          <input
+                            type="text"
+                            placeholder="Buscar equipos (ej: Real Madrid)..."
+                            value={fixtureSearchQuery}
+                            onChange={(e) => setFixtureSearchQuery(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleSearchFixtures())}
+                            className="flex-1 bg-background border border-white/10 rounded-2xl px-5 py-3 text-sm text-foreground focus:outline-none focus:border-primary transition-all"
+                          />
+                          <button
+                            type="button"
+                            onClick={handleSearchFixtures}
+                            disabled={isSearchingFixtures}
+                            className="bg-primary/20 text-primary border border-primary/30 px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-primary hover:text-primary-foreground transition-all flex items-center gap-2 min-w-[140px] justify-center"
+                          >
+                            {isSearchingFixtures ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Buscar'}
+                          </button>
+                        </div>
+
+                        {fixtureSearchResults.length > 0 && (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[240px] overflow-y-auto pr-2 custom-scrollbar">
+                             {fixtureSearchResults.map((fix: any) => (
+                               <div 
+                                 key={fix.fixture.id} 
+                                 className={`p-4 rounded-2xl border transition-all cursor-pointer flex justify-between items-center gap-4 ${
+                                   (activeSelectionFixtureIndex !== null 
+                                     ? formData.selections[activeSelectionFixtureIndex]?.api_fixture_id === fix.fixture.id
+                                     : formData.api_fixture_id === fix.fixture.id
+                                   ) ? 'bg-primary/20 border-primary shadow-lg shadow-primary/10' : 'bg-black/40 border-white/5 hover:border-white/20'}`}
+                                 onClick={() => {
+                                   if (activeSelectionFixtureIndex !== null) {
+                                     const newSelections = [...formData.selections];
+                                     newSelections[activeSelectionFixtureIndex] = {
+                                       ...newSelections[activeSelectionFixtureIndex],
+                                       api_fixture_id: fix.fixture.id
+                                     };
+                                     setFormData(prev => ({ ...prev, selections: newSelections }));
+                                     setActiveSelectionFixtureIndex(null);
+                                     setFixtureSearchResults([]);
+                                     setFixtureSearchQuery("");
+                                   } else {
+                                     setFormData(prev => ({ ...prev, api_fixture_id: fix.fixture.id }));
+                                   }
+                                 }}
+                               >
+                                 <div className="flex-1 min-w-0">
+                                   <div className="flex items-center gap-2 mb-1">
+                                     <span className="text-[9px] font-black bg-white/10 text-muted-foreground px-1.5 py-0.5 rounded uppercase tracking-tighter">
+                                       {fix.league.name}
+                                     </span>
+                                     <span className="text-[9px] font-black text-primary/60 uppercase tracking-widest">
+                                       {new Date(fix.fixture.date).toLocaleDateString()}
+                                     </span>
+                                   </div>
+                                   <div className="text-xs font-black text-foreground truncate">
+                                     {fix.teams.home.name} vs {fix.teams.away.name}
+                                   </div>
+                                 </div>
+                                 {(activeSelectionFixtureIndex !== null 
+                                     ? formData.selections[activeSelectionFixtureIndex]?.api_fixture_id === fix.fixture.id
+                                     : formData.api_fixture_id === fix.fixture.id
+                                 ) ? (
+                                   <CheckCircle2 className="w-5 h-5 text-primary shrink-0" />
+                                 ) : (
+                                   <div className="w-5 h-5 rounded-full border border-white/20 shrink-0" />
+                                 )}
+                               </div>
+                             ))}
+                          </div>
+                        )}
+
+                        {formData.api_fixture_id && !fixtureSearchResults.some(f => f.fixture.id === formData.api_fixture_id) && (
+                           <div className="flex items-center gap-3 p-3 bg-primary/10 border border-primary/20 rounded-2xl">
+                             <CheckCircle2 className="w-4 h-4 text-primary" />
+                             <span className="text-xs font-bold text-primary">Fixture vinculado (ID: {formData.api_fixture_id})</span>
+                             <button 
+                               type="button" 
+                               onClick={() => setFormData(prev => ({ ...prev, api_fixture_id: "" }))}
+                               className="ml-auto text-[10px] font-black text-muted-foreground hover:text-destructive transition-colors uppercase tracking-widest"
+                             >
+                               Desvincular
+                             </button>
+                           </div>
+                        )}
+                      </div>
+
                       <div className="md:col-span-12 space-y-3">
                         <div className="flex flex-col md:flex-row items-end gap-4 lg:gap-6">
                           <div className="flex-1 space-y-3 w-full">
@@ -2197,17 +2359,51 @@ export function AdminDashboard() {
                                       disabled={!sel.league_id}
                                     />
                                   </div>
-                                  <div className="mt-3">
-                                    {/* Campo final editable que Telegram y estadísticas usarán como partido. */}
-                                    <input
-                                      type="text"
-                                      name="match_name"
-                                      value={sel.match_name}
-                                      readOnly
-                                      required
-                                      placeholder="Ej: Madrid vs City"
-                                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-xs focus:outline-none transition-all font-bold text-foreground opacity-50 cursor-not-allowed select-none"
-                                    />
+                                    <div className="flex gap-2">
+                                      <input
+                                        type="text"
+                                        name="match_name"
+                                        value={sel.match_name}
+                                        readOnly
+                                        required
+                                        placeholder="Ej: Madrid vs City"
+                                        className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-xs font-bold text-foreground opacity-50 cursor-not-allowed select-none"
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setActiveSelectionFixtureIndex(index);
+                                          setFixtureSearchQuery(sel.match_name || "");
+                                          // Scroll to search area or focus? For now just set state
+                                          if (sel.match_name) {
+                                            handleSearchFixtures();
+                                          }
+                                          const searchEl = document.getElementById('fixture-search-area');
+                                          if (searchEl) searchEl.scrollIntoView({ behavior: 'smooth' });
+                                        }}
+                                        className={`shrink-0 flex items-center justify-center w-10 h-10 rounded-xl border transition-all ${sel.api_fixture_id ? 'bg-primary/20 border-primary text-primary' : 'bg-white/5 border-white/10 text-muted-foreground hover:border-primary hover:text-primary'}`}
+                                        title="Vincular con API de Resultados"
+                                      >
+                                        <Activity className="w-4 h-4" />
+                                      </button>
+                                    </div>
+                                    {sel.api_fixture_id && (
+                                      <div className="mt-1 flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-primary/5 border border-primary/20 w-fit">
+                                        <CheckCircle2 className="w-3 h-3 text-primary" />
+                                        <span className="text-[10px] font-black text-primary">VINCULADO: {sel.api_fixture_id}</span>
+                                        <button 
+                                          type="button" 
+                                          onClick={() => {
+                                            const newSels = [...formData.selections];
+                                            newSels[index].api_fixture_id = "";
+                                            setFormData(p => ({ ...p, selections: newSels }));
+                                          }}
+                                          className="text-[9px] font-black text-muted-foreground hover:text-destructive underline ml-1"
+                                        >
+                                          Quitar
+                                        </button>
+                                      </div>
+                                    )}
                                   </div>
                                 </td>
                                 <td className="px-5 py-8">
@@ -2471,6 +2667,7 @@ export function AdminDashboard() {
                           <th className="p-4 text-xs font-bold text-primary uppercase tracking-wider">Pick</th>
                           <th className="p-4 text-xs font-bold text-primary uppercase tracking-wider">Cuota</th>
                           <th className="p-4 text-xs font-bold text-primary uppercase tracking-wider">Tipo</th>
+                          <th className="p-4 text-xs font-bold text-primary uppercase tracking-wider">Marcador</th>
                           <th className="p-4 text-xs font-bold text-primary uppercase tracking-wider">Estado</th>
                           <th className="p-4 text-xs font-bold text-primary uppercase tracking-wider text-right">Acciones</th>
                         </tr>
@@ -2513,11 +2710,19 @@ export function AdminDashboard() {
                                     <div className="mt-2 space-y-1">
                                       {pick.selections.map((sel: any, idx: number) => (
                                         <div key={idx} className="text-[10px] text-muted-foreground border-l border-white/10 pl-2">
-                                          <span className="font-bold text-primary/70">{sel.match_name}</span>
-                                          <span className="mx-1 opacity-50">|</span>
-                                          <span className="text-[9px]">{new Date(sel.match_time).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
-                                          <span className="mx-1 opacity-50">|</span>
-                                          {sel.market_label || sel.pick} ({sel.odds})
+                                          <div className="flex items-center justify-between">
+                                            <span className="font-bold text-primary/70">{sel.match_name}</span>
+                                            {sel.score_home !== undefined && sel.score_home !== null && (
+                                              <span className="ml-2 font-black text-primary px-1.5 py-0.5 bg-primary/10 rounded">
+                                                {sel.score_home} - {sel.score_away}
+                                              </span>
+                                            )}
+                                          </div>
+                                          <div className="flex items-center gap-1 opacity-60">
+                                            <span className="text-[9px]">{new Date(sel.match_time).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                                            <span className="mx-1 opacity-50">|</span>
+                                            {sel.market_label || sel.pick} ({sel.odds})
+                                          </div>
                                         </div>
                                       ))}
                                     </div>
@@ -2531,6 +2736,22 @@ export function AdminDashboard() {
                                       <span className="px-2 py-0.5 rounded bg-primary/20 text-xs font-bold">{pick.market_acronym || getPickDisplay(pick.pick).acronym}</span>
                                       <span>{pick.market_label || getPickDisplay(pick.pick).label}</span>
                                     </div>
+                                  )}
+                                </td>
+                                <td className="p-4">
+                                  {pick.score_home !== null && pick.score_away !== null ? (
+                                    <div className="flex items-center gap-2">
+                                      <span className="px-2 py-1 bg-primary/10 border border-primary/20 rounded font-black text-primary min-w-[3rem] text-center">
+                                        {pick.score_home} - {pick.score_away}
+                                      </span>
+                                      {pick.api_fixture_id && (
+                                        <div className="w-2 h-2 rounded-full bg-primary animate-pulse" title="Actualización automática activa" />
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <span className="text-muted-foreground italic text-xs">
+                                      {pick.api_fixture_id ? 'Pendiente API' : '-'}
+                                    </span>
                                   )}
                                 </td>
                                 <td className="p-4">{pick.odds}</td>

@@ -32,8 +32,9 @@ import statsRouter from "./routes/stats.routes.js";
 import promoCodesRouter from "./routes/promoCodes.routes.js";
 import pickTypesRouter from "./routes/pickTypes.routes.js";
 import telegramRouter from "./routes/telegram.routes.js";
-import { teamsRouter } from "./routes/teams.routes.js";
 import { apiLimiter } from "./middleware/rateLimiter.js";
+import { initCronJobs } from "./services/cron.service.js";
+import scoresRouter from "./routes/scores.routes.js";
 
 /**
  * Crea y configura la instancia del servidor Express,
@@ -129,6 +130,9 @@ export async function startServer(): Promise<void> {
   /** Webhook de Telegram para marcar invites VIP como usados */
   app.use("/api/telegram", telegramRouter);
 
+  /** Búsqueda de resultados y marcadores externos */
+  app.use("/api/scores", scoresRouter);
+
   /** Health check: verificación rápida de que el servidor está activo */
   app.get("/api/health", (_req, res) => {
     res.json({ status: "ok", timestamp: new Date().toISOString() });
@@ -184,5 +188,8 @@ export async function startServer(): Promise<void> {
     console.log(`\n🚀 BetRoyale Server corriendo en http://localhost:${PORT}`);
     console.log(`📊 Entorno: ${env.NODE_ENV}`);
     console.log(`🗄️  Base de datos: ${env.DB_NAME}@${env.DB_HOST}\n`);
+
+    // Iniciamos las tareas programadas (Resultados automáticos cada hora)
+    initCronJobs();
   });
 }

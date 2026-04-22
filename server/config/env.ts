@@ -80,6 +80,10 @@ export const env = {
 
   /** Dirección y nombre del remitente */
   SMTP_FROM: process.env.SMTP_FROM || "BetRoyale Club <noreply@betroyale.club>",
+
+  // ─── Sports API (RapidAPI) ─────────────────────────────────────────────────
+  /** API Key para API-Football (RapidAPI) */
+  RAPIDAPI_KEY: process.env.RAPIDAPI_KEY || "",
 } as const;
 
 // ─── Validación de variables críticas ───────────────────────────────────────

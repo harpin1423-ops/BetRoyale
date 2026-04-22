@@ -662,6 +662,10 @@ export async function initDB(): Promise<void> {
         selections   JSON,
         home_team_id INT,
         away_team_id INT,
+        api_fixture_id INT,
+        score_home   INT DEFAULT NULL,
+        score_away   INT DEFAULT NULL,
+        auto_update  BOOLEAN DEFAULT TRUE,
         created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (pick_type_id) REFERENCES pick_types(id),
         FOREIGN KEY (league_id)    REFERENCES leagues(id),
@@ -673,6 +677,10 @@ export async function initDB(): Promise<void> {
     // ── 6.1. Migraciones de picks ───────────────────────────────────────────
     await conexion.query(`ALTER TABLE picks ADD COLUMN IF NOT EXISTS home_team_id INT`).catch(() => {});
     await conexion.query(`ALTER TABLE picks ADD COLUMN IF NOT EXISTS away_team_id INT`).catch(() => {});
+    await conexion.query(`ALTER TABLE picks ADD COLUMN IF NOT EXISTS api_fixture_id INT`).catch(() => {});
+    await conexion.query(`ALTER TABLE picks ADD COLUMN IF NOT EXISTS score_home INT DEFAULT NULL`).catch(() => {});
+    await conexion.query(`ALTER TABLE picks ADD COLUMN IF NOT EXISTS score_away INT DEFAULT NULL`).catch(() => {});
+    await conexion.query(`ALTER TABLE picks ADD COLUMN IF NOT EXISTS auto_update BOOLEAN DEFAULT TRUE`).catch(() => {});
 
     // ── 7. Tabla: pick_tracking ──────────────────────────────────────────────
     // Mensajes de seguimiento opcionales para un pick (ej: "Partido suspendido")

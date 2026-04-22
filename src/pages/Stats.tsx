@@ -670,6 +670,11 @@ export function Stats() {
                                     <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded bg-indigo-600/30 text-indigo-300 border border-indigo-500/30">PARLAY</span>
                                   )}
                                   <span className="font-semibold text-sm break-words min-w-0">{pick.match_name}</span>
+                                  {!Boolean(pick.is_parlay) && pick.score_home !== undefined && pick.score_home !== null && (
+                                    <span className="bg-primary/20 text-primary px-1.5 py-0.5 rounded text-[10px] font-black">
+                                       {pick.score_home} - {pick.score_away}
+                                    </span>
+                                  )}
                                   {/* Estado en móvil */}
                                   <span className={`md:hidden ml-auto text-[9px] font-black uppercase px-2 py-0.5 rounded-full border ${cfg.bg} ${cfg.border} ${cfg.color}`}>{cfg.label}</span>
                                 </div>
@@ -721,6 +726,11 @@ export function Stats() {
                                             {selection.country_flag && <CountryFlag code={selection.country_flag} />}
                                             {/* Nombre del partido. */}
                                             <span className="break-words">{selection.match_name || 'Partido del parlay'}</span>
+                                            {selection.score_home !== undefined && selection.score_home !== null && (
+                                              <span className="ml-auto text-primary font-black">
+                                                {selection.score_home} - {selection.score_away}
+                                              </span>
+                                            )}
                                           </div>
                                           {/* Datos secundarios de liga, hora y pronóstico. */}
                                           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-muted-foreground">

@@ -33,6 +33,7 @@
     "mercadopago": "^2.12.0",
     "motion": "^12.23.24",
     "mysql2": "^3.20.0",
+    "node-cron": "^4.2.1",
     "nodemailer": "^8.0.5",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
@@ -47,6 +48,7 @@
     "vite": "^6.2.0"
   },
   "devDependencies": {
+    "@types/node-cron": "^3.0.11",
     "autoprefixer": "^10.4.21",
     "tailwindcss": "^4.1.14",
     "tsx": "^4.21.0"
