@@ -25,7 +25,7 @@ export function Stats() {
   const [timeframe, setTimeframe] = useState("all");
   const [plan, setPlan] = useState("all");
   const [historyPage, setHistoryPage] = useState(1);
-  const HISTORY_PER_PAGE = 10;
+  const HISTORY_PER_PAGE = 5;
 
   useEffect(() => {
     // Esperamos a que AuthContext resuelva para no pedir datos como visitante por accidente.
