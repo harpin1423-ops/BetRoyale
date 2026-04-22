@@ -586,8 +586,9 @@ function BrandLogo({ size }: { size: number }) {
           width: "100%",
           height: "100%",
           objectFit: "cover",
-          // Hacemos un scale contundente para asegurar que ningún borde o padding del png original sea visible
-          transform: "scale(1.25)",
+          // Reducimos ligeramente el scale para ganar nitidez y usamos imageRendering
+          transform: "scale(1.22)",
+          imageRendering: "crisp-edges" as any,
         }}
         crossOrigin="anonymous"
       />
@@ -658,7 +659,8 @@ export function PickTicket({ pick }: { pick: PickData }) {
   useMemo(() => {
     if (!isWon) { setMonthlyStats(null); return; }
     const slug = pick.pick_type_slug || pick.pick_type || "";
-    const dateRef = new Date(primaryDate || new Date());
+    // Usamos match_date siempre para el mes, ya que primaryDate puede ser solo una hora en parlays
+    const dateRef = new Date(pick.match_date || new Date());
     const m = dateRef.getMonth() + 1;
     const y = dateRef.getFullYear();
     fetch(`/api/stats/monthly-group?slug=${encodeURIComponent(slug)}&month=${m}&year=${y}`)
@@ -823,7 +825,7 @@ export function PickTicket({ pick }: { pick: PickData }) {
             </div>
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 7 }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6, marginTop: 4 }}>
             <div
               style={{
                 padding: "7px 21px",
