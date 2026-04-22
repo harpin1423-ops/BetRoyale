@@ -761,11 +761,18 @@ router.put("/:id", authenticateToken, requireAdmin, async (req, res) => {
 
   try {
     // Antes de actualizar, obtenemos el tipo actual para detectar cambios.
-    const [currentPick]: any = await pool.query(
-      "SELECT pick_type_id FROM picks WHERE id = ?",
-      [id]
-    );
-    const oldPickTypeId = currentPick.length > 0 ? currentPick[0].pick_type_id : null;
+    let oldPickTypeId = null;
+    try {
+      const [currentPick]: any = await pool.query(
+        "SELECT pick_type_id FROM picks WHERE id = ?",
+        [id]
+      );
+      if (currentPick && currentPick.length > 0) {
+        oldPickTypeId = currentPick[0].pick_type_id;
+      }
+    } catch (e) {
+      console.warn("[PICKS] No se pudo obtener el pick anterior para notificación:", e);
+    }
 
     // Obtenemos el slug del tipo para el campo legacy
     const [tipos]: any = await pool.query(
