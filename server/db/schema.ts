@@ -102,6 +102,7 @@ const LIGAS_INICIALES = [
   { pais: "Austria", ligas: ["Bundesliga"] },
   { pais: "Australia", ligas: ["A-League"] },
   { pais: "Finlandia", ligas: ["Veikkausliiga"] },
+  { pais: "Sudamérica", ligas: ["Copa Libertadores", "Copa Sudamericana"] },
 ];
 
 // ─── Equipos iniciales por liga y país ───────────────────────────────────────
@@ -702,6 +703,34 @@ const EQUIPOS_INICIALES = [
       "FC Juárez", "Club León", "Mazatlán FC", "Monterrey", "Necaxa",
       "Pachuca", "Puebla", "Pumas UNAM", "Querétaro", "Santos Laguna",
       "Tigres UANL", "Toluca", "Tijuana"
+    ]
+  },
+  {
+    pais: "Sudamérica",
+    liga: "Copa Libertadores",
+    equipos: [
+      "Fluminense", "São Paulo", "Palmeiras", "Grêmio", "Atlético Mineiro", "Flamengo", "Botafogo", "Red Bull Bragantino",
+      "River Plate", "Rosario Central", "Talleres", "Estudiantes de La Plata", "San Lorenzo",
+      "Colo-Colo", "Palestino", "Cobresal", "Huachipato",
+      "Peñarol", "Nacional", "Liverpool (URU)",
+      "Universitario", "Alianza Lima", "Sporting Cristal",
+      "LDU Quito", "Independiente del Valle", "Barcelona SC",
+      "Millonarios", "Junior",
+      "Bolívar", "The Strongest",
+      "Libertad", "Cerro Porteño"
+    ]
+  },
+  {
+    pais: "Sudamérica",
+    liga: "Copa Sudamericana",
+    equipos: [
+      "Athletico Paranaense", "Internacional", "Fortaleza", "Cuiabá", "Corinthians", "Cruzeiro",
+      "Racing Club", "Boca Juniors", "Defensa y Justicia", "Lanús", "Belgrano", "Argentinos Juniors",
+      "Coquimbo Unido", "Unión La Calera",
+      "Danubio", "Racing (URU)",
+      "Deportivo Garcilaso",
+      "Universidad Católica (ECU)", "Delfín",
+      "Independiente Medellín", "Alianza FC"
     ]
   }
 ];
