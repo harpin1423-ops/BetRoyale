@@ -398,20 +398,55 @@ function TicketFlag({ code, size = 18 }: { code?: string; size?: number }) {
   // Evitamos reservar espacio cuando no hay país.
   if (!normalized) return null;
 
-  // Renderizamos la bandera como CSS para que se exporte estable en PNG.
+// Usamos la misma metodología que CountryFlag.tsx: flag-icons CDN por código ISO.
+function TicketFlag({ code, size = 18 }: { code?: string; size?: number }) {
+  // Normalizamos el valor recibido desde el backend.
+  const raw = String(code || "").trim().toLowerCase();
+
+  // Sin código no renderizamos nada.
+  if (!raw) return null;
+
+  // Soportamos alias comunes que el backend puede guardar.
+  const aliasMap: Record<string, string> = {
+    uk: "gb", england: "gb", inglaterra: "gb",
+    espana: "es", españa: "es", spain: "es",
+    alemania: "de", germany: "de",
+    france: "fr", francia: "fr",
+    italy: "it", italia: "it",
+    brazil: "br", brasil: "br",
+    netherlands: "nl", holanda: "nl", "países bajos": "nl",
+    portugal: "pt", mexico: "mx", colombia: "co",
+    usa: "us", eeuu: "us", "estados unidos": "us",
+    argentina: "ar", austria: "at", belgica: "be", belgium: "be",
+    scotland: "gb-sct", turkey: "tr", turquia: "tr",
+    russia: "ru", rusia: "ru", greece: "gr", grecia: "gr",
+    switzerland: "ch", suiza: "ch", sweden: "se", suecia: "se",
+    norway: "no", noruega: "no", denmark: "dk", dinamarca: "dk",
+    japan: "jp", japon: "jp", china: "cn", australia: "au",
+    "south korea": "kr", corea: "kr", saudi: "sa", "saudi arabia": "sa",
+  };
+
+  // Resolvemos alias o usamos el valor directo.
+  const iso = aliasMap[raw] || raw;
+
+  // Solo aceptamos códigos ISO de 2 letras válidos para la CDN.
+  if (!/^[a-z]{2}(-[a-z]{3})?$/.test(iso)) return null;
+
+  // Renderizamos con la misma URL que usa CountryFlag.tsx en el proyecto.
   return (
-    <span
-      aria-label={`Bandera ${normalized.toUpperCase()}`}
+    <img
+      src={`https://cdn.jsdelivr.net/gh/lipis/flag-icons/flags/4x3/${iso}.svg`}
+      alt={iso.toUpperCase()}
+      referrerPolicy="no-referrer"
       style={{
         width: Math.round(size * 1.36),
         height: size,
         flexShrink: 0,
         display: "inline-block",
-        overflow: "hidden",
-        borderRadius: Math.max(3, Math.round(size * 0.18)),
-        background: getFlagBackground(normalized),
-        border: "1px solid rgba(255, 255, 255, 0.28)",
-        boxShadow: "0 4px 12px rgba(0, 0, 0, 0.28)",
+        borderRadius: 3,
+        objectFit: "cover",
+        border: "1px solid rgba(255, 255, 255, 0.22)",
+        verticalAlign: "middle",
       }}
     />
   );
@@ -525,17 +560,18 @@ function getTicketBackground(theme: TicketTheme): CSSProperties {
  * @returns Imagen de marca usada por html2canvas.
  */
 function BrandLogo({ size }: { size: number }) {
-  // Renderizamos el asset real que ya usa la plataforma.
+  // Usamos logo_premium.png que tiene fondo transparente y no requiere clip.
   return (
     <img
       alt="BetRoyale Club"
-      src="/icon-512.png"
+      src="/logo_premium.png"
       style={{
         width: size,
         height: size,
-        borderRadius: 18,
-        objectFit: "cover",
-        boxShadow: "0 18px 42px rgba(0, 0, 0, 0.45)",
+        borderRadius: "50%",
+        objectFit: "contain",
+        background: "transparent",
+        flexShrink: 0,
       }}
     />
   );
@@ -703,7 +739,7 @@ export function PickTicket({ pick }: { pick: PickData }) {
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-            <BrandLogo size={54} />
+            <BrandLogo size={68} />
             <div>
               <div
                 style={{
@@ -776,13 +812,18 @@ export function PickTicket({ pick }: { pick: PickData }) {
           }}
         >
           <aside
-            style={{
+           style={{
               display: "flex",
               flexDirection: "column",
               justifyContent: "space-between",
-              padding: "26px 28px 20px",
+              padding: "22px 24px 18px",
               background: `linear-gradient(180deg, ${theme.panel}, rgba(2, 6, 23, 0.82))`,
               borderRight: "1px solid rgba(255, 255, 255, 0.08)",
+              overflow: "hidden",
+              maxWidth: 228,
+              minWidth: 228,
+              width: 228,
+              boxSizing: "border-box" as const,
             }}
           >
             <div>
