@@ -577,11 +577,11 @@ function BrandLogo({ size }: { size: number }) {
         alt="BetRoyale Club"
         src="/logo_final_80.png"
         style={{
-          width: "100%",
-          height: "100%",
+          width: "118%",
+          height: "118%",
           objectFit: "cover",
-          // Ajustamos la escala para que encuadre perfectamente sin tocar los bordes
-          transform: "scale(1.18)",
+          imageRendering: "auto",
+          WebkitBackfaceVisibility: "hidden",
         }}
         crossOrigin="anonymous"
       />
