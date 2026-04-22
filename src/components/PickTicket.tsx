@@ -582,6 +582,8 @@ function BrandLogo({ size }: { size: number }) {
           width: "100%",
           height: "100%",
           objectFit: "contain",
+          // La imagen original tiene mucho aire alrededor; escalamos para que el logo llene los 80px
+          transform: "scale(1.45)",
         }}
         crossOrigin="anonymous"
       />
