@@ -202,6 +202,50 @@ const EQUIPOS_INICIALES = [
     ]
   },
   {
+    pais: "Suecia",
+    liga: "Allsvenskan",
+    equipos: [
+      "AIK", "BK Häcken", "Djurgården", "GAIS", "Halmstad", "Hammarby",
+      "Brommapojkarna", "IF Elfsborg", "IFK Göteborg", "IFK Norrköping",
+      "Värnamo", "IK Sirius", "Kalmar FF", "Malmö FF", "Mjällby AIF", "Västerås SK"
+    ]
+  },
+  {
+    pais: "Catar",
+    liga: "Stars League",
+    equipos: [
+      "Al-Ahli", "Al-Arabi", "Al-Duhail", "Al-Gharafa", "Al-Khor", "Al-Rayyan",
+      "Al-Sadd", "Al-Shahaniya", "Al-Shamal", "Al-Wakrah", "Qatar SC", "Umm Salal"
+    ]
+  },
+  {
+    pais: "Hungría",
+    liga: "Super Lig",
+    equipos: [
+      "Debreceni VSC", "Diósgyőri VTK", "Fehérvár FC", "Ferencváros", "Győri ETO",
+      "Kecskeméti TE", "Kisvárda FC", "MTK Budapest", "Nyíregyháza Spartacus",
+      "Paksi SE", "Puskás Akadémia", "Újpest FC", "Zalaegerszeg (ZTE)"
+    ]
+  },
+  {
+    pais: "Croacia",
+    liga: "HNL",
+    equipos: [
+      "Dinamo Zagreb", "Hajduk Split", "Gorica", "Rijeka", "Šibenik", "Istra 1961",
+      "Lokomotiva Zagreb", "Osijek", "Slaven Belupo", "Varaždin"
+    ]
+  },
+  {
+    pais: "Egipto",
+    liga: "Premier League",
+    equipos: [
+      "Al-Ahly", "Al-Ittihad Alexandria", "Al-Masry", "Bank El Ahly",
+      "Ceramica Cleopatra", "El Dakhleya", "El Gouna", "Tala'ea El Gaish",
+      "El Ismaily", "Enppi", "Ghazl El Mahalla", "Haras El Hodoud", "Modern Sport",
+      "Petrojet", "Pharco", "Pyramids FC", "Smouha SC", "ZED FC"
+    ]
+  },
+  {
     pais: "Suiza",
     liga: "Super League",
     equipos: [
