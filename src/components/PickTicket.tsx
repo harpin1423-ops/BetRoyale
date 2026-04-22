@@ -193,7 +193,9 @@ export function PickTicket({ pick }: PickTicketProps) {
       background: theme.bg,
       display: 'flex', flexDirection: 'column' as const,
       overflow: 'hidden',
-      boxShadow: `0 0 60px ${theme.glow1}, 0 0 120px rgba(0,0,0,0.8)`,
+      boxShadow: isResolved
+        ? `0 0 60px ${statusCfg.stampColor}55, 0 0 0 2px ${statusCfg.stampColor}55, 0 0 120px rgba(0,0,0,0.8)`
+        : `0 0 60px ${theme.glow1}, 0 0 120px rgba(0,0,0,0.8)`,
     },
     // Glows
     glow1: {
@@ -331,22 +333,31 @@ export function PickTicket({ pick }: PickTicketProps) {
       transform: 'translateY(-50%)',
       fontSize: 14, fontWeight: 900, color: theme.oddsColor,
     },
-    // STAMP
-    stamp: {
-      position: 'absolute' as const, zIndex: 20,
-      inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: 'rgba(5,8,18,0.65)', backdropFilter: 'blur(6px)',
+    // STAMP — cinta diagonal esquina superior derecha
+    stampRibbon: {
+      position: 'absolute' as const,
+      top: 36, right: -52,
+      zIndex: 20,
+      width: 220,
+      padding: '10px 0',
+      transform: 'rotate(35deg)',
+      background: statusCfg.stampColor,
+      boxShadow: `0 0 24px ${statusCfg.stampColor}99, 0 2px 8px rgba(0,0,0,0.6)`,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      overflow: 'hidden',
     },
-    stampInner: {
-      transform: 'rotate(-15deg)',
-      display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 8,
+    stampRibbonText: {
+      fontSize: 17, fontWeight: 900, letterSpacing: 3,
+      color: pick.status === 'void' ? '#1e293b' : '#000',
+      textShadow: 'none',
     },
-    stampText: {
-      fontSize: 72, fontWeight: 900, letterSpacing: 6,
-      color: statusCfg.stampColor,
-      border: `5px solid ${statusCfg.stampBorder}`,
-      padding: '8px 28px', borderRadius: 16,
-      textShadow: `0 0 30px ${statusCfg.stampColor}`,
+    // Borde coloreado en la parte superior del ticket
+    statusBar: {
+      position: 'absolute' as const,
+      top: 0, left: 0, right: 0,
+      height: 4,
+      background: `linear-gradient(90deg, transparent, ${statusCfg.stampColor}, transparent)`,
+      zIndex: 20,
     },
     stampScore: {
       fontSize: 28, fontWeight: 900,
@@ -483,16 +494,35 @@ export function PickTicket({ pick }: PickTicketProps) {
           <span style={S.footerText}>@BetRoyaleClub</span>
         </div>
 
-        {/* ── STAMP ESTADO ── */}
+        {/* ── STAMP — Cinta diagonal ── */}
         {isResolved && (
-          <div style={S.stamp}>
-            <div style={S.stampInner}>
-              <div style={S.stampText}>{statusCfg.stamp}</div>
-              {!isParlay && pick.score_home != null && pick.score_away != null && (
-                <div style={S.stampScore}>{pick.score_home} — {pick.score_away}</div>
-              )}
+          <>
+            {/* Barra de estado en la parte superior */}
+            <div style={S.statusBar} />
+            {/* Cinta diagonal esquina superior derecha */}
+            <div style={S.stampRibbon}>
+              <span style={S.stampRibbonText}>{statusCfg.stamp}</span>
             </div>
-          </div>
+            {/* Marcador final (solo pick simple con score) */}
+            {!isParlay && pick.score_home != null && pick.score_away != null && (
+              <div style={{
+                position: 'absolute',
+                bottom: 48,
+                right: 24,
+                zIndex: 10,
+                background: `${statusCfg.stampColor}22`,
+                border: `1.5px solid ${statusCfg.stampColor}66`,
+                borderRadius: 10,
+                padding: '6px 16px',
+                display: 'flex',
+                flexDirection: 'column' as const,
+                alignItems: 'center',
+              }}>
+                <span style={{ fontSize: 9, fontWeight: 700, color: statusCfg.stampColor, letterSpacing: 1.5, textTransform: 'uppercase' as const, marginBottom: 2 }}>Resultado</span>
+                <span style={{ fontSize: 26, fontWeight: 900, color: statusCfg.stampColor, lineHeight: 1 }}>{pick.score_home} — {pick.score_away}</span>
+              </div>
+            )}
+          </>
         )}
       </div>
 
