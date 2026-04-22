@@ -565,11 +565,14 @@ function BrandLogo({ size }: { size: number }) {
       style={{
         width: size,
         height: size,
+        borderRadius: "50%",
+        overflow: "hidden",
         flexShrink: 0,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "transparent",
+        backgroundColor: "#0d1b2f",
+        boxShadow: "0 0 15px rgba(0, 0, 0, 0.4)",
       }}
     >
       <img
@@ -578,7 +581,7 @@ function BrandLogo({ size }: { size: number }) {
         style={{
           width: "100%",
           height: "100%",
-          objectFit: "contain",
+          objectFit: "cover",
         }}
         crossOrigin="anonymous"
       />
