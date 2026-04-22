@@ -121,7 +121,7 @@ const STATUS: Record<string, StatusTheme> = {
 };
 
 // Ancho fijo del ticket para redes sociales.
-const TICKET_WIDTH = 900;
+const TICKET_WIDTH = 960;
 
 // Alto mínimo del header.
 const TICKET_HEADER_HEIGHT = 96;
@@ -559,21 +559,32 @@ function getTicketBackground(theme: TicketTheme): CSSProperties {
  * @param size - Tamaño en pixeles del logo.
  * @returns Imagen de marca usada por html2canvas.
  */
-function BrandLogo({ size }: { size: number }) {
-  // Usamos logo_premium.png que tiene fondo transparente y no requiere clip.
+/**
+ * Renderiza el logo de BetRoyale como SVG inline, perfectamente circular y sin fondo externo.
+ * Esto garantiza que html2canvas no tenga problemas de CORS con el asset de imagen.
+ */
+function BrandLogo({ size, accent = "#d4af37" }: { size: number; accent?: string }) {
   return (
-    <img
-      alt="BetRoyale Club"
-      src="/logo_premium.png"
-      style={{
-        width: size,
-        height: size,
-        borderRadius: "50%",
-        objectFit: "contain",
-        background: "transparent",
-        flexShrink: 0,
-      }}
-    />
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 1024 1024"
+      aria-label="BetRoyale Club"
+      style={{ flexShrink: 0, borderRadius: "50%", overflow: "hidden", display: "block" }}
+    >
+      {/* Fondo oscuro institucional */}
+      <rect width="1024" height="1024" fill="#07111f" />
+      {/* Círculo interior */}
+      <circle cx="512" cy="512" r="390" fill="#0d1b2f" />
+      {/* Anillo dorado exterior */}
+      <circle cx="512" cy="512" r="452" fill="none" stroke={accent} strokeWidth="40" />
+      {/* Corona simplificada */}
+      <path fill={accent} d="M432 218h160l-30 80 70-36-22 100H414l-22-100 70 36-30-80Z" />
+      {/* Texto BR */}
+      <text x="512" y="585" textAnchor="middle" fontFamily="Arial Black, Arial, sans-serif" fontSize="290" fontWeight="900" fill={accent} letterSpacing="-36">BR</text>
+      {/* Texto CLUB */}
+      <text x="512" y="742" textAnchor="middle" fontFamily="Arial, sans-serif" fontSize="86" fontWeight="800" fill="#f7f7f7" letterSpacing="18">CLUB</text>
+    </svg>
   );
 }
 
@@ -590,6 +601,14 @@ export function PickTicket({ pick }: { pick: PickData }) {
   // Estado de generación para bloquear doble clic.
   const [generating, setGenerating] = useState(false);
 
+  // Stats mensuales del grupo para mostrar cuando el pick está ganado.
+  const [monthlyStats, setMonthlyStats] = useState<{
+    profit: number;
+    yield: number;
+    totalPicks: number;
+    mesLabel: string;
+  } | null>(null);
+
   // Tema diferenciado por tipo de grupo.
   const theme = useMemo(() => getTicketTheme(pick.pick_type_slug || pick.pick_type || "", pick.pick_type_name || ""), [pick.pick_type_slug, pick.pick_type, pick.pick_type_name]);
 
@@ -605,8 +624,9 @@ export function PickTicket({ pick }: { pick: PickData }) {
   // Cantidad visible de selecciones.
   const selectionCount = selections.length;
 
-  // Determinamos si el pick ya está resuelto.
+  // Determinamos si el pick ya está resuelto con resultado positivo.
   const isResolved = pick.status !== "pending";
+  const isWon = pick.status === "won" || pick.status === "half-won";
 
   // Profit calculado para el estado actual.
   const profitUnits = calculateProfit(pick.stake, pick.odds, pick.status);
@@ -625,6 +645,30 @@ export function PickTicket({ pick }: { pick: PickData }) {
 
   // Ajustamos tamaño de tarjetas para parlays largos.
   const compactParlay = isParlay && selectionCount >= 5;
+
+  // Cargamos las estadísticas mensuales del grupo cuando el pick está ganado.
+  // Usamos el mes de la fecha del pick para que las estadísticas sean del mes correcto.
+  useMemo(() => {
+    if (!isWon) { setMonthlyStats(null); return; }
+    const slug = pick.pick_type_slug || pick.pick_type || "";
+    const dateRef = new Date(primaryDate || new Date());
+    const m = dateRef.getMonth() + 1;
+    const y = dateRef.getFullYear();
+    fetch(`/api/stats/monthly-group?slug=${encodeURIComponent(slug)}&month=${m}&year=${y}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (!data.error) {
+          setMonthlyStats({
+            profit: data.profit,
+            yield: data.yield,
+            totalPicks: data.totalPicks,
+            mesLabel: data.mesLabel,
+          });
+        }
+      })
+      .catch(() => setMonthlyStats(null));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pick.id, pick.status]);
 
   /**
    * <summary>
@@ -837,12 +881,13 @@ export function PickTicket({ pick }: { pick: PickData }) {
             <div>
               <div
                 style={{
-                  fontSize: 42,
+                  fontSize: 34,
                   fontWeight: 950,
-                  letterSpacing: "0.20em",
+                  letterSpacing: "0.06em",
                   lineHeight: 1,
                   color: "#f8fafc",
                   textTransform: "uppercase",
+                  whiteSpace: "nowrap",
                 }}
               >
                 {ticketTypeLabel}
@@ -930,6 +975,45 @@ export function PickTicket({ pick }: { pick: PickData }) {
                       </div>
                       <div style={{ marginTop: 4, fontSize: 13, fontWeight: 950, color: status.color }}>
                         {status.label}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {/* Bloque de stats mensuales acumuladas del grupo — solo cuando el pick está ganado */}
+              {isWon && monthlyStats && (
+                <div
+                  style={{
+                    marginTop: 12,
+                    padding: "11px 13px",
+                    borderRadius: 12,
+                    border: `1px solid ${theme.accent}44`,
+                    background: `linear-gradient(135deg, ${theme.glow}, rgba(0,0,0,0.25))`,
+                  }}
+                >
+                  <div style={{ fontSize: 9, fontWeight: 900, letterSpacing: "0.22em", color: theme.accent, textTransform: "uppercase", marginBottom: 6 }}>
+                    Stats {theme.label}
+                  </div>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: "#94a3b8", marginBottom: 8, letterSpacing: "0.04em" }}>
+                    {monthlyStats.mesLabel}
+                  </div>
+                  <div style={{ display: "flex", gap: 10, justifyContent: "space-between" }}>
+                    <div>
+                      <div style={{ fontSize: 8, fontWeight: 900, letterSpacing: "0.14em", color: "#64748b", textTransform: "uppercase" }}>Profit mes</div>
+                      <div style={{ marginTop: 3, fontSize: 16, fontWeight: 950, color: monthlyStats.profit >= 0 ? "#34d399" : "#fb7185" }}>
+                        {monthlyStats.profit >= 0 ? "+" : ""}{monthlyStats.profit.toFixed(2)}u
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 8, fontWeight: 900, letterSpacing: "0.14em", color: "#64748b", textTransform: "uppercase" }}>Yield mes</div>
+                      <div style={{ marginTop: 3, fontSize: 16, fontWeight: 950, color: theme.secondary }}>
+                        {monthlyStats.yield >= 0 ? "+" : ""}{monthlyStats.yield.toFixed(1)}%
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 8, fontWeight: 900, letterSpacing: "0.14em", color: "#64748b", textTransform: "uppercase" }}>Picks</div>
+                      <div style={{ marginTop: 3, fontSize: 16, fontWeight: 950, color: "#f8fafc" }}>
+                        {monthlyStats.totalPicks}
                       </div>
                     </div>
                   </div>

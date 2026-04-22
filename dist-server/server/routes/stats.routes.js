@@ -561,5 +561,96 @@ router.get("/historical-picks", async (req, res) => {
         return res.status(500).json({ error: "Error al obtener historial de picks" });
     }
 });
+// ─── GET /api/stats/monthly-group ────────────────────────────────────────────
+/**
+ * Devuelve el profit y yield acumulado mensual filtrado por grupo (slug del plan).
+ * Usado por el ticket social para mostrar estadísticas del mes cuando el pick se gana.
+ * Ruta pública (solo muestra datos acumulados, no detalle de picks).
+ */
+router.get("/monthly-group", async (req, res) => {
+    try {
+        // Leemos el slug del plan y el mes/año opcionales desde query params.
+        const { slug, month, year } = req.query;
+        // Usamos el mes y año actuales si no se envían.
+        const now = new Date();
+        const targetYear = year ? parseInt(String(year), 10) : now.getFullYear();
+        const targetMonth = month ? parseInt(String(month), 10) : now.getMonth() + 1;
+        // Construimos el string de mes en formato YYYY-MM para el filtro SQL.
+        const mesStr = `${targetYear}-${String(targetMonth).padStart(2, "0")}`;
+        // Construimos filtro de tipo de pick según el slug recibido.
+        const condicionSlug = slug && slug !== "all"
+            ? "AND pt.slug = ?"
+            : "";
+        const parametros = slug && slug !== "all" ? [mesStr, slug] : [mesStr];
+        // Consultamos picks resueltos del mes filtrado por grupo.
+        const [filas] = await pool.query(`SELECT
+         p.status,
+         p.stake,
+         p.odds,
+         pt.slug AS pick_type_slug,
+         pt.name AS pick_type_name
+       FROM picks p
+       LEFT JOIN pick_types pt ON p.pick_type_id = pt.id
+       WHERE p.status IN ('won', 'lost', 'void', 'half-won', 'half-lost')
+         AND DATE_FORMAT(p.match_date, '%Y-%m') = ?
+         ${condicionSlug}`, parametros);
+        // Calculamos profit y stake total acumulados.
+        let totalProfit = 0;
+        let totalStaked = 0;
+        let totalPicks = 0;
+        let ganados = 0;
+        filas.forEach((pick) => {
+            const stake = Number(pick.stake) || 0;
+            const odds = Number(pick.odds) || 1;
+            if (pick.status === "won") {
+                totalProfit += stake * (odds - 1);
+                totalStaked += stake;
+                ganados++;
+                totalPicks++;
+            }
+            else if (pick.status === "lost") {
+                totalProfit -= stake;
+                totalStaked += stake;
+                totalPicks++;
+            }
+            else if (pick.status === "half-won") {
+                totalProfit += (stake * (odds - 1)) / 2;
+                totalStaked += stake;
+                ganados++;
+                totalPicks++;
+            }
+            else if (pick.status === "half-lost") {
+                totalProfit -= stake / 2;
+                totalStaked += stake;
+                totalPicks++;
+            }
+        });
+        // Calculamos yield sobre el total apostado.
+        const yieldPct = totalStaked > 0
+            ? Number(((totalProfit / totalStaked) * 100).toFixed(2))
+            : 0;
+        // Construimos la etiqueta legible del mes en español.
+        const fecha = new Date(targetYear, targetMonth - 1, 1);
+        const mesLabel = fecha.toLocaleDateString("es-CO", {
+            month: "long",
+            year: "numeric",
+            timeZone: "America/Bogota",
+        }).replace(/^./, (c) => c.toUpperCase());
+        return res.json({
+            slug: slug || "all",
+            mes: mesStr,
+            mesLabel,
+            totalPicks,
+            ganados,
+            profit: Number(totalProfit.toFixed(2)),
+            yield: yieldPct,
+            totalStaked: Number(totalStaked.toFixed(2)),
+        });
+    }
+    catch (error) {
+        console.error("[STATS] Error obteniendo stats mensuales por grupo:", error);
+        return res.status(500).json({ error: "Error al obtener estadísticas mensuales por grupo" });
+    }
+});
 // Exportamos el router
 export default router;
