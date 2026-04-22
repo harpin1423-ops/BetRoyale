@@ -553,8 +553,12 @@ router.get("/", async (_req, res) => {
       "SELECT * FROM pick_tracking ORDER BY created_at ASC"
     );
 
-    // Cargamos ligas y mercados para resolver las selecciones de parlays
-    const [ligas] = await pool.query("SELECT id, name FROM leagues");
+    // Cargamos ligas con país/bandera para resolver tickets sociales y selecciones de parlays.
+    const [ligas] = await pool.query(`
+      SELECT l.id, l.name, c.name AS country_name, c.flag AS country_flag
+      FROM leagues l
+      LEFT JOIN countries c ON l.country_id = c.id
+    `);
     const [mercados] = await pool.query("SELECT id, label, acronym FROM markets");
 
     // Procesamos cada pick para formatear fechas y adjuntar tracking
@@ -592,6 +596,10 @@ router.get("/", async (_req, res) => {
             ...sel,
             /** Nombre legible de la liga */
             league_name: liga ? liga.name : sel.league_id,
+            /** Nombre legible del país para piezas sociales */
+            country_name: liga ? liga.country_name : sel.country_name,
+            /** Bandera legible del país para piezas sociales */
+            country_flag: liga ? liga.country_flag : sel.country_flag,
             /** Etiqueta del mercado (ej: "Gana Local") */
             market_label: mercado ? mercado.label : sel.pick,
             /** Acrónimo del mercado (ej: "1") */
