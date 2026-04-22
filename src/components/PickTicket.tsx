@@ -376,6 +376,25 @@ export function PickTicket({ pick }: PickTicketProps) {
     footerDot: { color: theme.accent, fontSize: 8 },
     footerText: { fontSize: 11, color: '#475569', fontWeight: 500 },
     footerAccent: { fontSize: 11, color: theme.accentText, fontWeight: 700 },
+    // STATUS BANNER — entre header y body (flujo normal)
+    statusBanner: {
+      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+      padding: '8px 28px',
+      background: `${statusCfg.stampColor}18`,
+      borderTop: `1px solid ${statusCfg.stampColor}44`,
+      borderBottom: `1px solid ${statusCfg.stampColor}44`,
+      position: 'relative' as const, zIndex: 3,
+    },
+    statusBannerDot: {
+      width: 8, height: 8, borderRadius: '50%',
+      background: statusCfg.stampColor,
+      boxShadow: `0 0 8px ${statusCfg.stampColor}`,
+    },
+    statusBannerText: {
+      fontSize: 13, fontWeight: 900, letterSpacing: 3,
+      color: statusCfg.stampColor,
+      textTransform: 'uppercase' as const,
+    },
   };
 
   return (
@@ -397,6 +416,20 @@ export function PickTicket({ pick }: PickTicketProps) {
             {isParlay && <span style={S.typeBadge}>▶ PARLAY {pick.selections?.length || ''} SEL.</span>}
           </div>
         </div>
+
+        {/* ── STATUS BANNER (solo cuando está resuelto) ── */}
+        {isResolved && (
+          <div style={S.statusBanner}>
+            <div style={S.statusBannerDot} />
+            <span style={S.statusBannerText}>{statusCfg.stamp}</span>
+            {!isParlay && pick.score_home != null && pick.score_away != null && (
+              <span style={{ fontSize: 13, fontWeight: 900, color: statusCfg.stampColor, marginLeft: 8, opacity: 0.85 }}>
+                &nbsp;·&nbsp; {pick.score_home} — {pick.score_away}
+              </span>
+            )}
+            <div style={S.statusBannerDot} />
+          </div>
+        )}
 
         {/* ── BODY ── */}
         <div style={S.body}>
@@ -494,36 +527,7 @@ export function PickTicket({ pick }: PickTicketProps) {
           <span style={S.footerText}>@BetRoyaleClub</span>
         </div>
 
-        {/* ── STAMP — Cinta diagonal ── */}
-        {isResolved && (
-          <>
-            {/* Barra de estado en la parte superior */}
-            <div style={S.statusBar} />
-            {/* Cinta diagonal esquina superior derecha */}
-            <div style={S.stampRibbon}>
-              <span style={S.stampRibbonText}>{statusCfg.stamp}</span>
-            </div>
-            {/* Marcador final (solo pick simple con score) */}
-            {!isParlay && pick.score_home != null && pick.score_away != null && (
-              <div style={{
-                position: 'absolute',
-                bottom: 48,
-                right: 24,
-                zIndex: 10,
-                background: `${statusCfg.stampColor}22`,
-                border: `1.5px solid ${statusCfg.stampColor}66`,
-                borderRadius: 10,
-                padding: '6px 16px',
-                display: 'flex',
-                flexDirection: 'column' as const,
-                alignItems: 'center',
-              }}>
-                <span style={{ fontSize: 9, fontWeight: 700, color: statusCfg.stampColor, letterSpacing: 1.5, textTransform: 'uppercase' as const, marginBottom: 2 }}>Resultado</span>
-                <span style={{ fontSize: 26, fontWeight: 900, color: statusCfg.stampColor, lineHeight: 1 }}>{pick.score_home} — {pick.score_away}</span>
-              </div>
-            )}
-          </>
-        )}
+      )}
       </div>
 
       {/* Botón de descarga (no aparece en la captura) */}
