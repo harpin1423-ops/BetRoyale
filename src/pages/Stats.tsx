@@ -564,6 +564,44 @@ export function Stats() {
             const totalPages = Math.ceil(sortedAll.length / HISTORY_PER_PAGE);
             const paginated = sortedAll.slice((historyPage - 1) * HISTORY_PER_PAGE, historyPage * HISTORY_PER_PAGE);
 
+            const PaginationControls = totalPages > 1 ? (
+              <div className="flex items-center justify-center gap-3 my-8">
+                <button
+                  onClick={() => setHistoryPage(p => Math.max(1, p - 1))}
+                  disabled={historyPage === 1}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed transition-all text-sm font-medium"
+                >
+                  <ChevronLeft className="w-4 h-4" /> Anterior
+                </button>
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    const page = Math.max(1, Math.min(totalPages - 4, historyPage - 2)) + i;
+                    if (page < 1 || page > totalPages) return null;
+                    return (
+                      <button
+                        key={page}
+                        onClick={() => setHistoryPage(page)}
+                        className={`w-9 h-9 rounded-lg text-sm font-bold transition-all ${
+                          historyPage === page
+                            ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/30'
+                            : 'bg-white/5 hover:bg-white/10 text-muted-foreground'
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    );
+                  })}
+                </div>
+                <button
+                  onClick={() => setHistoryPage(p => Math.min(totalPages, p + 1))}
+                  disabled={historyPage === totalPages}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed transition-all text-sm font-medium"
+                >
+                  Siguiente <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            ) : null;
+
             const statusConfig: Record<string, { label: string; color: string; bg: string; border: string; icon: ReactNode }> = {
               won:        { label: 'Ganado',   color: 'text-green-400',   bg: 'bg-green-400/10',   border: 'border-green-400/25',   icon: <CheckCircle  className="w-4 h-4 text-green-400" /> },
               lost:       { label: 'Perdido',  color: 'text-red-400',     bg: 'bg-red-400/10',     border: 'border-red-400/25',     icon: <XCircle      className="w-4 h-4 text-red-400" /> },
@@ -616,6 +654,7 @@ export function Stats() {
                   </div>
                 ) : (
                   <>
+                    {PaginationControls}
                     <div className="space-y-3">
                       {paginated.map(pick => {
                         const cfg = statusConfig[pick.status] || statusConfig['pending'];
@@ -810,43 +849,7 @@ export function Stats() {
                       })}
                     </div>
 
-                    {/* Paginación */}
-                    {totalPages > 1 && (
-                      <div className="flex items-center justify-center gap-3 mt-8">
-                        <button
-                          onClick={() => setHistoryPage(p => Math.max(1, p - 1))}
-                          disabled={historyPage === 1}
-                          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed transition-all text-sm font-medium"
-                        >
-                          <ChevronLeft className="w-4 h-4" /> Anterior
-                        </button>
-                        <div className="flex items-center gap-1">
-                          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                            const page = Math.max(1, Math.min(totalPages - 4, historyPage - 2)) + i;
-                            return (
-                              <button
-                                key={page}
-                                onClick={() => setHistoryPage(page)}
-                                className={`w-9 h-9 rounded-lg text-sm font-bold transition-all ${
-                                  historyPage === page
-                                    ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/30'
-                                    : 'bg-white/5 hover:bg-white/10 text-muted-foreground'
-                                }`}
-                              >
-                                {page}
-                              </button>
-                            );
-                          })}
-                        </div>
-                        <button
-                          onClick={() => setHistoryPage(p => Math.min(totalPages, p + 1))}
-                          disabled={historyPage === totalPages}
-                          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed transition-all text-sm font-medium"
-                        >
-                          Siguiente <ChevronRight className="w-4 h-4" />
-                        </button>
-                      </div>
-                    )}
+                    {PaginationControls}
                   </>
                 )}
               </motion.div>
