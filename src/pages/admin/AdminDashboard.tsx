@@ -2089,10 +2089,10 @@ export function AdminDashboard() {
                             type="text"
                             name="match_name"
                             value={formData.match_name}
-                            onChange={handleInputChange}
+                            readOnly
                             required
                             placeholder="Real Madrid vs Manchester City"
-                            className="w-full bg-white/5 border border-white/5 rounded-2xl px-5 py-3 text-base font-bold text-foreground focus:outline-none focus:border-primary transition-all opacity-80"
+                            className="w-full bg-white/5 border border-white/5 rounded-2xl px-5 py-3 text-base font-bold text-foreground focus:outline-none transition-all opacity-50 cursor-not-allowed select-none"
                           />
                         </div>
                       </div>
@@ -2203,10 +2203,10 @@ export function AdminDashboard() {
                                       type="text"
                                       name="match_name"
                                       value={sel.match_name}
-                                      onChange={(e) => handleSelectionChange(index, e)}
+                                      readOnly
                                       required
                                       placeholder="Ej: Madrid vs City"
-                                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-xs focus:outline-none focus:border-primary transition-all font-bold text-foreground opacity-60"
+                                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-xs focus:outline-none transition-all font-bold text-foreground opacity-50 cursor-not-allowed select-none"
                                     />
                                   </div>
                                 </td>
