@@ -760,6 +760,13 @@ router.put("/:id", authenticateToken, requireAdmin, async (req, res) => {
   }
 
   try {
+    // Antes de actualizar, obtenemos el tipo actual para detectar cambios.
+    const [currentPick]: any = await pool.query(
+      "SELECT pick_type_id FROM picks WHERE id = ?",
+      [id]
+    );
+    const oldPickTypeId = currentPick.length > 0 ? currentPick[0].pick_type_id : null;
+
     // Obtenemos el slug del tipo para el campo legacy
     const [tipos]: any = await pool.query(
       "SELECT slug FROM pick_types WHERE id = ?",
@@ -795,8 +802,23 @@ router.put("/:id", authenticateToken, requireAdmin, async (req, res) => {
       ]
     );
 
-    // Las ediciones normales no notifican Telegram para evitar ruido en el canal.
-    // Los avisos públicos salen solo al publicar, cambiar resultado o agregar seguimiento.
+    // Si el tipo de pick cambió, notificamos al nuevo canal correspondiente.
+    // Esto es útil cuando el administrador se equivoca de plan y lo corrige.
+    if (oldPickTypeId && String(oldPickTypeId) !== String(pick_type_id)) {
+      try {
+        const pickTelegram = await obtenerPickParaTelegram(id);
+        const channelIds = pickTelegram ? await obtenerCanalesTelegramParaPick(pickTelegram) : [];
+
+        if (pickTelegram && channelIds.length > 0) {
+          const mensaje = formatPickParaTelegram(pickTelegram);
+          for (const channelId of channelIds) {
+            await sendTelegramMessage(channelId, mensaje);
+          }
+        }
+      } catch (tgErr) {
+        console.error("[PICKS] Error enviando a Telegram tras cambio de tipo:", tgErr);
+      }
+    }
 
     return res.json({ message: "Pick actualizado exitosamente" });
   } catch (error: any) {
