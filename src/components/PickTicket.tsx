@@ -577,7 +577,7 @@ function BrandLogo({ size }: { size: number }) {
     >
       <img
         alt="BetRoyale Club"
-        src="/logo_clean.png"
+        src="/logo_final_80.png"
         style={{
           width: "100%",
           height: "100%",
@@ -789,7 +789,7 @@ export function PickTicket({ pick }: { pick: PickData }) {
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-            <BrandLogo size={76} />
+            <BrandLogo size={80} />
             <div>
               <div
                 style={{
