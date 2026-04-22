@@ -575,7 +575,7 @@ function BrandLogo({ size }: { size: number }) {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        // Un sutil box-shadow para resaltarlo contra el fondo, como en la captura
+        backgroundColor: "#0d1b2f",
         boxShadow: "0 0 15px rgba(0, 0, 0, 0.5)",
       }}
     >
@@ -583,11 +583,11 @@ function BrandLogo({ size }: { size: number }) {
         alt="BetRoyale Club"
         src="/logo_premium.png"
         style={{
-          width: "102%",
-          height: "102%",
+          width: "100%",
+          height: "100%",
           objectFit: "cover",
-          // Hacemos un leve scale para asegurar que ningún borde recto del png original sea visible
-          transform: "scale(1.02)",
+          // Hacemos un scale contundente para asegurar que ningún borde o padding del png original sea visible
+          transform: "scale(1.25)",
         }}
         crossOrigin="anonymous"
       />
@@ -898,7 +898,7 @@ export function PickTicket({ pick }: { pick: PickData }) {
               </div>
               <div
                 style={{
-                  marginTop: 12,
+                  marginTop: 6,
                   fontSize: 13,
                   fontWeight: 950,
                   letterSpacing: "0.28em",
@@ -910,13 +910,13 @@ export function PickTicket({ pick }: { pick: PickData }) {
               </div>
               <div
                 style={{
-                  marginTop: 24,
+                  marginTop: 16,
                   height: 1,
                   width: "100%",
                   background: `linear-gradient(90deg, ${theme.line}, transparent)`,
                 }}
               />
-              <div style={{ marginTop: 26 }}>
+              <div style={{ marginTop: 18 }}>
                 <div style={{ fontSize: 13, fontWeight: 950, letterSpacing: "0.24em", color: "#64748b", textTransform: "uppercase" }}>
                   Stake
                 </div>
@@ -924,7 +924,7 @@ export function PickTicket({ pick }: { pick: PickData }) {
                   {parseNumber(pick.stake).toFixed(parseNumber(pick.stake) % 1 === 0 ? 0 : 1)}u
                 </div>
               </div>
-              <div style={{ marginTop: 23 }}>
+              <div style={{ marginTop: 16 }}>
                 <div style={{ fontSize: 13, fontWeight: 950, letterSpacing: "0.24em", color: "#64748b", textTransform: "uppercase" }}>
                   Cuota Total
                 </div>
@@ -944,8 +944,8 @@ export function PickTicket({ pick }: { pick: PickData }) {
               {isResolved && (
                 <div
                   style={{
-                    marginTop: 20,
-                    padding: "13px 15px",
+                    marginTop: 12,
+                    padding: "10px 12px",
                     borderRadius: 15,
                     border: "1px solid rgba(255, 255, 255, 0.10)",
                     background: "rgba(255, 255, 255, 0.045)",
@@ -956,8 +956,8 @@ export function PickTicket({ pick }: { pick: PickData }) {
                   </div>
                   <div
                     style={{
-                      marginTop: 8,
-                      fontSize: 26,
+                      marginTop: 4,
+                      fontSize: 24,
                       fontWeight: 950,
                       color: profitUnits >= 0 ? "#34d399" : "#fb7185",
                     }}
@@ -988,35 +988,35 @@ export function PickTicket({ pick }: { pick: PickData }) {
               {isWon && monthlyStats && (
                 <div
                   style={{
-                    marginTop: 12,
-                    padding: "11px 13px",
+                    marginTop: 8,
+                    padding: "8px 10px",
                     borderRadius: 12,
                     border: `1px solid ${theme.accent}44`,
                     background: `linear-gradient(135deg, ${theme.glow}, rgba(0,0,0,0.25))`,
                   }}
                 >
-                  <div style={{ fontSize: 9, fontWeight: 900, letterSpacing: "0.22em", color: theme.accent, textTransform: "uppercase", marginBottom: 6 }}>
+                  <div style={{ fontSize: 9, fontWeight: 900, letterSpacing: "0.20em", color: theme.accent, textTransform: "uppercase", marginBottom: 2 }}>
                     Stats {theme.label}
                   </div>
-                  <div style={{ fontSize: 9, fontWeight: 700, color: "#94a3b8", marginBottom: 8, letterSpacing: "0.04em" }}>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: "#94a3b8", marginBottom: 6 }}>
                     {monthlyStats.mesLabel}
                   </div>
-                  <div style={{ display: "flex", gap: 10, justifyContent: "space-between" }}>
+                  <div style={{ display: "flex", gap: 6, justifyContent: "space-between" }}>
                     <div>
-                      <div style={{ fontSize: 8, fontWeight: 900, letterSpacing: "0.14em", color: "#64748b", textTransform: "uppercase" }}>Profit mes</div>
-                      <div style={{ marginTop: 3, fontSize: 16, fontWeight: 950, color: monthlyStats.profit >= 0 ? "#34d399" : "#fb7185" }}>
+                      <div style={{ fontSize: 8, fontWeight: 900, letterSpacing: "0.05em", color: "#64748b", textTransform: "uppercase" }}>PROFIT</div>
+                      <div style={{ marginTop: 3, fontSize: 14, fontWeight: 950, color: monthlyStats.profit >= 0 ? "#34d399" : "#fb7185", whiteSpace: "nowrap" }}>
                         {monthlyStats.profit >= 0 ? "+" : ""}{monthlyStats.profit.toFixed(2)}u
                       </div>
                     </div>
                     <div>
-                      <div style={{ fontSize: 8, fontWeight: 900, letterSpacing: "0.14em", color: "#64748b", textTransform: "uppercase" }}>Yield mes</div>
-                      <div style={{ marginTop: 3, fontSize: 16, fontWeight: 950, color: theme.secondary }}>
+                      <div style={{ fontSize: 8, fontWeight: 900, letterSpacing: "0.05em", color: "#64748b", textTransform: "uppercase" }}>YIELD</div>
+                      <div style={{ marginTop: 3, fontSize: 14, fontWeight: 950, color: theme.secondary, whiteSpace: "nowrap" }}>
                         {monthlyStats.yield >= 0 ? "+" : ""}{monthlyStats.yield.toFixed(1)}%
                       </div>
                     </div>
                     <div>
-                      <div style={{ fontSize: 8, fontWeight: 900, letterSpacing: "0.14em", color: "#64748b", textTransform: "uppercase" }}>Picks</div>
-                      <div style={{ marginTop: 3, fontSize: 16, fontWeight: 950, color: "#f8fafc" }}>
+                      <div style={{ fontSize: 8, fontWeight: 900, letterSpacing: "0.05em", color: "#64748b", textTransform: "uppercase" }}>PICKS</div>
+                      <div style={{ marginTop: 3, fontSize: 14, fontWeight: 950, color: "#f8fafc", whiteSpace: "nowrap" }}>
                         {monthlyStats.totalPicks}
                       </div>
                     </div>
@@ -1025,7 +1025,7 @@ export function PickTicket({ pick }: { pick: PickData }) {
               )}
             </div>
 
-            <div style={{ borderTop: "1px solid rgba(255, 255, 255, 0.08)", paddingTop: 15 }}>
+            <div style={{ borderTop: "1px solid rgba(255, 255, 255, 0.08)", paddingTop: 12 }}>
               <div style={{ fontSize: 11, fontWeight: 800, color: "#94a3b8" }}>Únete a BetRoyale Club</div>
               <div style={{ marginTop: 5, fontSize: 17, fontWeight: 950, color: theme.accent }}>betroyaleclub.com</div>
               <div style={{ marginTop: 4, fontSize: 10, fontStyle: "italic", lineHeight: 1.35, color: "#64748b" }}>
@@ -1094,7 +1094,7 @@ export function PickTicket({ pick }: { pick: PickData }) {
                       key={`${selection.match_name}-${index}`}
                       style={{
                         position: "relative",
-                        flex: 1,
+                        flex: "none",
                         minHeight: compactParlay ? 82 : 100,
                         overflow: "hidden",
                         display: "flex",
