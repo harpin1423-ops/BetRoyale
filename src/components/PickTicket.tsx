@@ -120,28 +120,28 @@ const STATUS: Record<string, StatusTheme> = {
   "half-lost": { label: "MEDIO PERDIDO", color: "#fdba74", background: "rgba(251, 146, 60, 0.14)", border: "rgba(253, 186, 116, 0.54)" },
 };
 
-// Ancho fijo del ticket para redes sociales.
+// Ancho fijo del ticket para redes sociales (px).
 const TICKET_WIDTH = 960;
 
-// Alto mínimo del header.
+// Alto fijo 4:3 estricto (960 × 3/4 = 720 px).
+const TICKET_HEIGHT = 720;
+
+// Alto del header del ticket.
 const TICKET_HEADER_HEIGHT = 96;
 
-// Alto mínimo del footer.
+// Alto del footer del ticket.
 const TICKET_FOOTER_HEIGHT = 45;
 
-// Alto de cada tarjeta de selección en parlays (px).
-const SEL_CARD_HEIGHT = 130;
+// Alto disponible para el cuerpo (main) del ticket.
+const TICKET_MAIN_HEIGHT = TICKET_HEIGHT - TICKET_HEADER_HEIGHT - TICKET_FOOTER_HEIGHT;
 
-// Padding vertical del panel de selecciones (arriba + abajo).
-const SEL_PANEL_PADDING = 36;
+// Padding vertical del contenedor de selecciones (arriba + abajo).
+const SEL_PANEL_PADDING = 28;
 
-// Gap entre tarjetas (px).
-const SEL_CARD_GAP = 9;
+// Gap entre tarjetas de selección (px).
+const SEL_CARD_GAP = 8;
 
-// Altura mínima del ticket para pick simple (proporción 4:3).
-const TICKET_MIN_HEIGHT = 560;
-
-// Escala de exportación para alta definición.
+// Escala de exportación: 2× = imagen final de 1920 × 1440 px.
 const TICKET_EXPORT_SCALE = 2;
 
 /**
@@ -560,31 +560,38 @@ function getTicketBackground(theme: TicketTheme): CSSProperties {
  * @returns Imagen de marca usada por html2canvas.
  */
 /**
- * Renderiza el logo de BetRoyale como SVG inline, perfectamente circular y sin fondo externo.
- * Esto garantiza que html2canvas no tenga problemas de CORS con el asset de imagen.
+ * Renderiza el logo original de BetRoyale (imagen real) con un recorte circular perfecto,
+ * emulando cómo se ve en Instagram sin fondos externos cuadrados.
  */
-function BrandLogo({ size, accent = "#d4af37" }: { size: number; accent?: string }) {
+function BrandLogo({ size }: { size: number }) {
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 1024 1024"
-      aria-label="BetRoyale Club"
-      style={{ flexShrink: 0, borderRadius: "50%", overflow: "hidden", display: "block" }}
+    <div
+      style={{
+        width: size,
+        height: size,
+        borderRadius: "50%",
+        overflow: "hidden",
+        flexShrink: 0,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        // Un sutil box-shadow para resaltarlo contra el fondo, como en la captura
+        boxShadow: "0 0 15px rgba(0, 0, 0, 0.5)",
+      }}
     >
-      {/* Fondo oscuro institucional */}
-      <rect width="1024" height="1024" fill="#07111f" />
-      {/* Círculo interior */}
-      <circle cx="512" cy="512" r="390" fill="#0d1b2f" />
-      {/* Anillo dorado exterior */}
-      <circle cx="512" cy="512" r="452" fill="none" stroke={accent} strokeWidth="40" />
-      {/* Corona simplificada */}
-      <path fill={accent} d="M432 218h160l-30 80 70-36-22 100H414l-22-100 70 36-30-80Z" />
-      {/* Texto BR */}
-      <text x="512" y="585" textAnchor="middle" fontFamily="Arial Black, Arial, sans-serif" fontSize="290" fontWeight="900" fill={accent} letterSpacing="-36">BR</text>
-      {/* Texto CLUB */}
-      <text x="512" y="742" textAnchor="middle" fontFamily="Arial, sans-serif" fontSize="86" fontWeight="800" fill="#f7f7f7" letterSpacing="18">CLUB</text>
-    </svg>
+      <img
+        alt="BetRoyale Club"
+        src="/logo_premium.png"
+        style={{
+          width: "102%",
+          height: "102%",
+          objectFit: "cover",
+          // Hacemos un leve scale para asegurar que ningún borde recto del png original sea visible
+          transform: "scale(1.02)",
+        }}
+        crossOrigin="anonymous"
+      />
+    </div>
   );
 }
 
@@ -727,16 +734,13 @@ export function PickTicket({ pick }: { pick: PickData }) {
         style={{
           ...getTicketBackground(theme),
           width: TICKET_WIDTH,
-          // Altura dinámica: crece según la cantidad de selecciones del parlay.
-          minHeight: isParlay
-            ? TICKET_HEADER_HEIGHT + TICKET_FOOTER_HEIGHT + SEL_PANEL_PADDING +
-              selectionCount * SEL_CARD_HEIGHT + Math.max(0, selectionCount - 1) * SEL_CARD_GAP
-            : TICKET_MIN_HEIGHT,
-          // Flex column para que el footer siempre quede al fondo.
+          // Altura fija 4:3 — el contenido se adapta a este espacio, nunca al revés.
+          height: TICKET_HEIGHT,
+          // Flex column para header → main → footer.
           display: "flex",
           flexDirection: "column",
           position: "relative",
-          overflow: "visible",
+          overflow: "hidden",
           color: "#f8fafc",
           border: `1px solid ${theme.line}`,
           boxShadow: `0 30px 120px ${theme.glow}`,
