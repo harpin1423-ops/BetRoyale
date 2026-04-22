@@ -565,10 +565,14 @@ function BrandLogo({ size }: { size: number }) {
       style={{
         width: size,
         height: size,
+        borderRadius: "50%",
+        overflow: "hidden",
         flexShrink: 0,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
+        backgroundColor: "#0d1b2f",
+        boxShadow: "0 0 20px rgba(0, 0, 0, 0.6)",
       }}
     >
       <img
