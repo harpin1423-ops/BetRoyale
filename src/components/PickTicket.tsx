@@ -120,22 +120,28 @@ const STATUS: Record<string, StatusTheme> = {
   "half-lost": { label: "MEDIO PERDIDO", color: "#fdba74", background: "rgba(251, 146, 60, 0.14)", border: "rgba(253, 186, 116, 0.54)" },
 };
 
-// Definimos el ancho visible del ticket para que el modal no se vea gigante.
+// Ancho fijo del ticket para redes sociales.
 const TICKET_WIDTH = 900;
 
-// Definimos la altura visible manteniendo proporción 4:3.
-const TICKET_HEIGHT = 675;
-
-// Definimos la altura del encabezado para una composición compacta.
+// Alto mínimo del header.
 const TICKET_HEADER_HEIGHT = 96;
 
-// Definimos la altura del pie para evitar que tape las selecciones.
+// Alto mínimo del footer.
 const TICKET_FOOTER_HEIGHT = 45;
 
-// Calculamos el alto central desde las medidas 4:3.
-const TICKET_MAIN_HEIGHT = TICKET_HEIGHT - TICKET_HEADER_HEIGHT - TICKET_FOOTER_HEIGHT;
+// Alto de cada tarjeta de selección en parlays (px).
+const SEL_CARD_HEIGHT = 130;
 
-// Exportamos al doble de escala para obtener 1800x1350 en PNG.
+// Padding vertical del panel de selecciones (arriba + abajo).
+const SEL_PANEL_PADDING = 36;
+
+// Gap entre tarjetas (px).
+const SEL_CARD_GAP = 9;
+
+// Altura mínima del ticket para pick simple (proporción 4:3).
+const TICKET_MIN_HEIGHT = 560;
+
+// Escala de exportación para alta definición.
 const TICKET_EXPORT_SCALE = 2;
 
 /**
@@ -677,9 +683,16 @@ export function PickTicket({ pick }: { pick: PickData }) {
         style={{
           ...getTicketBackground(theme),
           width: TICKET_WIDTH,
-          height: TICKET_HEIGHT,
+          // Altura dinámica: crece según la cantidad de selecciones del parlay.
+          minHeight: isParlay
+            ? TICKET_HEADER_HEIGHT + TICKET_FOOTER_HEIGHT + SEL_PANEL_PADDING +
+              selectionCount * SEL_CARD_HEIGHT + Math.max(0, selectionCount - 1) * SEL_CARD_GAP
+            : TICKET_MIN_HEIGHT,
+          // Flex column para que el footer siempre quede al fondo.
+          display: "flex",
+          flexDirection: "column",
           position: "relative",
-          overflow: "hidden",
+          overflow: "visible",
           color: "#f8fafc",
           border: `1px solid ${theme.line}`,
           boxShadow: `0 30px 120px ${theme.glow}`,
@@ -800,7 +813,8 @@ export function PickTicket({ pick }: { pick: PickData }) {
           style={{
             position: "relative",
             zIndex: 2,
-            height: TICKET_MAIN_HEIGHT,
+            // Crece para llenar el espacio entre header y footer.
+            flex: 1,
             display: "grid",
             gridTemplateColumns: "228px 1fr",
           }}
