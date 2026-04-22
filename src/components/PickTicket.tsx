@@ -571,17 +571,17 @@ function BrandLogo({ size }: { size: number }) {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        backgroundColor: "#0d1b2f",
-        boxShadow: "0 0 15px rgba(0, 0, 0, 0.4)",
       }}
     >
       <img
         alt="BetRoyale Club"
-        src="/logo_avatar_premium.png"
+        src="/logo_final_80.png"
         style={{
           width: "100%",
           height: "100%",
           objectFit: "cover",
+          // Escalamos agresivamente para que el logo llene el círculo y se recorte cualquier borde de la imagen original
+          transform: "scale(1.65)",
         }}
         crossOrigin="anonymous"
       />
