@@ -32,7 +32,7 @@ import statsRouter from "./routes/stats.routes.js";
 import promoCodesRouter from "./routes/promoCodes.routes.js";
 import pickTypesRouter from "./routes/pickTypes.routes.js";
 import telegramRouter from "./routes/telegram.routes.js";
-import teamsRouter from "./routes/teams.routes.js";
+import { teamsRouter } from "./routes/teams.routes.js";
 import { apiLimiter } from "./middleware/rateLimiter.js";
 import { initCronJobs } from "./services/cron.service.js";
 import scoresRouter from "./routes/scores.routes.js";
