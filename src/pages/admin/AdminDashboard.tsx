@@ -2010,7 +2010,7 @@ export function AdminDashboard() {
       )}
       <div className="min-h-screen bg-background flex flex-col md:flex-row">
         {/* Sidebar Admin */}
-        <aside className="w-full md:w-64 bg-card border-r border-white/10 flex flex-col">
+        <aside className="w-full md:w-64 md:sticky md:top-0 md:h-screen bg-card border-r border-white/10 flex flex-col shrink-0 overflow-y-auto">
           <div className="p-6 border-b border-white/10">
             <div className="flex items-center gap-2 text-primary">
               <Trophy className="h-6 w-6" />
