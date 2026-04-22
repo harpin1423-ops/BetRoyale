@@ -255,7 +255,7 @@ export function AdminDashboard() {
   const [selectedCountries, setSelectedCountries] = useState<number[]>([]);
 
   // Custom Confirm Modal State
-  const [confirmDialog, setConfirmDialog] = useState<{ isOpen: boolean, title: string, message: string, onConfirm: () => void } | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{ isOpen: boolean, title: string, message: string, confirmText?: string, cancelText?: string, variant?: 'destructive' | 'primary' | 'emerald', onConfirm: () => void } | null>(null);
   const [alertDialog, setAlertDialog] = useState<{ isOpen: boolean, title: string, message: string } | null>(null);
 
   // Filters for users table
@@ -709,20 +709,29 @@ export function AdminDashboard() {
     setTeamLeagueFilter(team.league_id?.toString() || "");
   };
 
-  const deleteTeam = async (id: number, name: string) => {
-    if (!window.confirm(`¿Estás seguro de eliminar el equipo "${name}"?`)) return;
-    try {
-      const res = await fetch(`/api/teams/${id}`, {
-        method: "DELETE",
-        headers: { "Authorization": `Bearer ${token}` }
-      });
-      if (res.ok) {
-        toast.success("Equipo eliminado");
-        fetchTeams();
+  const deleteTeam = (id: number, name: string) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: "Eliminar Equipo",
+      message: `¿Estás seguro de eliminar el equipo "${name}"?`,
+      confirmText: "Eliminar",
+      variant: "destructive",
+      onConfirm: async () => {
+        setConfirmDialog(null);
+        try {
+          const res = await fetch(`/api/teams/${id}`, {
+            method: "DELETE",
+            headers: { "Authorization": `Bearer ${token}` }
+          });
+          if (res.ok) {
+            toast.success("Equipo eliminado");
+            fetchTeams();
+          }
+        } catch (error) {
+          toast.error("Error al eliminar equipo");
+        }
       }
-    } catch (error) {
-      toast.error("Error al eliminar equipo");
-    }
+    });
   };
 
   /**
@@ -788,20 +797,29 @@ export function AdminDashboard() {
     setNewPromoCode({ code: '', discount_percentage: '', max_uses: '', valid_until: '' });
   };
 
-  const handleDeletePromoCode = async (id: number) => {
-    if (!window.confirm("¿Estás seguro de eliminar este código?")) return;
-    try {
-      const res = await fetch(`/api/promo-codes/${id}`, {
-        method: "DELETE",
-        headers: { "Authorization": `Bearer ${token}` }
-      });
-      if (res.ok) {
-        fetchPromoCodes();
-        toast.success("Código eliminado");
+  const handleDeletePromoCode = (id: number) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: "Eliminar Cupón",
+      message: "¿Estás seguro de eliminar este código promocional?",
+      confirmText: "Eliminar",
+      variant: "destructive",
+      onConfirm: async () => {
+        setConfirmDialog(null);
+        try {
+          const res = await fetch(`/api/promo-codes/${id}`, {
+            method: "DELETE",
+            headers: { "Authorization": `Bearer ${token}` }
+          });
+          if (res.ok) {
+            fetchPromoCodes();
+            toast.success("Código eliminado");
+          }
+        } catch (error) {
+          toast.error("Error al eliminar código");
+        }
       }
-    } catch (error) {
-      toast.error("Error al eliminar código");
-    }
+    });
   };
 
   const fetchPerformanceStats = async () => {
@@ -1297,29 +1315,35 @@ export function AdminDashboard() {
     }
   };
 
-  const resendPickToTelegram = async (pickId: number) => {
-    if (!confirm("¿Seguro que deseas reenviar este pick a Telegram? Esto enviará una notificación a todos los canales correspondientes al plan de este pick.")) {
-      return;
-    }
-    
-    try {
-      const res = await fetch(`/api/picks/${pickId}/resend-telegram`, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${token}`
+  const resendPickToTelegram = (pickId: number) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: "Reenviar Pick a Telegram",
+      message: "¿Seguro que deseas reenviar este pick a Telegram? Esto enviará una notificación a todos los canales correspondientes al plan de este pick.",
+      confirmText: "Reenviar",
+      variant: "emerald",
+      onConfirm: async () => {
+        setConfirmDialog(null);
+        try {
+          const res = await fetch(`/api/picks/${pickId}/resend-telegram`, {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${token}`
+            }
+          });
+          
+          const data = await res.json();
+          
+          if (!res.ok) {
+            throw new Error(data.error || "Error al reenviar el pick");
+          }
+          
+          toast.success(data.message || "Pick reenviado exitosamente a Telegram");
+        } catch (error: any) {
+          toast.error(error.message);
         }
-      });
-      
-      const data = await res.json();
-      
-      if (!res.ok) {
-        throw new Error(data.error || "Error al reenviar el pick");
       }
-      
-      toast.success(data.message || "Pick reenviado exitosamente a Telegram");
-    } catch (error: any) {
-      toast.error(error.message);
-    }
+    });
   };
 
   const handleEditPick = (pick: any) => {
@@ -1421,18 +1445,22 @@ export function AdminDashboard() {
     }
   };
 
-  const verifyPickResults = async () => {
+  const verifyPickResults = () => {
     if (selectedPicks.length === 0) {
-      alert("Selecciona al menos un pick para verificar.");
+      toast.error("Selecciona al menos un pick para verificar.");
       return;
     }
 
-    if (!confirm(`¿Estás seguro de verificar los resultados de ${selectedPicks.length} picks seleccionados usando IA?`)) {
-      return;
-    }
-
-    const picksToVerify = picks.filter(p => selectedPicks.includes(p.id));
-    setIsVerifying(true);
+    setConfirmDialog({
+      isOpen: true,
+      title: "Verificar con IA",
+      message: `¿Estás seguro de verificar los resultados de ${selectedPicks.length} picks seleccionados usando Gemini IA?`,
+      confirmText: "Verificar",
+      variant: "primary",
+      onConfirm: async () => {
+        setConfirmDialog(null);
+        const picksToVerify = picks.filter(p => selectedPicks.includes(p.id));
+        setIsVerifying(true);
 
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
@@ -1478,14 +1506,16 @@ export function AdminDashboard() {
           console.error(`Error verifying pick ${pick.id}:`, error);
         }
       }
-      alert("Verificación completada.");
+      toast.success("Verificación completada.");
       setSelectedPicks([]); // Limpiar selección
     } catch (error) {
       console.error("Error initializing AI client:", error);
-      alert("Error al inicializar la IA. Revisa la consola.");
+      toast.error("Error al inicializar la IA. Revisa la consola.");
     } finally {
       setIsVerifying(false);
     }
+      }
+    });
   };
 
   const bulkUpdatePickStatus = async (status: string) => {
@@ -4849,13 +4879,19 @@ export function AdminDashboard() {
                     onClick={() => setConfirmDialog(null)}
                     className="px-4 py-2 rounded-lg bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors"
                   >
-                    Cancelar
+                    {confirmDialog.cancelText || "Cancelar"}
                   </button>
                   <button
                     onClick={confirmDialog.onConfirm}
-                    className="px-4 py-2 rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors"
+                    className={`px-4 py-2 rounded-lg transition-colors ${
+                      confirmDialog.variant === 'emerald'
+                        ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                        : confirmDialog.variant === 'primary'
+                        ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                        : 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
+                    }`}
                   >
-                    Confirmar
+                    {confirmDialog.confirmText || "Confirmar"}
                   </button>
                 </div>
               </div>
