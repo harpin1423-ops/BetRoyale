@@ -74,7 +74,7 @@ const LIGAS_INICIALES = [
     { pais: "Paraguay", ligas: ["Primera División"] },
     { pais: "Bolivia", ligas: ["Primera División"] },
     { pais: "Venezuela", ligas: ["Primera División"] },
-    { pais: "Bélgica", ligas: ["Pro League"] },
+    { pais: "Bélgica", ligas: ["Jupiler Pro League"] },
     { pais: "Turquía", ligas: ["Super Lig"] },
     { pais: "Grecia", ligas: ["Super League 1"] },
     { pais: "Escocia", ligas: ["Premiership"] },
@@ -580,7 +580,7 @@ const EQUIPOS_INICIALES = [
     },
     {
         pais: "Bélgica",
-        liga: "Pro League",
+        liga: "Jupiler Pro League",
         equipos: [
             "Anderlecht", "Royal Antwerp", "Beerschot", "Cercle Brugge", "Charleroi",
             "Club Brugge", "Dender", "KRC Genk", "KAA Gent", "KV Kortrijk",
@@ -758,6 +758,13 @@ export async function initDB() {
         FOREIGN KEY (country_id) REFERENCES countries(id) ON DELETE SET NULL
       )
     `);
+        // Migración específica: Renombrar Pro League a Jupiler Pro League para Bélgica
+        await conexion.query(`
+      UPDATE leagues 
+      SET name = 'Jupiler Pro League' 
+      WHERE name = 'Pro League' 
+      AND country_id = (SELECT id FROM countries WHERE name = 'Bélgica')
+    `).catch(() => { });
         // ── 4. Tabla: markets ────────────────────────────────────────────────────
         // Mercados de apuestas (ej: "Gana Local"="1", "Ambos Marcan"="AEM")
         await conexion.query(`
