@@ -79,7 +79,7 @@ export function FreePicks() {
     .flatMap(pick => (pick.tracking || []).map((t: any) => ({
       ...t,
       match_name: pick.is_parlay ? `Parlay (${pick.selections?.length || 0} Selecciones)` : pick.match_name,
-      pick_name: pick.is_parlay ? 'Combinada' : pick.pick,
+      pick_name: pick.is_parlay ? 'Combinada' : (pick.market_label || getPickDisplay(pick.pick).label),
       status: pick.status,
       country_flag: pick.is_parlay ? '' : pick.country_flag
     })))
