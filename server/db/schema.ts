@@ -111,6 +111,97 @@ const EQUIPOS_INICIALES = [
     ]
   },
   {
+    pais: "Italia",
+    liga: "Serie A",
+    equipos: [
+      "Atalanta", "Bolonia", "Cagliari", "Como 1907", "Empoli", "Fiorentina", "Genoa",
+      "Hellas Verona", "Inter de Milán", "Juventus", "Lazio", "Lecce", "Milan",
+      "Monza", "Nápoles", "Parma", "Roma", "Torino", "Udinese", "Venezia"
+    ]
+  },
+  {
+    pais: "Alemania",
+    liga: "Bundesliga",
+    equipos: [
+      "Augsburgo", "Bayer Leverkusen", "Bayern de Múnich", "Bochum", "Borussia Dortmund",
+      "Borussia Mönchengladbach", "Eintracht Fráncfort", "Friburgo", "Heidenheim",
+      "Holstein Kiel", "Hoffenheim", "Mainz 05", "RB Leipzig", "St. Pauli",
+      "Stuttgart", "Unión Berlín", "Werder Bremen", "Wolfsburgo"
+    ]
+  },
+  {
+    pais: "Francia",
+    liga: "Ligue 1",
+    equipos: [
+      "Angers", "Auxerre", "Le Havre", "Lens", "Lille", "Lyon", "Marsella", "Mónaco",
+      "Montpellier", "Nantes", "Niza", "Paris Saint-Germain", "Reims", "Rennes",
+      "Saint-Étienne", "Estrasburgo", "Toulouse", "Brest"
+    ]
+  },
+  {
+    pais: "Argentina",
+    liga: "Liga Profesional",
+    equipos: [
+      "Argentinos Juniors", "Atlético Tucumán", "Banfield", "Barracas Central", "Belgrano",
+      "Boca Juniors", "Central Córdoba (SdE)", "Defensa y Justicia", "Deportivo Riestra",
+      "Estudiantes de La Plata", "Gimnasia LP", "Godoy Cruz", "Huracán", "Independiente",
+      "Independiente Rivadavia", "Instituto", "Lanús", "Newell's Old Boys", "Platense",
+      "Racing Club", "River Plate", "Rosario Central", "San Lorenzo", "Sarmiento",
+      "Talleres (Córdoba)", "Tigre", "Unión (Santa Fe)", "Vélez Sarsfield"
+    ]
+  },
+  {
+    pais: "Brasil",
+    liga: "Serie A",
+    equipos: [
+      "Athletico Paranaense", "Atlético Goianiense", "Atlético Mineiro", "Bahia", "Botafogo",
+      "Corinthians", "Criciúma", "Cruzeiro", "Cuiabá", "Flamengo", "Fluminense",
+      "Fortaleza", "Grêmio", "Internacional", "Juventude", "Palmeiras",
+      "Red Bull Bragantino", "São Paulo", "Vasco da Gama", "Vitória"
+    ]
+  },
+  {
+    pais: "Países Bajos",
+    liga: "Eredivisie",
+    equipos: [
+      "Ajax", "Almere City", "AZ Alkmaar", "Feyenoord", "Fortuna Sittard", "Go Ahead Eagles",
+      "Groningen", "Heerenveen", "Heracles Almelo", "NAC Breda", "NEC Nimega",
+      "PEC Zwolle", "PSV Eindhoven", "RKC Waalwijk", "Sparta Rotterdam", "Twente",
+      "Utrecht", "Willem II"
+    ]
+  },
+  {
+    pais: "Portugal",
+    liga: "Primeira Liga",
+    equipos: [
+      "Arouca", "AVS", "Benfica", "Boavista", "Braga", "Casa Pia", "Estoril",
+      "Estrela da Amadora", "Famalicão", "Farense", "Gil Vicente", "Moreirense",
+      "Nacional", "Porto", "Rio Ave", "Santa Clara", "Sporting de Portugal", "Vitória Guimarães"
+    ]
+  },
+  {
+    pais: "Estados Unidos",
+    liga: "MLS",
+    equipos: [
+      "Atlanta United", "Charlotte FC", "Chicago Fire", "Cincinnati", "Columbus Crew",
+      "DC United", "Inter Miami", "CF Montréal", "Nashville SC", "New England Revolution",
+      "New York City FC", "New York Red Bulls", "Orlando City", "Philadelphia Union",
+      "Toronto FC", "Austin FC", "Colorado Rapids", "FC Dallas", "Houston Dynamo",
+      "LA Galaxy", "LAFC", "Minnesota United", "Portland Timbers", "Real Salt Lake",
+      "San Jose Earthquakes", "Seattle Sounders", "Sporting Kansas City", "St. Louis City SC",
+      "Vancouver Whitecaps"
+    ]
+  },
+  {
+    pais: "Arabia Saudita",
+    liga: "Pro League",
+    equipos: [
+      "Al-Ahli", "Al-Ettifaq", "Al-Fateh", "Al-Fayha", "Al-Hilal", "Al-Ittihad",
+      "Al-Khaleej", "Al-Kholood", "Al-Nassr", "Al-Okhdood", "Al-Orobah", "Al-Qadsiah",
+      "Al-Raed", "Al-Riyadh", "Al-Shabab", "Al-Taawoun", "Al-Wehda", "Damac"
+    ]
+  },
+  {
     pais: "Colombia",
     liga: "Liga BetPlay",
     equipos: [
