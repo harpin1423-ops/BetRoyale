@@ -559,36 +559,25 @@ function getTicketBackground(theme: TicketTheme): CSSProperties {
  * @param size - Tamaño en pixeles del logo.
  * @returns Imagen de marca usada por html2canvas.
  */
-/**
- * Renderiza el logo original de BetRoyale (imagen real) con un recorte circular perfecto,
- * emulando cómo se ve en Instagram sin fondos externos cuadrados.
- */
 function BrandLogo({ size }: { size: number }) {
   return (
     <div
       style={{
         width: size,
         height: size,
-        borderRadius: "50%",
-        overflow: "hidden",
         flexShrink: 0,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        backgroundColor: "#0d1b2f",
-        boxShadow: "0 0 15px rgba(0, 0, 0, 0.5)",
       }}
     >
       <img
         alt="BetRoyale Club"
-        src="/logo_premium.png"
+        src="/logo_clean.png"
         style={{
           width: "100%",
           height: "100%",
-          objectFit: "cover",
-          // Reducimos ligeramente el scale para ganar nitidez y usamos imageRendering
-          transform: "scale(1.22)",
-          imageRendering: "crisp-edges" as any,
+          objectFit: "contain",
         }}
         crossOrigin="anonymous"
       />
@@ -796,7 +785,7 @@ export function PickTicket({ pick }: { pick: PickData }) {
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-            <BrandLogo size={68} />
+            <BrandLogo size={76} />
             <div>
               <div
                 style={{
