@@ -577,8 +577,8 @@ function BrandLogo({ size }: { size: number }) {
         alt="BetRoyale Club"
         src="/logo_final_80.png"
         style={{
-          width: "118%",
-          height: "118%",
+          width: "145%",
+          height: "145%",
           flexShrink: 0, // CRUCIAL: Evita que flexbox encoja la imagen de vuelta a 80px
           objectFit: "contain",
           imageRendering: "high-quality",
