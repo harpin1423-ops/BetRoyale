@@ -256,6 +256,29 @@ const EQUIPOS_INICIALES = [
     ]
   },
   {
+    pais: "Francia",
+    liga: "Ligue 2",
+    equipos: [
+      "Amiens SC", "FC Annecy", "AC Ajaccio", "SC Bastia", "SM Caen", "Clermont Foot",
+      "USL Dunkerque", "Grenoble Foot 38", "EA Guingamp", "Stade Lavallois",
+      "FC Lorient", "FC Martigues", "FC Metz", "Paris FC", "Pau FC", "Red Star FC",
+      "Rodez AF", "ESTAC Troyes"
+    ]
+  },
+  {
+    pais: "Francia",
+    liga: "Coupe de France",
+    equipos: [
+      "Angers", "Auxerre", "Le Havre", "Lens", "Lille", "Lyon", "Marsella", "Mónaco",
+      "Montpellier", "Nantes", "Niza", "Paris Saint-Germain", "Reims", "Rennes",
+      "Saint-Étienne", "Estrasburgo", "Toulouse", "Brest",
+      "Amiens SC", "FC Annecy", "AC Ajaccio", "SC Bastia", "SM Caen", "Clermont Foot",
+      "USL Dunkerque", "Grenoble Foot 38", "EA Guingamp", "Stade Lavallois",
+      "FC Lorient", "FC Martigues", "FC Metz", "Paris FC", "Pau FC", "Red Star FC",
+      "Rodez AF", "ESTAC Troyes"
+    ]
+  },
+  {
     pais: "Argentina",
     liga: "Liga Profesional",
     equipos: [
