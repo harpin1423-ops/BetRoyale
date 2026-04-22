@@ -101,6 +101,7 @@ const LIGAS_INICIALES = [
   { pais: "Costa Rica", ligas: ["Primera División"] },
   { pais: "Austria", ligas: ["Bundesliga"] },
   { pais: "Australia", ligas: ["A-League"] },
+  { pais: "Finlandia", ligas: ["Veikkausliiga"] },
 ];
 
 // ─── Equipos iniciales por liga y país ───────────────────────────────────────
@@ -383,6 +384,102 @@ const EQUIPOS_INICIALES = [
       "AD Guanacasteca", "AD Liberia", "AD San Carlos", "Cartaginés", "Herediano",
       "Saprissa", "Alajuelense", "Pérez Zeledón", "Puntarenas FC", "Santa Ana FC",
       "Sporting San José", "Santos de Guápiles"
+    ]
+  },
+  {
+    pais: "Finlandia",
+    liga: "Veikkausliiga",
+    equipos: [
+      "AC Oulu", "Ekenäs IF", "FC Haka", "FC Inter Turku", "FC Lahti", "HJK Helsinki",
+      "IF Gnistan", "IFK Mariehamn", "Ilves", "KuPS", "SJK Seinäjoki", "Vaasan Palloseura"
+    ]
+  },
+  {
+    pais: "Turquía",
+    liga: "Super Lig",
+    equipos: [
+      "Beşiktaş", "Fenerbahçe", "Galatasaray", "Trabzonspor", "Adana Demirspor",
+      "Alanyaspor", "Antalyaspor", "Çaykur Rizespor", "Gaziantep FK", "Hatayspor",
+      "Kayserispor", "Konyaspor", "Samsunspor", "Sivasspor", "Göztepe SK", "Bodrum FK"
+    ]
+  },
+  {
+    pais: "Japón",
+    liga: "J1 League",
+    equipos: [
+      "Vissel Kobe", "Yokohama F. Marinos", "Kashima Antlers", "Nagoya Grampus",
+      "Urawa Reds", "Cerezo Osaka", "Sanfrecce Hiroshima", "Avispa Fukuoka",
+      "Kawasaki Frontale", "Gamba Osaka", "FC Tokyo", "Kashiwa Reysol", "Júbilo Iwata"
+    ]
+  },
+  {
+    pais: "Escocia",
+    liga: "Premiership",
+    equipos: [
+      "Celtic", "Rangers", "Hearts", "Kilmarnock", "St Mirren", "Dundee FC",
+      "Aberdeen", "Hibernian", "Motherwell", "Ross County", "St Johnstone", "Dundee United"
+    ]
+  },
+  {
+    pais: "Grecia",
+    liga: "Super League 1",
+    equipos: [
+      "PAOK Salónica", "AEK Atenas", "Olympiacos", "Panathinaikos", "Aris Salónica",
+      "Lamia", "OFI Creta", "Asteras Tripolis", "Panserraikos", "Volos FC", "Panetolikos"
+    ]
+  },
+  {
+    pais: "Bolivia",
+    liga: "Primera División",
+    equipos: [
+      "The Strongest", "Bolívar", "Always Ready", "Blooming", "Oriente Petrolero",
+      "Jorge Wilstermann", "Nacional Potosí", "Real Tomayapo", "Aurora", "Royal Pari",
+      "Independiente Petrolero", "Guabirá", "Real Santa Cruz"
+    ]
+  },
+  {
+    pais: "Venezuela",
+    liga: "Primera División",
+    equipos: [
+      "Deportivo Táchira", "Caracas FC", "Portuguesa FC", "Academia Puerto Cabello",
+      "Carabobo FC", "Deportivo La Guaira", "Metropolitanos FC", "Monagas SC",
+      "Angostura FC", "Estudiantes de Mérida", "Zamora FC", "Universidad Central"
+    ]
+  },
+  {
+    pais: "Paraguay",
+    liga: "Primera División",
+    equipos: [
+      "Libertad", "Cerro Porteño", "Olimpia", "Nacional", "Guaraní",
+      "Sportivo Trinidense", "Sportivo Ameliano", "2 de Mayo", "Sportivo Luqueño",
+      "General Caballero", "Tacuary", "Sol de América"
+    ]
+  },
+  {
+    pais: "Bélgica",
+    liga: "Pro League",
+    equipos: [
+      "Club Brujas", "Union Saint-Gilloise", "Anderlecht", "Antwerp", "Genk",
+      "Gent", "Cercle Brugge", "Mechelen", "Standard de Lieja", "Westerlo",
+      "Charleroi", "Sint-Truiden", "Kortrijk", "OH Leuven"
+    ]
+  },
+  {
+    pais: "Chile",
+    liga: "Primera División",
+    equipos: [
+      "Colo-Colo", "Universidad de Chile", "Universidad Católica", "Palestino",
+      "Unión Española", "Everton", "Coquimbo Unido", "Audax Italiano", "Huachipato",
+      "O'Higgins", "Ñublense", "Cobresal", "Cobreloa", "Iquique", "Unión La Calera"
+    ]
+  },
+  {
+    pais: "Uruguay",
+    liga: "Primera División",
+    equipos: [
+      "Peñarol", "Nacional", "Defensor Sporting", "Liverpool", "River Plate",
+      "Danubio", "Montevideo Wanderers", "Racing", "Fénix", "Cerro Largo",
+      "Boston River", "Cerro", "Deportivo Maldonado", "Progreso", "Miramar Misiones"
     ]
   },
   {
