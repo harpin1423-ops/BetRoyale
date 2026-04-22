@@ -93,6 +93,14 @@ const LIGAS_INICIALES = [
   { pais: "Rumania", ligas: ["SuperLiga"] },
   { pais: "Serbia", ligas: ["SuperLiga"] },
   { pais: "Suiza", ligas: ["Super League"] },
+  { pais: "Eslovaquia", ligas: ["Superliga"] },
+  { pais: "China", ligas: ["Superliga"] },
+  { pais: "Polonia", ligas: ["Ekstraklasa"] },
+  { pais: "Islandia", ligas: ["Besta deild"] },
+  { pais: "Chipre", ligas: ["Primera División"] },
+  { pais: "Costa Rica", ligas: ["Primera División"] },
+  { pais: "Austria", ligas: ["Bundesliga"] },
+  { pais: "Australia", ligas: ["A-League"] },
 ];
 
 // ─── Equipos iniciales por liga y país ───────────────────────────────────────
@@ -301,6 +309,80 @@ const EQUIPOS_INICIALES = [
       "BSC Young Boys", "Servette FC", "FC Lugano", "FC Lucerna", "FC Winterthur",
       "FC San Galo", "FC Zúrich", "Grasshopper Club Zúrich", "FC Basilea",
       "FC Lausana-Sport", "Yverdon-Sport", "FC Sion"
+    ]
+  },
+  {
+    pais: "Austria",
+    liga: "Bundesliga",
+    equipos: [
+      "Grazer AK", "LASK Linz", "Austria Viena", "Austria Klagenfurt", "RB Salzburgo",
+      "Rheindorf Altach", "Rapid Viena", "Sturm Graz", "TSV Hartberg", "Wolfsberger AC",
+      "WSG Tirol", "Blau-Weiß Linz"
+    ]
+  },
+  {
+    pais: "Australia",
+    liga: "A-League",
+    equipos: [
+      "Adelaide United", "Auckland FC", "Brisbane Roar", "Central Coast Mariners",
+      "Macarthur FC", "Melbourne City", "Melbourne Victory", "Newcastle Jets",
+      "Perth Glory", "Sydney FC", "Wellington Phoenix", "Western Sydney Wanderers", "Western United FC"
+    ]
+  },
+  {
+    pais: "China",
+    liga: "Superliga",
+    equipos: [
+      "Beijing Guoan", "Cangzhou Mighty Lions", "Changchun Yatai", "Chengdu Rongcheng",
+      "Henan FC", "Meizhou Hakka", "Nantong Zhiyun", "Qingdao Hainiu",
+      "Qingdao West Coast", "Shandong Taishan", "Shanghai Port", "Shanghai Shenhua",
+      "Shenzhen Peng City", "Tianjin Jinmen Tiger", "Wuhan Three Towns", "Zhejiang Professional"
+    ]
+  },
+  {
+    pais: "Polonia",
+    liga: "Ekstraklasa",
+    equipos: [
+      "GKS Katowice", "Górnik Zabrze", "Jagiellonia Białystok", "Korona Kielce",
+      "KS Cracovia", "Lech Poznań", "Lechia Gdańsk", "Legia Varsovia", "Motor Lublin",
+      "Piast Gliwice", "Pogoń Szczecin", "Radomiak Radom", "Raków Częstochowa",
+      "Stal Mielec", "Śląsk Wrocław", "Widzew Łódź", "Zagłębie Lubin", "Bruk-Bet Termalica"
+    ]
+  },
+  {
+    pais: "Eslovaquia",
+    liga: "Superliga",
+    equipos: [
+      "AS Trenčín", "DAC Dunajská Streda", "Dukla Banská Bystrica", "FK Košice",
+      "FK Podbrezová", "KFC Komárno", "MFK Ružomberok", "MFK Skalica",
+      "MFK Zemplín Michalovce", "MŠK Žilina", "Slovan Bratislava", "Spartak Trnava"
+    ]
+  },
+  {
+    pais: "Islandia",
+    liga: "Besta deild",
+    equipos: [
+      "Akranes (ÍA)", "Breiðablik", "Fram", "FH", "Fylkir", "HK", "KA", "KR",
+      "Stjarnan", "Valur", "Vestri", "Víkingur Reykjavík"
+    ]
+  },
+  {
+    pais: "Chipre",
+    liga: "Primera División",
+    equipos: [
+      "AEK Larnaca", "AEL Limassol", "Anorthosis Famagusta", "APOEL Nicosia",
+      "Apollon Limassol", "Aris Limassol", "Enosis Neon Paralimni", "Ethnikos Achna",
+      "Karmiotissa", "Nea Salamina", "Omonia 29M", "Omonia Aradippou",
+      "Omonia Nicosia", "Pafos FC"
+    ]
+  },
+  {
+    pais: "Costa Rica",
+    liga: "Primera División",
+    equipos: [
+      "AD Guanacasteca", "AD Liberia", "AD San Carlos", "Cartaginés", "Herediano",
+      "Saprissa", "Alajuelense", "Pérez Zeledón", "Puntarenas FC", "Santa Ana FC",
+      "Sporting San José", "Santos de Guápiles"
     ]
   },
   {
