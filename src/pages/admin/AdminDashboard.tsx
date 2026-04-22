@@ -1283,13 +1283,17 @@ export function AdminDashboard() {
           pick_type_id: pickTypes.length > 0 ? pickTypes[0].id.toString() : "1",
           analysis: "",
           api_fixture_id: "",
-          auto_update: true
+          auto_update: true,
+          is_parlay: false,
+          selections: []
         });
         setFixtureSearchQuery("");
         setFixtureSearchResults([]);
       }
     } catch (error: any) {
       toast.error(error.message);
+    } finally {
+      setIsSubmittingPick(false);
     }
   };
 
