@@ -61,7 +61,7 @@ const LIGAS_INICIALES = [
   { pais: "Italia", ligas: ["Serie A", "Serie B", "Coppa Italia"] },
   { pais: "Alemania", ligas: ["Bundesliga", "2. Bundesliga", "DFB Pokal"] },
   { pais: "Francia", ligas: ["Ligue 1", "Ligue 2", "Coupe de France"] },
-  { pais: "Brasil", ligas: ["Serie A", "Serie B", "Copa do Brasil"] },
+  { pais: "Brasil", ligas: ["Brasileirão Série A", "Brasileirão Série B", "Copa do Brasil"] },
   { pais: "Argentina", ligas: ["Liga Profesional", "Copa Argentina", "Copa de la Liga Profesional"] },
   { pais: "Colombia", ligas: ["Liga BetPlay", "Torneo BetPlay", "Copa Colombia"] },
   { pais: "México", ligas: ["Liga MX", "Liga de Expansión MX"] },
@@ -318,7 +318,7 @@ const EQUIPOS_INICIALES = [
   },
   {
     pais: "Brasil",
-    liga: "Serie A",
+    liga: "Brasileirão Série A",
     equipos: [
       "Athletico Paranaense", "Atlético Goianiense", "Atlético Mineiro", "Bahia", "Botafogo",
       "Corinthians", "Criciúma", "Cruzeiro", "Cuiabá", "Flamengo", "Fluminense",
@@ -328,7 +328,7 @@ const EQUIPOS_INICIALES = [
   },
   {
     pais: "Brasil",
-    liga: "Serie B",
+    liga: "Brasileirão Série B",
     equipos: [
       "Amazonas FC", "América Mineiro", "Avaí", "Botafogo-SP", "Brusque FC",
       "CRB", "Ceará SC", "Chapecoense", "Coritiba", "Goiás EC", "Guarani FC",
@@ -805,6 +805,21 @@ export async function initDB(): Promise<void> {
       SET name = 'Jupiler Pro League' 
       WHERE name = 'Pro League' 
       AND country_id = (SELECT id FROM countries WHERE name = 'Bélgica')
+    `).catch(() => {});
+
+    // Migración específica: Normalizar nombres de ligas de Brasil
+    await conexion.query(`
+      UPDATE leagues 
+      SET name = 'Brasileirão Série A' 
+      WHERE (name = 'Serie A' OR name LIKE 'Brasileira%S%rie%A' OR name LIKE 'Brasleira%Seria%')
+      AND country_id = (SELECT id FROM countries WHERE name = 'Brasil')
+    `).catch(() => {});
+
+    await conexion.query(`
+      UPDATE leagues 
+      SET name = 'Brasileirão Série B' 
+      WHERE (name = 'Serie B' OR name LIKE 'Brasileira%S%rie%B')
+      AND country_id = (SELECT id FROM countries WHERE name = 'Brasil')
     `).catch(() => {});
 
     // ── 4. Tabla: markets ────────────────────────────────────────────────────
