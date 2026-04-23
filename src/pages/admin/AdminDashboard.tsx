@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { Trophy, PlusCircle, List, Users, Settings, LogOut, CheckCircle, XCircle, MinusCircle, Trash2, Edit, Tag, Globe, X, BarChart3, CheckCircle2, Activity, DollarSign, Search, ChevronLeft, ChevronRight, BrainCircuit, Loader2, Send, ExternalLink, Shield, Camera, Sparkles } from "lucide-react";
 import { NORMALIZED_PICKS, getPickDisplay, getPlanName } from "../../lib/constants";
 import { getLocalizedStatus } from "../../lib/utils";

@@ -4,7 +4,7 @@
  * Proporciona funcionalidades de análisis de picks y generación de comentarios.
  */
 
-import { GoogleGenAI, SchemaType } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { env } from "../config/env.js";
 
 /**
@@ -24,7 +24,7 @@ export async function generatePickAnalysis(pickData: {
     throw new Error("GEMINI_API_KEY no configurada en el servidor.");
   }
 
-  const genAI = new GoogleGenAI(env.GEMINI_API_KEY);
+  const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY);
   const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" }); // Usamos flash para velocidad y costo
 
   let context = "";
