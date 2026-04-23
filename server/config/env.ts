@@ -81,8 +81,17 @@ export const env = {
   /** Dirección y nombre del remitente */
   SMTP_FROM: process.env.SMTP_FROM || "BetRoyale Club <noreply@betroyale.club>",
 
-  // ─── Sports API (RapidAPI) ─────────────────────────────────────────────────
-  /** API Key para API-Football (RapidAPI) */
+  // ─── Sports API / API-Football ─────────────────────────────────────────────
+  /** API Key directa de API-Football/API-Sports */
+  APIFOOTBALL_API_KEY: process.env.APIFOOTBALL_API_KEY || "",
+
+  /** URL base de API-Football, configurable para entornos especiales */
+  APIFOOTBALL_BASE_URL: process.env.APIFOOTBALL_BASE_URL || "",
+
+  /** Host RapidAPI opcional si se usa API-Football desde RapidAPI */
+  APIFOOTBALL_RAPIDAPI_HOST: process.env.APIFOOTBALL_RAPIDAPI_HOST || "api-football-v1.p.rapidapi.com",
+
+  /** API Key legacy para API-Football cuando ya estaba configurada como RapidAPI */
   RAPIDAPI_KEY: process.env.RAPIDAPI_KEY || "",
 } as const;
 

@@ -186,15 +186,15 @@ const hasResolvedScore = (item: any) => {
 /**
  * @summary Detecta si una fila o selección está vinculada a una API de resultados.
  * @param item - Pick o selección de parlay que puede contener IDs de API.
- * @returns Verdadero cuando existe un identificador de TheSportsDB o API legacy.
+ * @returns Verdadero cuando existe un identificador de API-Football o legacy.
  */
 const hasResultProviderLink = (item: any) => {
-  // Priorizamos TheSportsDB y conservamos compatibilidad con api_fixture_id.
-  return Boolean(item?.thesportsdb_event_id || item?.api_fixture_id);
+  // Priorizamos el ID oficial de API-Football y mantenemos compatibilidad legacy.
+  return Boolean(item?.api_fixture_id || item?.thesportsdb_event_id);
 };
 
 /**
- * @summary Construye una fecha de formulario desde la respuesta de TheSportsDB.
+ * @summary Construye una fecha de formulario desde la respuesta de API-Football.
  * @param fixture - Partido retornado por el buscador externo.
  * @returns Valor datetime-local o cadena vacía cuando no hay fecha.
  */
@@ -207,6 +207,57 @@ const getFixtureDateTimeValue = (fixture: any) => {
 
   // Devolvemos el valor compatible con inputs datetime-local.
   return `${fixture.date}T${rawTime || "00:00"}`;
+};
+
+/**
+ * @summary Obtiene el nombre que se debe usar para consultar API-Football.
+ * @param teams - Catalogo local de equipos cargado en el panel.
+ * @param teamId - ID del equipo seleccionado en BetRoyale.
+ * @returns Alias API-Football si existe, o nombre visible como respaldo.
+ */
+const getTeamProviderName = (teams: any[], teamId: string | number | undefined) => {
+  // Buscamos el equipo por ID usando comparacion tolerante entre string y number.
+  const team = teams.find((item) => String(item.id) === String(teamId || ""));
+
+  // Devolvemos alias tecnico cuando esta configurado.
+  return String(team?.api_name || team?.name || "").trim();
+};
+
+/**
+ * @summary Construye una consulta precisa para API-Football desde equipos seleccionados.
+ * @param homeTeamId - ID local seleccionado en BetRoyale.
+ * @param awayTeamId - ID visitante seleccionado en BetRoyale.
+ * @param fallback - Nombre visible del partido si no hay IDs.
+ * @param teams - Catalogo local de equipos con aliases API.
+ * @returns Texto "Local API vs Visitante API" o fallback.
+ */
+const buildProviderFixtureQuery = (homeTeamId: string | number | undefined, awayTeamId: string | number | undefined, fallback: string, teams: any[]) => {
+  // Resolvemos nombre tecnico local.
+  const homeProviderName = getTeamProviderName(teams, homeTeamId);
+
+  // Resolvemos nombre tecnico visitante.
+  const awayProviderName = getTeamProviderName(teams, awayTeamId);
+
+  // Usamos ambos aliases para evitar errores por nombres comerciales.
+  if (homeProviderName && awayProviderName) {
+    return `${homeProviderName} vs ${awayProviderName}`;
+  }
+
+  // Si faltan IDs, usamos el nombre visible guardado.
+  return String(fallback || "").trim();
+};
+
+/**
+ * @summary Extrae YYYY-MM-DD desde un valor datetime-local del formulario.
+ * @param value - Fecha/hora del pick o seleccion.
+ * @returns Fecha lista para el buscador de API-Football.
+ */
+const getFixtureSearchDate = (value: string | undefined) => {
+  // Validamos que exista un valor antes de cortar.
+  if (!value) return "";
+
+  // Tomamos la parte de fecha que comparten datetime-local y DATETIME.
+  return String(value).slice(0, 10);
 };
 
 export function AdminDashboard() {
@@ -225,7 +276,7 @@ export function AdminDashboard() {
   const [users, setUsers] = useState<any[]>([]);
   const [promoCodes, setPromoCodes] = useState<any[]>([]);
   const [teams, setTeams] = useState<any[]>([]);
-  const [teamForm, setTeamForm] = useState({ id: null as number | null, name: "", league_id: "", country_id: "" });
+  const [teamForm, setTeamForm] = useState({ id: null as number | null, name: "", api_name: "", league_id: "", country_id: "" });
   const [isSubmittingTeam, setIsSubmittingTeam] = useState(false);
   const [newPromoCode, setNewPromoCode] = useState({ code: '', discount_percentage: '', max_uses: '', valid_until: '' });
   const [editingPromoCodeId, setEditingPromoCodeId] = useState<number | null>(null);
@@ -706,6 +757,7 @@ export function AdminDashboard() {
         },
         body: JSON.stringify({
           name: teamForm.name.trim(),
+          api_name: teamForm.api_name.trim() || null,
           league_id: parseInt(teamForm.league_id),
           country_id: parseInt(teamForm.country_id)
         })
@@ -714,7 +766,7 @@ export function AdminDashboard() {
       if (!res.ok) throw new Error(data.error || "Error al guardar equipo");
 
       toast.success("Equipo guardado exitosamente");
-      setTeamForm({ id: null, name: "", league_id: "", country_id: "" });
+      setTeamForm({ id: null, name: "", api_name: "", league_id: "", country_id: "" });
       fetchTeams();
     } catch (error: any) {
       toast.error(error.message);
@@ -759,6 +811,7 @@ export function AdminDashboard() {
     setTeamForm({
       id: team.id,
       name: team.name || "",
+      api_name: team.api_name || "",
       league_id: team.league_id?.toString() || "",
       country_id: countryId
     });
@@ -1062,6 +1115,7 @@ export function AdminDashboard() {
         },
         body: JSON.stringify({
           name: name.trim(),
+          api_name: name.trim(),
           league_id: parseInt(leagueId),
           country_id: parseInt(countryId)
         })
@@ -1127,17 +1181,23 @@ export function AdminDashboard() {
   /**
    * @summary Busca partidos en la API externa para vinculación automática.
    * @param queryOverride - Texto puntual que debe usarse en vez del estado del input.
+   * @param dateOverride - Fecha puntual para reducir falsos positivos en API-Football.
    */
-  const handleSearchFixtures = async (queryOverride?: string) => {
+  const handleSearchFixtures = async (queryOverride?: string, dateOverride?: string) => {
     // Definimos la búsqueda final para evitar usar un estado anterior.
     const finalQuery = (queryOverride || fixtureSearchQuery).trim();
+
+    // Definimos la fecha final desde parametro o desde el formulario activo.
+    const finalDate = getFixtureSearchDate(dateOverride || (activeSelectionFixtureIndex !== null ? formData.selections[activeSelectionFixtureIndex]?.match_time : formData.match_date));
 
     // Evitamos consultas vacías o duplicadas.
     if (!finalQuery || isSearchingFixtures) return;
     
     setIsSearchingFixtures(true);
     try {
-      const res = await fetch(`/api/scores/search?q=${encodeURIComponent(finalQuery)}`, {
+      const params = new URLSearchParams({ q: finalQuery });
+      if (finalDate) params.set("date", finalDate);
+      const res = await fetch(`/api/scores/search?${params.toString()}`, {
         headers: { "Authorization": `Bearer ${token}` }
       });
       const data = await res.json();
@@ -1148,13 +1208,38 @@ export function AdminDashboard() {
       setFixtureSearchResults(fixtures);
       
       if (fixtures.length === 0) {
-        toast.info("No se encontraron partidos para esa búsqueda en TheSportsDB");
+        toast.info("No se encontraron partidos para esa búsqueda en API-Football");
       }
     } catch (error: any) {
       toast.error(error.message);
     } finally {
       setIsSearchingFixtures(false);
     }
+  };
+
+  /**
+   * @summary Busca el fixture activo usando aliases API cuando el input esta vacio.
+   */
+  const handleSearchCurrentFixture = () => {
+    // Detectamos si la busqueda pertenece a una seleccion de parlay.
+    const activeSelection = activeSelectionFixtureIndex !== null ? formData.selections[activeSelectionFixtureIndex] : null;
+
+    // Construimos la consulta por alias para parlay o pick individual.
+    const providerQuery = activeSelection
+      ? buildProviderFixtureQuery(activeSelection.home_team, activeSelection.away_team, activeSelection.match_name, teams)
+      : buildProviderFixtureQuery(formData.home_team, formData.away_team, formData.match_name, teams);
+
+    // Preferimos lo escrito manualmente, pero si esta vacio usamos aliases API.
+    const finalQuery = fixtureSearchQuery.trim() || providerQuery;
+
+    // Sin consulta no hay busqueda posible.
+    if (!finalQuery) return;
+
+    // Reflejamos en pantalla la busqueda tecnica que se enviara al proveedor.
+    setFixtureSearchQuery(finalQuery);
+
+    // Ejecutamos busqueda con fecha de la seleccion o del pick simple.
+    handleSearchFixtures(finalQuery, activeSelection ? activeSelection.match_time : formData.match_date);
   };
 
   const handleSelectChange = (name: string, value: string) => {
@@ -2295,12 +2380,12 @@ export function AdminDashboard() {
                             placeholder="Buscar equipos (ej: Real Madrid)..."
                             value={fixtureSearchQuery}
                             onChange={(e) => setFixtureSearchQuery(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleSearchFixtures())}
+                            onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleSearchCurrentFixture())}
                             className="flex-1 bg-background border border-white/10 rounded-2xl px-5 py-3 text-sm text-foreground focus:outline-none focus:border-primary transition-all"
                           />
                           <button
                             type="button"
-                            onClick={() => handleSearchFixtures()}
+                            onClick={handleSearchCurrentFixture}
                             disabled={isSearchingFixtures}
                             className="bg-primary/20 text-primary border border-primary/30 px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-primary hover:text-primary-foreground transition-all flex items-center gap-2 min-w-[140px] justify-center"
                           >
@@ -2315,15 +2400,16 @@ export function AdminDashboard() {
                                  key={fix.id} 
                                  className={`p-4 rounded-2xl border transition-all cursor-pointer flex justify-between items-center gap-4 ${
                                    (activeSelectionFixtureIndex !== null 
-                                     ? formData.selections[activeSelectionFixtureIndex]?.thesportsdb_event_id === fix.id
-                                     : formData.thesportsdb_event_id === fix.id
+                                     ? String(formData.selections[activeSelectionFixtureIndex]?.api_fixture_id || "") === String(fix.id)
+                                     : String(formData.api_fixture_id || "") === String(fix.id)
                                    ) ? 'bg-primary/20 border-primary shadow-lg shadow-primary/10' : 'bg-black/40 border-white/5 hover:border-white/20'}`}
                                  onClick={() => {
                                    if (activeSelectionFixtureIndex !== null) {
                                      const newSelections = [...formData.selections];
                                      newSelections[activeSelectionFixtureIndex] = {
                                        ...newSelections[activeSelectionFixtureIndex],
-                                       thesportsdb_event_id: fix.id,
+                                       api_fixture_id: fix.id,
+                                       thesportsdb_event_id: "",
                                        match_time: newSelections[activeSelectionFixtureIndex]?.match_time || getFixtureDateTimeValue(fix)
                                      };
                                      setFormData(prev => ({ ...prev, selections: newSelections }));
@@ -2333,7 +2419,8 @@ export function AdminDashboard() {
                                    } else {
                                      setFormData(prev => ({ 
                                        ...prev, 
-                                       thesportsdb_event_id: fix.id,
+                                       api_fixture_id: fix.id,
+                                       thesportsdb_event_id: "",
                                        // Si no hay fecha cargada, usamos la de la API
                                        match_date: prev.match_date || getFixtureDateTimeValue(fix)
                                      }));
@@ -2359,8 +2446,8 @@ export function AdminDashboard() {
                                    )}
                                  </div>
                                  {(activeSelectionFixtureIndex !== null 
-                                     ? formData.selections[activeSelectionFixtureIndex]?.thesportsdb_event_id === fix.id
-                                     : formData.thesportsdb_event_id === fix.id
+                                     ? String(formData.selections[activeSelectionFixtureIndex]?.api_fixture_id || "") === String(fix.id)
+                                     : String(formData.api_fixture_id || "") === String(fix.id)
                                  ) ? (
                                    <CheckCircle2 className="w-5 h-5 text-primary shrink-0" />
                                  ) : (
@@ -2371,11 +2458,11 @@ export function AdminDashboard() {
                           </div>
                         )}
 
-                        {(formData.thesportsdb_event_id || formData.api_fixture_id) && !fixtureSearchResults.some(f => f.id === formData.thesportsdb_event_id || f.fixture?.id === formData.api_fixture_id) && (
+                        {(formData.thesportsdb_event_id || formData.api_fixture_id) && !fixtureSearchResults.some(f => String(f.id) === String(formData.api_fixture_id || formData.thesportsdb_event_id) || String(f.fixture?.id || "") === String(formData.api_fixture_id)) && (
                            <div className="flex items-center gap-3 p-3 bg-primary/10 border border-primary/20 rounded-2xl">
                              <CheckCircle2 className="w-4 h-4 text-primary" />
                              <span className="text-xs font-bold text-primary">
-                               Evento vinculado ({formData.thesportsdb_event_id ? `TSDB: ${formData.thesportsdb_event_id}` : `ID: ${formData.api_fixture_id}`})
+                               Evento vinculado ({formData.api_fixture_id ? `API-Football: ${formData.api_fixture_id}` : `Legacy: ${formData.thesportsdb_event_id}`})
                              </span>
                              <button 
                                type="button" 
@@ -2565,10 +2652,11 @@ export function AdminDashboard() {
                                       <button
                                         type="button"
                                         onClick={() => {
+                                          const providerQuery = buildProviderFixtureQuery(sel.home_team, sel.away_team, sel.match_name, teams);
                                           setActiveSelectionFixtureIndex(index);
-                                          setFixtureSearchQuery(sel.match_name || "");
-                                          if (sel.match_name) {
-                                            handleSearchFixtures(sel.match_name);
+                                          setFixtureSearchQuery(providerQuery || sel.match_name || "");
+                                          if (providerQuery || sel.match_name) {
+                                            handleSearchFixtures(providerQuery || sel.match_name, sel.match_time);
                                           }
                                           const searchEl = document.getElementById('fixture-search-area');
                                           if (searchEl) searchEl.scrollIntoView({ behavior: 'smooth' });
@@ -2875,14 +2963,22 @@ export function AdminDashboard() {
                               className="rounded border-white/20 bg-background text-primary focus:ring-primary/50"
                             />
                           </th>
-                          <th className="p-4 text-xs font-bold text-primary uppercase tracking-wider">Fecha</th>
-                          <th className="p-4 text-xs font-bold text-primary uppercase tracking-wider">Partido</th>
-                          <th className="p-4 text-xs font-bold text-primary uppercase tracking-wider">Pick</th>
-                          <th className="p-4 text-xs font-bold text-primary uppercase tracking-wider">Cuota</th>
-                          <th className="p-4 text-xs font-bold text-primary uppercase tracking-wider">Tipo</th>
-                          <th className="p-4 text-xs font-bold text-primary uppercase tracking-wider">Marcador</th>
-                          <th className="p-4 text-xs font-bold text-primary uppercase tracking-wider">Estado</th>
-                          <th className="p-4 text-xs font-bold text-primary uppercase tracking-wider text-right">Acciones</th>
+                          {/* Fijamos ancho de fecha para que no empuje las columnas de resultado. */}
+                          <th className="p-4 w-[170px] text-xs font-bold text-primary uppercase tracking-wider whitespace-nowrap">Fecha</th>
+                          {/* Reservamos espacio al partido porque aqui viven equipos, liga y selecciones de parlay. */}
+                          <th className="p-4 min-w-[330px] text-xs font-bold text-primary uppercase tracking-wider">Partido</th>
+                          {/* Mantenemos el pick junto al marcador para validar lectura operacional. */}
+                          <th className="p-4 min-w-[230px] text-xs font-bold text-primary uppercase tracking-wider">Pick</th>
+                          {/* Acercamos el marcador al pick para que el admin vea resultado y mercado en el mismo bloque visual. */}
+                          <th className="p-4 min-w-[190px] text-xs font-bold text-primary uppercase tracking-wider">Marcador</th>
+                          {/* Centramos cuota con ancho compacto. */}
+                          <th className="p-4 w-[95px] text-xs font-bold text-primary uppercase tracking-wider text-center">Cuota</th>
+                          {/* Ampliamos plan para evitar doble linea en VIP Cuota 4+ / 5+. */}
+                          <th className="p-4 min-w-[180px] text-xs font-bold text-primary uppercase tracking-wider">Plan</th>
+                          {/* Dejamos estado con ancho estable. */}
+                          <th className="p-4 w-[130px] text-xs font-bold text-primary uppercase tracking-wider">Estado</th>
+                          {/* Reservamos espacio a todas las acciones sin apretarlas. */}
+                          <th className="p-4 min-w-[230px] text-xs font-bold text-primary uppercase tracking-wider text-right">Acciones</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-white/10">
@@ -2908,8 +3004,10 @@ export function AdminDashboard() {
                                     className="rounded border-white/20 bg-background text-primary focus:ring-primary/50"
                                   />
                                 </td>
-                                <td className="p-4">{new Date(pick.match_date).toLocaleString()}</td>
-                                <td className="p-4">
+                                {/* Mostramos fecha en una sola linea para que no rompa la altura de la fila. */}
+                                <td className="p-4 w-[170px] whitespace-nowrap">{new Date(pick.match_date).toLocaleString()}</td>
+                                {/* Agrupamos toda la informacion del partido/parlay en una columna amplia. */}
+                                <td className="p-4 min-w-[330px]">
                                   <div className="font-medium">
                                     {pick.is_parlay ? `Parlay (${pick.selections?.length || 0} selecciones)` : pick.match_name}
                                   </div>
@@ -2941,7 +3039,8 @@ export function AdminDashboard() {
                                     </div>
                                   )}
                                 </td>
-                                <td className="p-4 font-medium text-primary">
+                                {/* La columna pick queda antes del marcador para revisar mercado y resultado de corrido. */}
+                                <td className="p-4 min-w-[230px] font-medium text-primary">
                                   {pick.is_parlay ? (
                                     <div className="text-xs text-muted-foreground">Combinada</div>
                                   ) : (
@@ -2951,13 +3050,8 @@ export function AdminDashboard() {
                                     </div>
                                   )}
                                 </td>
-                                <td className="p-4 font-black text-foreground">{pick.odds}</td>
-                                <td className="p-4">
-                                  <span className={`px-2 py-1 rounded text-xs font-medium ${pick.pick_type_slug === 'free' ? 'bg-primary/20 text-primary' : 'bg-accent/20 text-accent'}`}>
-                                    {(pick.pick_type_name || pick.pick_type || 'FREE').toUpperCase()}
-                                  </span>
-                                </td>
-                                <td className="p-4">
+                                {/* Marcador queda pegado al mercado para corregir la lectura operativa del gestor. */}
+                                <td className="p-4 min-w-[190px]">
                                   {Boolean(pick.is_parlay) && Array.isArray(pick.selections) ? (
                                     <div className="min-w-[210px] space-y-1.5">
                                       {pick.selections.map((sel: any, idx: number) => (
@@ -2990,7 +3084,16 @@ export function AdminDashboard() {
                                     </span>
                                   )}
                                 </td>
-                                <td className="p-4">
+                                {/* Cuota se muestra compacta y centrada despues del marcador. */}
+                                <td className="p-4 w-[95px] text-center font-black text-foreground">{pick.odds}</td>
+                                {/* Plan tiene ancho y badge nowrap para que VIP Cuota 4+ no salte de linea. */}
+                                <td className="p-4 min-w-[180px]">
+                                  <span className={`inline-flex whitespace-nowrap px-2.5 py-1 rounded text-xs font-medium ${pick.pick_type_slug === 'free' ? 'bg-primary/20 text-primary' : 'bg-accent/20 text-accent'}`}>
+                                    {(pick.pick_type_name || pick.pick_type || 'FREE').toUpperCase()}
+                                  </span>
+                                </td>
+                                {/* Estado conserva un ancho estable y legible. */}
+                                <td className="p-4 w-[130px]">
                                   <span className={`px-2 py-1 rounded text-xs font-medium ${pick.status === 'won' ? 'bg-green-500/20 text-green-500' :
                                     pick.status === 'lost' ? 'bg-red-500/20 text-red-500' :
                                       pick.status === 'void' ? 'bg-gray-500/20 text-gray-400' :
@@ -2999,7 +3102,8 @@ export function AdminDashboard() {
                                     {getLocalizedStatus(pick.status)}
                                   </span>
                                 </td>
-                                <td className="p-4 text-right">
+                                {/* Acciones tienen ancho minimo para no invadir estado o plan. */}
+                                <td className="p-4 min-w-[230px] text-right">
                                   <div className="flex items-center justify-end gap-2">
                                     {/* Tracking Button */}
                                     <button
@@ -4080,8 +4184,8 @@ export function AdminDashboard() {
               // Validamos coincidencia por liga.
               const matchesLeague = !teamLeagueFilter || leagueId === teamLeagueFilter;
 
-              // Validamos coincidencia por nombre del equipo.
-              const matchesSearch = !teamSearch || String(team.name || "").toLowerCase().includes(teamSearch.toLowerCase());
+              // Validamos coincidencia por nombre visible o alias API.
+              const matchesSearch = !teamSearch || `${team.name || ""} ${team.api_name || ""}`.toLowerCase().includes(teamSearch.toLowerCase());
 
               // Devolvemos solo equipos compatibles con filtros activos.
               return matchesCountry && matchesLeague && matchesSearch;
@@ -4146,6 +4250,18 @@ export function AdminDashboard() {
                           />
                         </div>
 
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-muted-foreground">Nombre en API-Football</label>
+                          <input
+                            type="text"
+                            value={teamForm.api_name}
+                            onChange={(e) => setTeamForm(prev => ({ ...prev, api_name: e.target.value }))}
+                            placeholder="Ej: Paris SG"
+                            className="w-full bg-background border border-white/10 rounded-xl px-5 py-4 text-sm text-foreground focus:outline-none focus:border-primary transition-all"
+                          />
+                          <p className="text-[11px] text-muted-foreground">Este alias solo se usa para consultar resultados. En la web se mantiene el nombre visible.</p>
+                        </div>
+
                         <div className="flex gap-2 pt-2">
                           <button
                             type="submit"
@@ -4165,7 +4281,7 @@ export function AdminDashboard() {
                           {teamForm.id && (
                             <button
                               type="button"
-                              onClick={() => setTeamForm({ id: null, name: "", league_id: "", country_id: "" })}
+                              onClick={() => setTeamForm({ id: null, name: "", api_name: "", league_id: "", country_id: "" })}
                               className="px-4 py-3 rounded-xl bg-white/10 text-white font-bold text-sm hover:bg-white/20 transition-all"
                             >
                               Cancelar
@@ -4228,13 +4344,14 @@ export function AdminDashboard() {
                               <th className="p-4 text-xs font-bold text-primary uppercase tracking-wider">País</th>
                               <th className="p-4 text-xs font-bold text-primary uppercase tracking-wider">Liga</th>
                               <th className="p-4 text-xs font-bold text-primary uppercase tracking-wider">Equipo</th>
+                              <th className="p-4 text-xs font-bold text-primary uppercase tracking-wider">API-Football</th>
                               <th className="p-4 text-xs font-bold text-primary uppercase tracking-wider text-right">Acciones</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-white/10">
                             {filteredTeams.length === 0 ? (
                               <tr>
-                                <td colSpan={4} className="p-12 text-center text-muted-foreground italic">
+                                <td colSpan={5} className="p-12 text-center text-muted-foreground italic">
                                   No hay equipos que coincidan con los filtros.
                                 </td>
                               </tr>
@@ -4257,6 +4374,11 @@ export function AdminDashboard() {
                                     </td>
                                     <td className="p-4 text-muted-foreground">{teamLeague?.name || "-"}</td>
                                     <td className="p-4 font-bold text-white">{team.name}</td>
+                                    <td className="p-4">
+                                      <span className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-2 py-1 text-xs font-bold text-emerald-300">
+                                        {team.api_name || team.name}
+                                      </span>
+                                    </td>
                                     <td className="p-4">
                                       <div className="flex items-center justify-end gap-2">
                                         <button

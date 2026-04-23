@@ -826,7 +826,13 @@ export async function initDB() {
         ('AEM',     'Ambos Marcan',                    'AEM'),
         ('+1.5',    'Más de 1.5 Goles',               '+1.5'),
         ('+2.5',    'Más de 2.5 Goles',               '+2.5'),
-        ('AEM_+2.5','Ambos marcan y más de 2.5 goles', 'AEM & +2.5')
+        ('AEM_+2.5','Ambos marcan y más de 2.5 goles', 'AEM & +2.5'),
+        ('CORNERS_+8.5', 'Más de 8.5 córners', 'Córners +8.5'),
+        ('CORNERS_+9.5', 'Más de 9.5 córners', 'Córners +9.5'),
+        ('CORNERS_+10.5', 'Más de 10.5 córners', 'Córners +10.5'),
+        ('YELLOW_+3.5', 'Más de 3.5 tarjetas amarillas', 'Amarillas +3.5'),
+        ('YELLOW_+4.5', 'Más de 4.5 tarjetas amarillas', 'Amarillas +4.5'),
+        ('YELLOW_+5.5', 'Más de 5.5 tarjetas amarillas', 'Amarillas +5.5')
     `);
         // ── 5. Tabla: users ──────────────────────────────────────────────────────
         // Usuarios registrados en la plataforma
@@ -1010,6 +1016,7 @@ export async function initDB() {
       CREATE TABLE IF NOT EXISTS teams (
         id         INT AUTO_INCREMENT PRIMARY KEY,
         name       VARCHAR(255) NOT NULL,
+        api_name   VARCHAR(255) DEFAULT NULL,
         league_id  INT,
         country_id INT,
         UNIQUE KEY unique_team_league (name, league_id),
@@ -1017,6 +1024,8 @@ export async function initDB() {
         FOREIGN KEY (country_id) REFERENCES countries(id) ON DELETE CASCADE
       )
     `);
+        // Agregamos alias API-Football para consultar proveedores sin cambiar el nombre visible.
+        await conexion.query(`ALTER TABLE teams ADD COLUMN IF NOT EXISTS api_name VARCHAR(255) DEFAULT NULL`).catch(() => { });
         // ── 14. Tabla: app_settings ─────────────────────────────────────────────
         // Configuraciones globales del panel que no pertenecen a una entidad normal.
         await conexion.query(`

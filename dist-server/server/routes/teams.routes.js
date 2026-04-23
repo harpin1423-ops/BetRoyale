@@ -63,6 +63,7 @@ teamsRouter.get("/", async (req, res) => {
         let query = `
       SELECT t.id,
              t.name,
+             t.api_name,
              t.league_id,
              COALESCE(t.country_id, l.country_id) AS country_id
       FROM teams t
@@ -100,7 +101,7 @@ teamsRouter.get("/", async (req, res) => {
 // ─── POST /api/teams ─────────────────────────────────────────────────────────
 /** Crea un nuevo equipo. Solo administradores. */
 teamsRouter.post("/", authenticateToken, requireAdmin, async (req, res) => {
-    const { name, league_id, country_id } = req.body;
+    const { name, league_id, country_id, api_name } = req.body;
     // Validamos campos mínimos antes de consultar datos relacionados.
     if (!name || !league_id) {
         return res.status(400).json({ error: "El nombre y la liga son obligatorios" });
@@ -116,8 +117,10 @@ teamsRouter.post("/", authenticateToken, requireAdmin, async (req, res) => {
         if (!paisCoincideConLiga(country_id, leagueCountryId)) {
             return res.status(400).json({ error: "La liga no pertenece al país seleccionado" });
         }
-        // Guardamos el equipo con el país oficial de la liga.
-        const [resultado] = await pool.query("INSERT INTO teams (name, league_id, country_id) VALUES (?, ?, ?)", [String(name).trim(), league_id, leagueCountryId]);
+        // Normalizamos el alias de API-Football, dejando null para usar fallback al nombre visible.
+        const apiName = api_name && String(api_name).trim() ? String(api_name).trim() : null;
+        // Guardamos el equipo con el país oficial de la liga y su alias de proveedor.
+        const [resultado] = await pool.query("INSERT INTO teams (name, api_name, league_id, country_id) VALUES (?, ?, ?, ?)", [String(name).trim(), apiName, league_id, leagueCountryId]);
         return res.status(201).json({
             id: resultado.insertId,
             message: "Equipo creado correctamente",
@@ -135,7 +138,7 @@ teamsRouter.post("/", authenticateToken, requireAdmin, async (req, res) => {
 /** Actualiza un equipo existente. Solo administradores. */
 teamsRouter.put("/:id", authenticateToken, requireAdmin, async (req, res) => {
     const { id } = req.params;
-    const { name, league_id, country_id } = req.body;
+    const { name, league_id, country_id, api_name } = req.body;
     // Validamos campos mínimos antes de actualizar.
     if (!name || !league_id) {
         return res.status(400).json({ error: "El nombre y la liga son obligatorios" });
@@ -151,8 +154,10 @@ teamsRouter.put("/:id", authenticateToken, requireAdmin, async (req, res) => {
         if (!paisCoincideConLiga(country_id, leagueCountryId)) {
             return res.status(400).json({ error: "La liga no pertenece al país seleccionado" });
         }
-        // Actualizamos nombre, liga y país oficial de la liga.
-        await pool.query("UPDATE teams SET name = ?, league_id = ?, country_id = ? WHERE id = ?", [String(name).trim(), league_id, leagueCountryId, id]);
+        // Normalizamos el alias de API-Football, permitiendo limpiar el campo.
+        const apiName = api_name && String(api_name).trim() ? String(api_name).trim() : null;
+        // Actualizamos nombre visible, alias API, liga y país oficial de la liga.
+        await pool.query("UPDATE teams SET name = ?, api_name = ?, league_id = ?, country_id = ? WHERE id = ?", [String(name).trim(), apiName, league_id, leagueCountryId, id]);
         return res.json({ message: "Equipo actualizado correctamente" });
     }
     catch (error) {

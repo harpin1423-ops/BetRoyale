@@ -1,7 +1,7 @@
 /**
  * @file scores.routes.ts
  * @description Rutas para búsqueda de partidos y ejecución manual del cron de resultados.
- * Integrado con TheSportsDB (gratuita, sin API key).
+ * Integrado con API-Football para marcador, corners y tarjetas.
  */
 
 import { Router } from "express";
@@ -13,20 +13,20 @@ import { pool } from "../config/database.js";
 const router = Router();
 
 /**
- * GET /api/scores/search?q=Barcelona+vs+Real+Madrid
- * Busca partidos en TheSportsDB por nombre (para el panel Admin).
+ * GET /api/scores/search?q=Barcelona+vs+Real+Madrid&date=2026-04-22
+ * Busca partidos en API-Football por nombre/alias y fecha opcional.
  * Solo accesible para administradores.
  */
 router.get("/search", authenticateToken, requireAdmin, async (req, res) => {
-  const { q } = req.query;
+  const { q, date } = req.query;
 
   if (!q || typeof q !== "string") {
     return res.status(400).json({ error: "Falta el término de búsqueda (q)" });
   }
 
   try {
-    const fixtures = await searchFixtures(q);
-    res.json({ fixtures, source: "TheSportsDB" });
+    const fixtures = await searchFixtures(q, typeof date === "string" ? date : undefined);
+    res.json({ fixtures, source: "API-Football" });
   } catch (error: any) {
     console.error("[SCORES] Error buscando partidos:", error);
     res.status(500).json({ error: error.message });
@@ -69,7 +69,7 @@ router.get("/test", authenticateToken, requireAdmin, async (req, res) => {
   try {
     const result = await getMatchResultByName(match, date);
     if (!result) {
-      return res.json({ found: false, message: "No se encontró el partido en TheSportsDB" });
+      return res.json({ found: false, message: "No se encontró el partido en API-Football" });
     }
     res.json({ found: true, result });
   } catch (error: any) {
@@ -87,6 +87,7 @@ router.get("/pending-picks", authenticateToken, requireAdmin, async (req, res) =
   try {
     const [picks]: any = await pool.query(`
       SELECT p.id, p.match_name, p.match_date, p.status, p.is_parlay,
+             p.api_fixture_id,
              p.thesportsdb_event_id,
              pt.name AS pick_type_name,
              m.acronym AS market_acronym
@@ -120,7 +121,7 @@ router.get("/debug", authenticateToken, requireAdmin, async (_req, res) => {
 
     // Obtenemos picks próximos a vencer el umbral de 105 minutos
     const [picks]: any = await pool.query(`
-      SELECT id, match_name, match_date, status, thesportsdb_event_id,
+      SELECT id, match_name, match_date, status, api_fixture_id, thesportsdb_event_id,
              DATE_SUB(NOW(), INTERVAL 105 MINUTE) as threshold
       FROM picks 
       WHERE status = 'pending'

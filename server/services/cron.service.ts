@@ -1,7 +1,7 @@
 /**
  * @file cron.service.ts
  * @description Tarea programada para la actualización automática de resultados.
- * Usa TheSportsDB (gratuita) para buscar resultados por nombre de partido y fecha.
+ * Usa API-Football para marcador, corners, tarjetas y resolucion de picks.
  * Corre cada hora y procesa picks pendientes cuya fecha de partido ya pasó.
  */
 
@@ -27,7 +27,7 @@ export function initCronJobs() {
   // Minuto 5 de cada hora: '5 * * * *'
   cron.schedule("5 * * * *", async () => {
     console.log(
-      `[CRON] ${new Date().toISOString()} - Iniciando verificación de resultados (TheSportsDB)...`
+      `[CRON] ${new Date().toISOString()} - Iniciando verificación de resultados (API-Football)...`
     );
     try {
       await processPendingPicks();
@@ -36,7 +36,7 @@ export function initCronJobs() {
     }
   });
 
-  console.log("✅ Cron de resultados iniciado (TheSportsDB, frecuencia: 1 hora)");
+  console.log("✅ Cron de resultados iniciado (API-Football, frecuencia: 1 hora)");
 }
 
 /**
@@ -47,6 +47,65 @@ export async function runCronManually(): Promise<{ processed: number; errors: nu
   console.log("[CRON MANUAL] Iniciando procesamiento manual (60 min threshold)...");
   // En ejecución manual permitimos picks de hace 60 min (para captar resultados rápido)
   return processPendingPicks(60);
+}
+
+/**
+ * <summary>
+ * Construye el nombre tecnico para consultar API-Football sin alterar el nombre visible.
+ * </summary>
+ * @param homeName - Nombre visible del equipo local.
+ * @param homeApiName - Alias API-Football del equipo local.
+ * @param awayName - Nombre visible del equipo visitante.
+ * @param awayApiName - Alias API-Football del equipo visitante.
+ * @param fallback - Nombre del partido guardado cuando faltan equipos.
+ * @returns Texto "Local API vs Visitante API" o fallback visible.
+ */
+function buildProviderMatchName(homeName: string | null, homeApiName: string | null, awayName: string | null, awayApiName: string | null, fallback: string): string {
+  // Elegimos alias API cuando exista; si no, usamos nombre visible.
+  const providerHomeName = String(homeApiName || homeName || "").trim();
+
+  // Elegimos alias API visitante cuando exista; si no, usamos nombre visible.
+  const providerAwayName = String(awayApiName || awayName || "").trim();
+
+  // Si tenemos ambos lados, construimos una busqueda precisa.
+  if (providerHomeName && providerAwayName) {
+    return `${providerHomeName} vs ${providerAwayName}`;
+  }
+
+  // Si falta algun equipo, usamos el nombre del partido como respaldo.
+  return String(fallback || "").trim();
+}
+
+/**
+ * <summary>
+ * Obtiene el nombre tecnico para una seleccion de parlay desde los IDs de equipos.
+ * </summary>
+ * @param selection - Seleccion del parlay con home_team y away_team opcionales.
+ * @returns Texto optimizado para API-Football.
+ */
+async function buildProviderMatchNameFromSelection(selection: any): Promise<string> {
+  // Leemos IDs de equipos guardados dentro de la seleccion.
+  const teamIds = [selection?.home_team, selection?.away_team].filter(Boolean);
+
+  // Si no tenemos ambos IDs, usamos el match_name guardado.
+  if (teamIds.length < 2) {
+    return String(selection?.match_name || "").trim();
+  }
+
+  // Consultamos nombres visibles y alias API en lote.
+  const [rows]: any = await pool.query(
+    "SELECT id, name, api_name FROM teams WHERE id IN (?)",
+    [teamIds]
+  );
+
+  // Buscamos el equipo local dentro de la respuesta.
+  const homeTeam = rows.find((team: any) => String(team.id) === String(selection.home_team));
+
+  // Buscamos el equipo visitante dentro de la respuesta.
+  const awayTeam = rows.find((team: any) => String(team.id) === String(selection.away_team));
+
+  // Construimos el nombre tecnico conservando fallback visible.
+  return buildProviderMatchName(homeTeam?.name, homeTeam?.api_name, awayTeam?.name, awayTeam?.api_name, selection.match_name);
 }
 
 /**
@@ -68,12 +127,18 @@ async function processPendingPicks(minMinutes: number = 105): Promise<{ processe
            c.name  AS country_name,
            c.flag  AS country_flag,
            m.label AS market_label,
-           m.acronym AS market_acronym
+           m.acronym AS market_acronym,
+           ht.name AS home_team_name,
+           ht.api_name AS home_team_api_name,
+           at.name AS away_team_name,
+           at.api_name AS away_team_api_name
     FROM picks p
     LEFT JOIN leagues  l  ON p.league_id     = l.id
     LEFT JOIN pick_types pt ON p.pick_type_id = pt.id
     LEFT JOIN countries  c  ON l.country_id   = c.id
     LEFT JOIN markets    m  ON p.pick         = m.id
+    LEFT JOIN teams      ht ON p.home_team_id = ht.id
+    LEFT JOIN teams      at ON p.away_team_id = at.id
     /* Seleccionamos picks pendientes O picks que no tengan marcador (para autocompletar) */
     WHERE (p.status = 'pending' OR (p.score_home IS NULL AND p.score_away IS NULL))
       AND p.match_name IS NOT NULL
@@ -110,73 +175,89 @@ async function processPendingPicks(minMinutes: number = 105): Promise<{ processe
 }
 
 /**
- * Resuelve un pick individual buscando el resultado en TheSportsDB.
+ * Resuelve un pick individual buscando el resultado en API-Football.
  * Estrategia:
- * 1. Si tiene thesportsdb_event_id guardado → búsqueda directa por ID
- * 2. Si no → búsqueda por match_name + match_date
+ * 1. Si tiene api_fixture_id guardado, busqueda directa por ID.
+ * 2. Si no, busqueda por alias API de equipos mas fecha.
  */
 async function handleSinglePickResolution(pick: any): Promise<void> {
   let result = null;
 
-  // Estrategia 1: por ID guardado previamente
-  if (pick.thesportsdb_event_id) {
-    result = await getFixtureResult(String(pick.thesportsdb_event_id));
+  // Estrategia 1: por ID oficial de API-Football guardado previamente.
+  if (pick.api_fixture_id) {
+    result = await getFixtureResult(String(pick.api_fixture_id));
   }
 
-  // Estrategia 2: por nombre de partido + fecha
+  // Construimos el nombre tecnico con alias API para evitar fallos por nombres visibles.
+  const providerMatchName = buildProviderMatchName(
+    pick.home_team_name,
+    pick.home_team_api_name,
+    pick.away_team_name,
+    pick.away_team_api_name,
+    pick.match_name
+  );
+
+  // Estrategia 2: por nombre tecnico de partido + fecha.
   if (!result) {
-    result = await getMatchResultByName(pick.match_name, pick.match_date);
+    result = await getMatchResultByName(providerMatchName, pick.match_date);
   }
 
   if (!result) {
-    console.log(`[CRON] Pick #${pick.id} — Sin resultado encontrado para "${pick.match_name}"`);
+    console.log(`[CRON] Pick #${pick.id} - Sin resultado encontrado para "${providerMatchName}"`);
     return;
   }
 
-  // Guardar el ID del evento si lo encontramos (para la próxima vez)
-  if (result.eventId && !pick.thesportsdb_event_id) {
+  // Guardar el ID oficial de API-Football si lo encontramos para la proxima vez.
+  if (result.eventId && !pick.api_fixture_id) {
     await pool.query(
-      "UPDATE picks SET thesportsdb_event_id = ? WHERE id = ?",
+      "UPDATE picks SET api_fixture_id = ? WHERE id = ?",
       [result.eventId, pick.id]
     );
   }
 
-  // Si el partido aún no terminó, esperamos
+  // Si el partido aun no termino, esperamos.
   if (!isFinished(result.status)) {
-    console.log(`[CRON] Pick #${pick.id} — Partido no terminado (${result.status}), se reintentará.`);
+    console.log(`[CRON] Pick #${pick.id} - Partido no terminado (${result.status}), se reintentara.`);
     return;
   }
 
-  // Si no hay marcador válido, esperamos
+  // Si no hay marcador valido, esperamos.
   if (result.goalsHome === null || result.goalsAway === null) {
-    console.log(`[CRON] Pick #${pick.id} — Sin marcador aún (${result.status})`);
+    console.log(`[CRON] Pick #${pick.id} - Sin marcador aun (${result.status})`);
     return;
   }
 
-  // Evaluamos el resultado del pick
+  // Guardamos marcador aunque el mercado especial quede pendiente por falta de stats.
+  await pool.query(
+    "UPDATE picks SET score_home = ?, score_away = ?, api_fixture_id = COALESCE(api_fixture_id, ?) WHERE id = ?",
+    [result.goalsHome, result.goalsAway, result.eventId || null, pick.id]
+  );
+
+  // Evaluamos el resultado del pick con marcador y estadisticas disponibles.
   const marketAcronym = pick.market_acronym || pick.pick || "";
   const newStatus = evaluatePickStatus(
     marketAcronym,
     result.goalsHome,
-    result.goalsAway
+    result.goalsAway,
+    result
   );
 
   if (newStatus === "pending") {
-    console.log(`[CRON] Pick #${pick.id} — Mercado "${marketAcronym}" no automatizable, skip.`);
+    console.log(`[CRON] Pick #${pick.id} - Mercado "${marketAcronym}" requiere revision manual o estadisticas no disponibles.`);
     return;
   }
 
-  // Actualizamos en la BD
+  // Actualizamos estado final en la BD.
   await pool.query(
-    `UPDATE picks SET status = ?, score_home = ?, score_away = ? WHERE id = ?`,
-    [newStatus, result.goalsHome, result.goalsAway, pick.id]
+    "UPDATE picks SET status = ? WHERE id = ?",
+    [newStatus, pick.id]
   );
 
   console.log(
-    `[CRON] ✅ Pick #${pick.id} (${pick.match_name}) → ${newStatus} (${result.goalsHome}-${result.goalsAway})`
+    `[CRON] Pick #${pick.id} (${pick.match_name}) -> ${newStatus} (${result.goalsHome}-${result.goalsAway})`
   );
 
-  // Notificamos a Telegram
+  // Notificamos a Telegram.
   await notificarResultado({
     ...pick,
     status: newStatus,
@@ -215,12 +296,20 @@ async function handleParlayResolution(pick: any): Promise<void> {
     // Buscamos el resultado de esta selección
     let result = null;
 
-    if (sel.thesportsdb_event_id) {
-      result = await getFixtureResult(String(sel.thesportsdb_event_id));
+    // Usamos primero el ID oficial de API-Football y mantenemos compatibilidad con selecciones antiguas.
+    const fixtureId = sel.api_fixture_id || sel.thesportsdb_event_id;
+
+    // Buscamos resultado por fixture vinculado.
+    if (fixtureId) {
+      result = await getFixtureResult(String(fixtureId));
     }
 
+    // Construimos nombre tecnico usando aliases API de equipos de la seleccion.
+    const providerMatchName = await buildProviderMatchNameFromSelection(sel);
+
+    // Si no hay ID, buscamos por alias API y fecha.
     if (!result && sel.match_name && sel.match_time) {
-      result = await getMatchResultByName(sel.match_name, sel.match_time);
+      result = await getMatchResultByName(providerMatchName || sel.match_name, sel.match_time);
     }
 
     if (!result || !isFinished(result.status)) {
@@ -233,17 +322,18 @@ async function handleParlayResolution(pick: any): Promise<void> {
       continue;
     }
 
-    // Guardar ID de evento en la selección si lo encontramos
-    if (result.eventId && !sel.thesportsdb_event_id) {
-      sel.thesportsdb_event_id = result.eventId;
+    // Guardar ID de API-Football en la seleccion si lo encontramos.
+    if (result.eventId && !sel.api_fixture_id) {
+      sel.api_fixture_id = result.eventId;
     }
 
-    // Evaluar el mercado de esta selección
+    // Evaluar el mercado de esta seleccion con marcador y estadisticas.
     const marketAcronym = sel.market_acronym || sel.pick || "";
     const selStatus = evaluatePickStatus(
       marketAcronym,
       result.goalsHome,
-      result.goalsAway
+      result.goalsAway,
+      result
     );
 
     sel.score_home = result.goalsHome;
@@ -251,7 +341,7 @@ async function handleParlayResolution(pick: any): Promise<void> {
     sel.status = selStatus;
     anyUpdated = true;
 
-    // Si el mercado no se puede evaluar automáticamente, el parlay sigue pendiente.
+    // Si el mercado no se puede evaluar automaticamente, el parlay sigue pendiente.
     if (selStatus === "pending") {
       allFinished = false;
       continue;
