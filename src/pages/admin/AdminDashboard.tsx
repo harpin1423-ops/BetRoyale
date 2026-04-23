@@ -1202,6 +1202,19 @@ export function AdminDashboard() {
       });
       const data = await res.json();
       
+      // Convertimos limites de plan API-Football en advertencia controlada, no en error critico.
+      if (data?.code === "API_PLAN_LIMIT") {
+        // Limpiamos resultados para evitar que quede un fixture viejo seleccionado visualmente.
+        setFixtureSearchResults([]);
+
+        // Mostramos aviso operativo para que el admin sepa que debe vincular manualmente o ampliar plan.
+        toast.warning(data.error || "API-Football no permite consultar esa fecha con el plan actual.");
+
+        // Cortamos el flujo sin lanzar error rojo.
+        return;
+      }
+
+      // Cualquier otro status HTTP sigue siendo error real del flujo.
       if (!res.ok) throw new Error(data.error || "Error al buscar partidos");
       
       const fixtures = Array.isArray(data.fixtures) ? data.fixtures : [];

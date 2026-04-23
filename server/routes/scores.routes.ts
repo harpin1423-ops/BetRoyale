@@ -28,6 +28,15 @@ router.get("/search", authenticateToken, requireAdmin, async (req, res) => {
     const fixtures = await searchFixtures(q, typeof date === "string" ? date : undefined);
     res.json({ fixtures, source: "API-Football" });
   } catch (error: any) {
+    // Tratamos limites de plan como advertencia operacional, no como fallo interno.
+    if (error?.code === "API_PLAN_LIMIT") {
+      // Dejamos registro controlado sin ruido de stacktrace.
+      console.warn("[SCORES] Límite de plan API-Football:", error.message);
+
+      // Respondemos con codigo estable para que el panel admin muestre aviso no critico.
+      return res.status(409).json({ code: "API_PLAN_LIMIT", error: error.message, fixtures: [] });
+    }
+
     console.error("[SCORES] Error buscando partidos:", error);
     res.status(500).json({ error: error.message });
   }

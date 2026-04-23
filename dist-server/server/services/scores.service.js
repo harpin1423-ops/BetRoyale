@@ -422,8 +422,18 @@ export async function searchFixtures(query, matchDate) {
         const message = error instanceof Error ? error.message : String(error);
         // Si API-Football responde por limite de plan, lo subimos al panel admin con texto claro.
         if (message.includes("\"plan\"") || message.toLowerCase().includes("free plans")) {
-            // Lanzamos error claro para que el frontend no muestre solo "sin resultados".
-            throw new Error("API-Football conectó correctamente, pero el plan actual no tiene acceso a esa temporada. Para partidos actuales necesitas ampliar el plan o probar con temporadas 2022-2024.");
+            // Detectamos si el limite fue por fecha puntual.
+            const isDateLimit = message.toLowerCase().includes("this date");
+            // Extraemos el rango sugerido por API-Football cuando viene en la respuesta.
+            const suggestedRange = message.match(/try from ([^".]+)/i)?.[1];
+            // Construimos una explicación operativa para el administrador.
+            const planMessage = isDateLimit
+                ? `API-Football conectó correctamente, pero tu plan actual no permite consultar la fecha seleccionada${suggestedRange ? `; el proveedor permite ${suggestedRange}` : ""}. Usa vínculo manual para ese pick o amplía el plan de API-Football.`
+                : `API-Football conectó correctamente, pero tu plan actual no permite consultar esa temporada${suggestedRange ? `; el proveedor permite ${suggestedRange}` : ""}. Usa vínculo manual para ese pick o amplía el plan de API-Football.`;
+            // Marcamos el error con codigo estable para que el frontend lo trate como advertencia.
+            const planError = Object.assign(new Error(planMessage), { code: "API_PLAN_LIMIT" });
+            // Lanzamos el error tipado.
+            throw planError;
         }
         // Registramos sin tumbar el panel admin.
         console.error("[SCORES] Error buscando en API-Football:", error);
