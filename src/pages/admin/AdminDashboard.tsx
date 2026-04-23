@@ -222,8 +222,29 @@ export function AdminDashboard() {
     is_parlay: false,
     selections: [] as any[],
     api_fixture_id: "" as string | number,
+    thesportsdb_event_id: "",
     auto_update: true
   });
+
+  const [isRunningCron, setIsRunningCron] = useState(false);
+
+  const handleRunCron = async () => {
+    setIsRunningCron(true);
+    try {
+      const res = await fetch("/api/scores/run-cron", {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Error al ejecutar actualización");
+      toast.success(data.message || "Resultados actualizados correctamente");
+      fetchPicks();
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setIsRunningCron(false);
+    }
+  };
 
   // State for fixture search (API-Football)
   const [fixtureSearchResults, setFixtureSearchResults] = useState<any[]>([]);
@@ -1082,9 +1103,11 @@ export function AdminDashboard() {
       
       if (!res.ok) throw new Error(data.error || "Error al buscar partidos");
       
-      setFixtureSearchResults(Array.isArray(data) ? data : []);
-      if (Array.isArray(data) && data.length === 0) {
-        toast.info("No se encontraron partidos para esa búsqueda");
+      const fixtures = Array.isArray(data.fixtures) ? data.fixtures : [];
+      setFixtureSearchResults(fixtures);
+      
+      if (fixtures.length === 0) {
+        toast.info("No se encontraron partidos para esa búsqueda en TheSportsDB");
       }
     } catch (error: any) {
       toast.error(error.message);
@@ -1236,6 +1259,7 @@ export function AdminDashboard() {
       const submissionData = { 
         ...formData,
         api_fixture_id: formData.api_fixture_id ? Number(formData.api_fixture_id) : null,
+        thesportsdb_event_id: formData.thesportsdb_event_id || null,
         auto_update: formData.auto_update ? 1 : 0
       };
 
@@ -1402,6 +1426,7 @@ export function AdminDashboard() {
       is_parlay: pick.is_parlay === 1 || pick.is_parlay === true,
       selections: parsedSelections,
       api_fixture_id: pick.api_fixture_id || "",
+      thesportsdb_event_id: pick.thesportsdb_event_id || "",
       auto_update: pick.auto_update === 1 || pick.auto_update === true
     });
     setEditingPickId(pick.id);
@@ -1425,6 +1450,7 @@ export function AdminDashboard() {
       is_parlay: false,
       selections: [],
       api_fixture_id: "",
+      thesportsdb_event_id: "",
       auto_update: true
     });
     setFixtureSearchQuery("");
@@ -2245,44 +2271,55 @@ export function AdminDashboard() {
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[240px] overflow-y-auto pr-2 custom-scrollbar">
                              {fixtureSearchResults.map((fix: any) => (
                                <div 
-                                 key={fix.fixture.id} 
+                                 key={fix.id} 
                                  className={`p-4 rounded-2xl border transition-all cursor-pointer flex justify-between items-center gap-4 ${
                                    (activeSelectionFixtureIndex !== null 
-                                     ? formData.selections[activeSelectionFixtureIndex]?.api_fixture_id === fix.fixture.id
-                                     : formData.api_fixture_id === fix.fixture.id
+                                     ? formData.selections[activeSelectionFixtureIndex]?.thesportsdb_event_id === fix.id
+                                     : formData.thesportsdb_event_id === fix.id
                                    ) ? 'bg-primary/20 border-primary shadow-lg shadow-primary/10' : 'bg-black/40 border-white/5 hover:border-white/20'}`}
                                  onClick={() => {
                                    if (activeSelectionFixtureIndex !== null) {
                                      const newSelections = [...formData.selections];
                                      newSelections[activeSelectionFixtureIndex] = {
                                        ...newSelections[activeSelectionFixtureIndex],
-                                       api_fixture_id: fix.fixture.id
+                                       thesportsdb_event_id: fix.id,
+                                       match_date: fix.date
                                      };
                                      setFormData(prev => ({ ...prev, selections: newSelections }));
                                      setActiveSelectionFixtureIndex(null);
                                      setFixtureSearchResults([]);
                                      setFixtureSearchQuery("");
                                    } else {
-                                     setFormData(prev => ({ ...prev, api_fixture_id: fix.fixture.id }));
+                                     setFormData(prev => ({ 
+                                       ...prev, 
+                                       thesportsdb_event_id: fix.id,
+                                       // Si no hay fecha cargada, usamos la de la API
+                                       match_date: prev.match_date || (fix.date ? `${fix.date}T${fix.time || '00:00'}` : prev.match_date)
+                                     }));
                                    }
                                  }}
                                >
                                  <div className="flex-1 min-w-0">
                                    <div className="flex items-center gap-2 mb-1">
                                      <span className="text-[9px] font-black bg-white/10 text-muted-foreground px-1.5 py-0.5 rounded uppercase tracking-tighter">
-                                       {fix.league.name}
+                                       {fix.league}
                                      </span>
                                      <span className="text-[9px] font-black text-primary/60 uppercase tracking-widest">
-                                       {new Date(fix.fixture.date).toLocaleDateString()}
+                                       {fix.date} {fix.time}
                                      </span>
                                    </div>
                                    <div className="text-xs font-black text-foreground truncate">
-                                     {fix.teams.home.name} vs {fix.teams.away.name}
+                                     {fix.name}
                                    </div>
+                                   {fix.homeScore !== null && (
+                                     <div className="text-[10px] font-bold text-primary mt-1">
+                                       Resultado: {fix.homeScore} - {fix.awayScore} ({fix.status})
+                                     </div>
+                                   )}
                                  </div>
                                  {(activeSelectionFixtureIndex !== null 
-                                     ? formData.selections[activeSelectionFixtureIndex]?.api_fixture_id === fix.fixture.id
-                                     : formData.api_fixture_id === fix.fixture.id
+                                     ? formData.selections[activeSelectionFixtureIndex]?.thesportsdb_event_id === fix.id
+                                     : formData.thesportsdb_event_id === fix.id
                                  ) ? (
                                    <CheckCircle2 className="w-5 h-5 text-primary shrink-0" />
                                  ) : (
@@ -2293,13 +2330,15 @@ export function AdminDashboard() {
                           </div>
                         )}
 
-                        {formData.api_fixture_id && !fixtureSearchResults.some(f => f.fixture.id === formData.api_fixture_id) && (
+                        {(formData.thesportsdb_event_id || formData.api_fixture_id) && !fixtureSearchResults.some(f => f.id === formData.thesportsdb_event_id || f.fixture?.id === formData.api_fixture_id) && (
                            <div className="flex items-center gap-3 p-3 bg-primary/10 border border-primary/20 rounded-2xl">
                              <CheckCircle2 className="w-4 h-4 text-primary" />
-                             <span className="text-xs font-bold text-primary">Fixture vinculado (ID: {formData.api_fixture_id})</span>
+                             <span className="text-xs font-bold text-primary">
+                               Evento vinculado ({formData.thesportsdb_event_id ? `TSDB: ${formData.thesportsdb_event_id}` : `ID: ${formData.api_fixture_id}`})
+                             </span>
                              <button 
                                type="button" 
-                               onClick={() => setFormData(prev => ({ ...prev, api_fixture_id: "" }))}
+                               onClick={() => setFormData(prev => ({ ...prev, api_fixture_id: "", thesportsdb_event_id: "" }))}
                                className="ml-auto text-[10px] font-black text-muted-foreground hover:text-destructive transition-colors uppercase tracking-widest"
                              >
                                Desvincular
@@ -2500,15 +2539,18 @@ export function AdminDashboard() {
                                         <Activity className="w-4 h-4" />
                                       </button>
                                     </div>
-                                    {sel.api_fixture_id && (
+                                    {(sel.thesportsdb_event_id || sel.api_fixture_id) && (
                                       <div className="mt-1 flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-primary/5 border border-primary/20 w-fit">
                                         <CheckCircle2 className="w-3 h-3 text-primary" />
-                                        <span className="text-[10px] font-black text-primary">VINCULADO: {sel.api_fixture_id}</span>
+                                        <span className="text-[10px] font-black text-primary">
+                                          VINCULADO: {sel.thesportsdb_event_id || sel.api_fixture_id}
+                                        </span>
                                         <button 
                                           type="button" 
                                           onClick={() => {
                                             const newSels = [...formData.selections];
                                             newSels[index].api_fixture_id = "";
+                                            newSels[index].thesportsdb_event_id = "";
                                             setFormData(p => ({ ...p, selections: newSels }));
                                           }}
                                           className="text-[9px] font-black text-muted-foreground hover:text-destructive underline ml-1"
@@ -2757,6 +2799,24 @@ export function AdminDashboard() {
                       <>
                         <BrainCircuit size={16} />
                         Verificar Seleccionados con IA
+                      </>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleRunCron}
+                    disabled={isRunningCron}
+                    className="bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded-xl text-sm flex items-center gap-2 transition-all font-bold shadow-lg shadow-emerald-500/20"
+                  >
+                    {isRunningCron ? (
+                      <>
+                        <Loader2 size={16} className="animate-spin" />
+                        Actualizando...
+                      </>
+                    ) : (
+                      <>
+                        <Activity size={16} />
+                        Forzar Actualización de Resultados
                       </>
                     )}
                   </button>

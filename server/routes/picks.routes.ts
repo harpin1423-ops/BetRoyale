@@ -678,8 +678,9 @@ router.post("/", authenticateToken, requireAdmin, async (req, res) => {
     const [resultado] = await pool.query(
       `INSERT INTO picks 
        (match_date, league_id, match_name, pick, odds, stake, pick_type_id, 
-        analysis, is_parlay, selections, league, pick_type, home_team_id, away_team_id) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        analysis, is_parlay, selections, league, pick_type, home_team_id, away_team_id,
+        thesportsdb_event_id, auto_update) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         fechaFormateada,
         is_parlay ? null : league_id,
@@ -694,7 +695,9 @@ router.post("/", authenticateToken, requireAdmin, async (req, res) => {
         is_parlay ? "Parlay" : "",
         slugTipo,
         is_parlay ? null : (req.body.home_team || null),
-        is_parlay ? null : (req.body.away_team || null)
+        is_parlay ? null : (req.body.away_team || null),
+        req.body.thesportsdb_event_id || null,
+        req.body.auto_update !== undefined ? (req.body.auto_update ? 1 : 0) : 1
       ]
     );
 
@@ -798,7 +801,8 @@ router.put("/:id", authenticateToken, requireAdmin, async (req, res) => {
       `UPDATE picks SET 
        match_date = ?, league_id = ?, match_name = ?, pick = ?, odds = ?, 
        stake = ?, pick_type_id = ?, analysis = ?, is_parlay = ?, 
-       selections = ?, league = ?, pick_type = ?, home_team_id = ?, away_team_id = ? 
+       selections = ?, league = ?, pick_type = ?, home_team_id = ?, away_team_id = ?,
+       thesportsdb_event_id = ?, auto_update = ?
        WHERE id = ?`,
       [
         fechaFormateada,
@@ -813,6 +817,8 @@ router.put("/:id", authenticateToken, requireAdmin, async (req, res) => {
         slugTipo,
         is_parlay ? null : (req.body.home_team || null),
         is_parlay ? null : (req.body.away_team || null),
+        req.body.thesportsdb_event_id || null,
+        req.body.auto_update !== undefined ? (req.body.auto_update ? 1 : 0) : 1,
         id,
       ]
     );
