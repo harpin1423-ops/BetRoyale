@@ -108,4 +108,31 @@ router.get("/pending-picks", authenticateToken, requireAdmin, async (req, res) =
   }
 });
 
+/**
+ * GET /api/scores/debug
+ * Muestra el tiempo del servidor DB y los picks que están cerca de ser procesados.
+ */
+router.get("/debug", authenticateToken, requireAdmin, async (_req, res) => {
+  try {
+    const [[{ now }]] = await pool.query("SELECT NOW() as now");
+    const [picks]: any = await pool.query(`
+      SELECT id, match_name, match_date, status, thesportsdb_event_id,
+             DATE_SUB(NOW(), INTERVAL 105 MINUTE) as threshold
+      FROM picks 
+      WHERE status = 'pending'
+      ORDER BY match_date ASC
+      LIMIT 10
+    `);
+
+    res.json({
+      db_now: now,
+      server_now: new Date().toISOString(),
+      threshold_105_min: picks[0]?.threshold || "N/A",
+      pending_picks: picks
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;

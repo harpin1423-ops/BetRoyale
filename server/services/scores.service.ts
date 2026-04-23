@@ -47,7 +47,11 @@ async function tsdbFetch(endpoint: string): Promise<any> {
  * Convierte "FC Barcelona vs Celta de Vigo" → "FC_Barcelona_vs_Celta_de_Vigo"
  */
 function normalizeMatchName(name: string): string {
-  return name.trim().replace(/\s+/g, "_");
+  // Limpiamos caracteres especiales y normalizamos el conector "vs"
+  return name
+    .trim()
+    .replace(/\s+-\s+/g, " vs ") // "Team A - Team B" -> "Team A vs Team B"
+    .replace(/\s+/g, "_");        // "Team A vs Team B" -> "Team_A_vs_Team_B"
 }
 
 /**
@@ -219,22 +223,34 @@ export function evaluatePickStatus(
 
   switch (marketId) {
     // ── Resultado final (1X2) ──
-    case "1":       // Gana Local
+    case "1":
+    case "Gana Local":
+    case "GL":
       return goalsHome > goalsAway ? "won" : "lost";
-    case "2":       // Gana Visitante
+    case "2":
+    case "Gana Visitante":
+    case "GV":
       return goalsAway > goalsHome ? "won" : "lost";
-    case "X":       // Empate
+    case "X":
+    case "Empate":
+    case "E":
       return goalsHome === goalsAway ? "won" : "lost";
 
     // ── Doble oportunidad ──
-    case "1X":      // Local o Empate
+    case "1X":
+    case "Local o Empate":
       return goalsHome >= goalsAway ? "won" : "lost";
-    case "X2":      // Visitante o Empate
+    case "X2":
+    case "Visitante o Empate":
       return goalsAway >= goalsHome ? "won" : "lost";
-    case "12":      // Local o Visitante (no empate)
+    case "12":
+    case "Local o Visitante":
       return goalsHome !== goalsAway ? "won" : "lost";
 
     // ── Goles ──
+    case "+0.5":
+    case "MAS_0.5":
+      return totalGoals > 0.5 ? "won" : "lost";
     case "+1.5":
     case "MAS_1.5":
       return totalGoals > 1.5 ? "won" : "lost";
@@ -244,23 +260,32 @@ export function evaluatePickStatus(
     case "+3.5":
     case "MAS_3.5":
       return totalGoals > 3.5 ? "won" : "lost";
+    case "-0.5":
+    case "MEN_0.5":
+      return totalGoals < 0.5 ? "won" : "lost";
     case "-1.5":
     case "MEN_1.5":
       return totalGoals < 1.5 ? "won" : "lost";
     case "-2.5":
     case "MEN_2.5":
       return totalGoals < 2.5 ? "won" : "lost";
+    case "-3.5":
+    case "MEN_3.5":
+      return totalGoals < 3.5 ? "won" : "lost";
 
     // ── Ambos marcan ──
     case "AEM":
     case "BTTS":
+    case "Si":
       return goalsHome > 0 && goalsAway > 0 ? "won" : "lost";
     case "AEM_NO":
     case "BTTS_NO":
+    case "No":
       return !(goalsHome > 0 && goalsAway > 0) ? "won" : "lost";
 
     // ── Combinados ──
     case "AEM_+2.5":
+    case "Si y +2.5":
       return goalsHome > 0 && goalsAway > 0 && totalGoals > 2.5 ? "won" : "lost";
 
     // ── Hándicap asiático simple ──

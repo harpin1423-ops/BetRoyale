@@ -44,8 +44,9 @@ export function initCronJobs() {
  * Lo expone el servidor si se llama directamente.
  */
 export async function runCronManually(): Promise<{ processed: number; errors: number }> {
-  console.log("[CRON MANUAL] Iniciando procesamiento manual...");
-  return processPendingPicks();
+  console.log("[CRON MANUAL] Iniciando procesamiento manual (60 min threshold)...");
+  // En ejecución manual permitimos picks de hace 60 min (para captar resultados rápido)
+  return processPendingPicks(60);
 }
 
 /**
@@ -55,7 +56,7 @@ export async function runCronManually(): Promise<{ processed: number; errors: nu
  *  - match_date < ahora - 105 minutos (partido debería haber terminado)
  *  - tiene un match_name (para poder buscar en la API)
  */
-async function processPendingPicks(): Promise<{ processed: number; errors: number }> {
+async function processPendingPicks(minMinutes: number = 105): Promise<{ processed: number; errors: number }> {
   let processed = 0;
   let errors = 0;
 
@@ -76,10 +77,10 @@ async function processPendingPicks(): Promise<{ processed: number; errors: numbe
     WHERE p.status = 'pending'
       AND p.match_name IS NOT NULL
       AND p.match_name != ''
-      AND p.match_date < DATE_SUB(NOW(), INTERVAL 105 MINUTE)
+      AND p.match_date < DATE_SUB(NOW(), INTERVAL ? MINUTE)
     ORDER BY p.match_date ASC
     LIMIT 50
-  `);
+  `, [minMinutes]);
 
   if (!picks.length) {
     console.log("[CRON] Sin picks pendientes por actualizar.");
