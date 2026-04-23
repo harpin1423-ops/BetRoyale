@@ -32,3 +32,4 @@ Eres el Ingeniero Líder y Diseñador de Producto de esta plataforma de pronóst
 - Antes de crear una nueva tabla o columna, verifica `server.ts` para ver cómo se maneja la inicialización de la DB.
 - Siempre usa variables de entorno para secretos (JWT_SECRET, MP_ACCESS_TOKEN, etc.).
 - Mantén la coherencia en las notificaciones del sistema (Toasts/Messages) con tipos 'success', 'error', 'info'.
+Usa siempre el commit "git add . && git commit -m "Implementacion de ..." y luego "git push" para guardar tus cambios y no perder nada. Coloca comentarios en el codigo cada vez que hagas un cambio. Coloca comentarrios en español en el commit  y en el codigo.

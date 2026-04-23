@@ -114,7 +114,11 @@ router.get("/pending-picks", authenticateToken, requireAdmin, async (req, res) =
  */
 router.get("/debug", authenticateToken, requireAdmin, async (_req, res) => {
   try {
-    const [[{ now }]] = await pool.query("SELECT NOW() as now");
+    // Obtenemos la hora actual de la base de datos
+    const [timeRows]: any = await pool.query("SELECT NOW() as now");
+    const now = timeRows[0]?.now;
+
+    // Obtenemos picks próximos a vencer el umbral de 105 minutos
     const [picks]: any = await pool.query(`
       SELECT id, match_name, match_date, status, thesportsdb_event_id,
              DATE_SUB(NOW(), INTERVAL 105 MINUTE) as threshold
