@@ -670,18 +670,30 @@ export function Stats() {
                         const detailsLocked = Boolean(pick.is_details_locked);
                         // Normalizamos selecciones de parlay enriquecidas por backend.
                         const parlaySelections = Array.isArray(pick.selections) ? pick.selections : [];
-                        // Resolvemos el pronóstico visible sin truncarlo ni exponer datos bloqueados.
-                        const predictionLabel = detailsLocked ? 'VIP pendiente' : (pick.market_label || pick.market_acronym || pick.pick || 'Sin dato');
                         // Normalizamos la cuota para que los picks bloqueados no muestren @0.00.
                         const oddsNumber = Number(pick.odds);
                         // Mostramos guion cuando la cuota no existe o está protegida.
                         const oddsLabel = detailsLocked || pick.odds === null || pick.odds === undefined || Number.isNaN(oddsNumber) ? '—' : `@${oddsNumber.toFixed(2)}`;
+                        // Título descriptivo para picks combinados: evita mostrar "Parlay" como nombre.
+                        const parlayTitle = Boolean(pick.is_parlay)
+                          ? (parlaySelections.length > 0
+                              ? `Combinada · ${parlaySelections.length} selecciones`
+                              : 'Apuesta Combinada')
+                          : null;
+                        // Resolvemos el pronóstico visible sin truncarlo ni exponer datos bloqueados.
+                        const predictionLabel = detailsLocked
+                          ? 'VIP pendiente'
+                          : Boolean(pick.is_parlay)
+                            ? (parlaySelections.length > 0
+                                ? `${parlaySelections.length} sel. · ${oddsLabel}`
+                                : oddsLabel)
+                            : (pick.market_label || pick.market_acronym || pick.pick || 'Sin dato');
+                        // Solo mostramos selecciones de parlay si el usuario puede ver el detalle.
+                        const showParlaySelections = Boolean(pick.is_parlay) && !detailsLocked && parlaySelections.length > 0;
                         // Normalizamos stake para que los picks bloqueados no muestren unidades falsas.
                         const stakeNumber = Number(pick.stake);
                         // Mostramos guion cuando el stake no existe o está protegido.
                         const stakeLabel = detailsLocked || pick.stake === null || pick.stake === undefined || Number.isNaN(stakeNumber) ? '—' : `${pick.stake}U`;
-                        // Solo mostramos selecciones de parlay si el usuario puede ver el detalle.
-                        const showParlaySelections = Boolean(pick.is_parlay) && !detailsLocked && parlaySelections.length > 0;
 
                         return (
                           <motion.div
@@ -706,9 +718,11 @@ export function Stats() {
                                     <CountryFlag code={pick.country_flag} />
                                   )}
                                   {Boolean(pick.is_parlay) && (
-                                    <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded bg-indigo-600/30 text-indigo-300 border border-indigo-500/30">PARLAY</span>
+                                    <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded bg-indigo-600/30 text-indigo-300 border border-indigo-500/30">COMBINADA</span>
                                   )}
-                                  <span className="font-semibold text-sm break-words min-w-0">{pick.match_name}</span>
+                                  <span className="font-semibold text-sm break-words min-w-0">
+                                    {Boolean(pick.is_parlay) ? parlayTitle : pick.match_name}
+                                  </span>
                                   {!Boolean(pick.is_parlay) && pick.score_home !== undefined && pick.score_home !== null && (
                                     <span className="bg-primary/20 text-primary px-1.5 py-0.5 rounded text-[10px] font-black">
                                        {pick.score_home} - {pick.score_away}
@@ -764,7 +778,7 @@ export function Stats() {
                                             {/* Bandera si la selección trae país. */}
                                             {selection.country_flag && <CountryFlag code={selection.country_flag} />}
                                             {/* Nombre del partido. */}
-                                            <span className="break-words">{selection.match_name || 'Partido del parlay'}</span>
+                                            <span className="break-words">{selection.match_name || `Selección ${index + 1}`}</span>
                                             {selection.score_home !== undefined && selection.score_home !== null && (
                                               <span className="ml-auto text-primary font-black">
                                                 {selection.score_home} - {selection.score_away}
