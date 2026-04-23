@@ -130,6 +130,7 @@ teamsRouter.get("/", async (req, res) => {
              COALESCE(t.country_id, l.country_id) AS country_id
       FROM teams t
       LEFT JOIN leagues l ON t.league_id = l.id
+      LEFT JOIN countries c ON t.country_id = c.id
     `;
     // Parámetros seguros para evitar interpolar valores del usuario.
     const params: any[] = [];

@@ -1428,12 +1428,32 @@ export function AdminDashboard() {
       }
     };
 
+    const checkApiData = async () => {
+      try {
+        const [teamsRes, leaguesRes, countriesRes] = await Promise.all([
+          fetch("/api/teams"),
+          fetch("/api/leagues"),
+          fetch("/api/countries")
+        ]);
+        const t = await teamsRes.json();
+        const l = await leaguesRes.json();
+        const c = await countriesRes.json();
+        console.log("--- DIAGNÓSTICO DE DATOS ---");
+        console.log("Equipos:", Array.isArray(t) ? t.length : "ERROR: " + JSON.stringify(t));
+        console.log("Ligas:", Array.isArray(l) ? l.length : "ERROR: " + JSON.stringify(l));
+        console.log("Países:", Array.isArray(c) ? c.length : "ERROR: " + JSON.stringify(c));
+      } catch (e) {
+        console.error("Error en diagnóstico de API:", e);
+      }
+    };
+
     fetchPickTypes();
     fetchTelegramFullConfig();
     fetchMarkets();
     fetchCountries();
     fetchLeagues();
     fetchTeams();
+    checkApiData();
   }, []);
 
   /**

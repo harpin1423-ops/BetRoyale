@@ -29,9 +29,19 @@ async function testConexion() {
     console.log("✅ CONEXIÓN EXITOSA a MySQL en Hostinger!");
 
     // Mostramos las tablas existentes
-    const [tablas] = await conn.query("SHOW TABLES");
+    const [tablas]: any = await conn.query("SHOW TABLES");
     console.log("\n📋 Tablas existentes en la BD:");
-    console.log(tablas);
+    console.log(tablas.map((t: any) => Object.values(t)[0]));
+
+    // Contamos registros
+    const [countC]: any = await conn.query("SELECT COUNT(*) as count FROM countries");
+    const [countL]: any = await conn.query("SELECT COUNT(*) as count FROM leagues");
+    const [countT]: any = await conn.query("SELECT COUNT(*) as count FROM teams");
+    
+    console.log("\n📊 Estadísticas de registros:");
+    console.log(`   Países: ${countC[0].count}`);
+    console.log(`   Ligas:   ${countL[0].count}`);
+    console.log(`   Equipos: ${countT[0].count}`);
 
     await conn.end();
   } catch (error: any) {
@@ -43,6 +53,7 @@ async function testConexion() {
       console.log("   → Verifica en Hostinger: Bases de datos → Acceso remoto");
     } else if (error.code === "ER_ACCESS_DENIED_ERROR") {
       console.log("\n💡 Credenciales incorrectas (usuario o contraseña).");
+      console.log("   → Tu IP actual es: 190.253.253.16 (Asegúrate de que esté autorizada en Hostinger)");
     } else if (error.code === "ENOTFOUND") {
       console.log("\n💡 Host no encontrado. Verifica el DB_HOST en el .env");
     }
