@@ -5,11 +5,10 @@
  * y el webhook de notificaciones automáticas de Mercado Pago.
  */
 import { Router } from "express";
-import { Preference, Payment } from "mercadopago";
 import { pool } from "../config/database.js";
 import { env } from "../config/env.js";
 import { authenticateToken } from "../middleware/auth.js";
-import { getMercadoPagoClient, obtenerTasaCambio, activarSuscripcion, } from "../services/mercadopago.service.js";
+import { createMercadoPagoPreference, getMercadoPagoPayment, obtenerTasaCambio, activarSuscripcion, } from "../services/mercadopago.service.js";
 import { enviarEmailConfirmacionVIP } from "../services/email.service.js";
 // Creamos el router para las rutas de pagos
 const router = Router();
@@ -75,8 +74,6 @@ router.post("/mercadopago", authenticateToken, async (req, res) => {
         // Creamos la referencia externa que MP nos devolverá en el webhook
         // Formato: sub:userId:planId:period[:promoCode]
         const referenciaExterna = `sub:${req.user.id}:${planId}:${period}${promoCode ? `:${promoCode}` : ""}`;
-        // Obtenemos el cliente de Mercado Pago con el token más reciente
-        const mpClient = getMercadoPagoClient();
         // Armamos el cuerpo base de la preferencia de pago.
         const preferenceBody = {
             /** Items del pago */
@@ -122,11 +119,8 @@ router.post("/mercadopago", authenticateToken, async (req, res) => {
             // En localhost MP rechaza auto_return; dejamos checkout usable para pruebas manuales.
             console.warn("[PAYMENTS] APP_URL local detectado; creando preferencia sin auto_return/webhook.");
         }
-        // Creamos la preferencia de pago en MP
-        const preferenceClient = new Preference(mpClient);
-        const resultado = await preferenceClient.create({
-            body: preferenceBody,
-        });
+        // Creamos la preferencia directamente contra la API REST oficial de MP.
+        const resultado = await createMercadoPagoPreference(preferenceBody);
         console.log(`[PAYMENTS] Preferencia creada: ${resultado.id} | Plan: ${planId} | Usuario: ${req.user.id}`);
         // Devolvemos los links de pago al frontend
         return res.json({
@@ -165,10 +159,8 @@ router.get("/sync", authenticateToken, async (req, res) => {
         return res.status(400).json({ error: "Falta el payment_id" });
     }
     try {
-        // Obtenemos los detalles del pago desde la API de Mercado Pago
-        const mpClient = getMercadoPagoClient();
-        const paymentClient = new Payment(mpClient);
-        const pago = await paymentClient.get({ id: payment_id.toString() });
+        // Obtenemos los detalles del pago desde la API REST oficial de Mercado Pago.
+        const pago = await getMercadoPagoPayment(payment_id.toString());
         // Solo procesamos si el pago está aprobado o autorizado
         if ((pago.status === "approved" || pago.status === "authorized") &&
             pago.external_reference) {
@@ -239,10 +231,8 @@ router.post("/webhook", async (req, res) => {
             console.log(`[WEBHOOK] Topic '${topic}' ignorado. Solo procesamos 'payment'.`);
             return;
         }
-        // Obtenemos los detalles completos del pago desde la API de MP
-        const mpClient = getMercadoPagoClient();
-        const paymentClient = new Payment(mpClient);
-        const pago = await paymentClient.get({ id: String(id) });
+        // Obtenemos los detalles completos del pago desde la API REST oficial de MP.
+        const pago = await getMercadoPagoPayment(String(id));
         // Solo activamos suscripciones si el pago está aprobado
         if (pago.status === "approved" && pago.external_reference) {
             console.log(`[WEBHOOK] Pago aprobado: ${id} | Ref: ${pago.external_reference}`);

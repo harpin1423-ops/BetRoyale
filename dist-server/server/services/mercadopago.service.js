@@ -4,9 +4,11 @@
  * Contiene la lógica compartida de tipo de cambio (USD→COP)
  * y la activación de suscripciones de usuario tras un pago aprobado.
  */
-import { MercadoPagoConfig } from "mercadopago";
-import { pool } from "../config/database.js";
 import { env } from "../config/env.js";
+import { pool } from "../config/database.js";
+// ─── Configuración base de la API REST de Mercado Pago ──────────────────────
+// Definimos la URL base oficial para las llamadas backend a Mercado Pago.
+const MERCADOPAGO_API_BASE_URL = "https://api.mercadopago.com";
 // ─── Cache de tasa de cambio ─────────────────────────────────────────────────
 /**
  * Cache en memoria para la tasa de cambio USD→COP.
@@ -115,14 +117,111 @@ export async function activarSuscripcion(params) {
     console.log(`[MP] ✅ Suscripción activada → Usuario ${userId} | Plan ${planId} | Hasta ${expiracionFormateada}`);
 }
 /**
- * Obtiene una instancia configurada del cliente de Mercado Pago.
- * Usa el token más reciente desde las variables de entorno (evita stale secrets).
+ * Obtiene el mensaje más claro posible desde una respuesta de error de Mercado Pago.
+ *
+ * @param payload - Respuesta JSON de error devuelta por la API.
+ * @returns Mensaje legible para logs y manejo de errores.
  */
-export function getMercadoPagoClient() {
+function obtenerMensajeMercadoPago(payload) {
+    // Priorizamos el mensaje principal del proveedor cuando existe.
+    if (payload?.message) {
+        return String(payload.message);
+    }
+    // Intentamos usar la descripción detallada de la causa técnica.
+    if (Array.isArray(payload?.cause) && payload.cause[0]?.description) {
+        return String(payload.cause[0].description);
+    }
+    // Intentamos usar el texto de error estándar si Mercado Pago lo entrega.
+    if (payload?.error) {
+        return String(payload.error);
+    }
+    // Dejamos un fallback estable si no vino nada útil.
+    return "Error desconocido al consultar Mercado Pago";
+}
+/**
+ * Obtiene los headers autenticados para llamar a la API REST oficial de Mercado Pago.
+ *
+ * @returns Headers HTTP con autenticación y JSON habilitado.
+ */
+function construirHeadersMercadoPago() {
+    // Leemos el token actual desde el entorno para evitar secretos obsoletos.
     const token = env.MERCADOPAGO_ACCESS_TOKEN;
-    // Advertimos si el token no está configurado
+    // Registramos una advertencia si falta el token privado del servidor.
     if (!token) {
         console.error("[MP] ❌ MERCADOPAGO_ACCESS_TOKEN no configurado");
     }
-    return new MercadoPagoConfig({ accessToken: token });
+    // Devolvemos el set mínimo de headers requerido por la API REST.
+    return {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+    };
+}
+/**
+ * Ejecuta una llamada autenticada contra la API REST oficial de Mercado Pago.
+ *
+ * @param path - Ruta relativa del endpoint dentro de api.mercadopago.com.
+ * @param init - Configuración fetch adicional como método, body o headers.
+ * @returns JSON parseado de Mercado Pago.
+ */
+async function mercadopagoRequest(path, init = {}) {
+    // Construimos la URL final del endpoint solicitado.
+    const url = `${MERCADOPAGO_API_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`;
+    // Creamos un AbortController para no dejar requests colgadas.
+    const controller = new AbortController();
+    // Definimos un timeout razonable para backend y webhooks.
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    try {
+        // Ejecutamos la llamada autenticada con headers base y overrides puntuales.
+        const response = await fetch(url, {
+            ...init,
+            signal: controller.signal,
+            headers: {
+                ...construirHeadersMercadoPago(),
+                ...(init.headers || {}),
+            },
+        });
+        // Intentamos leer la respuesta como JSON incluso en errores.
+        const payload = await response.json().catch(() => null);
+        // Cortamos con error tipado si Mercado Pago devolvió status no exitoso.
+        if (!response.ok) {
+            // Construimos un error enriquecido con status y payload del proveedor.
+            const requestError = Object.assign(new Error(obtenerMensajeMercadoPago(payload)), {
+                status: response.status,
+                payload,
+            });
+            // Propagamos el error para que la ruta decida el mensaje final.
+            throw requestError;
+        }
+        // Devolvemos el JSON de éxito tal cual lo respondió Mercado Pago.
+        return payload;
+    }
+    finally {
+        // Liberamos el timeout en éxito o error.
+        clearTimeout(timeoutId);
+    }
+}
+/**
+ * Crea una preferencia de pago usando la API REST oficial de Mercado Pago.
+ *
+ * @param body - Cuerpo completo de la preferencia Checkout Pro.
+ * @returns Preferencia creada con sus URLs de checkout.
+ */
+export async function createMercadoPagoPreference(body) {
+    // Enviamos la preferencia al endpoint oficial de Checkout Pro.
+    return mercadopagoRequest("/checkout/preferences", {
+        method: "POST",
+        body: JSON.stringify(body),
+    });
+}
+/**
+ * Obtiene el detalle completo de un pago usando su ID oficial en Mercado Pago.
+ *
+ * @param paymentId - Identificador único del pago en Mercado Pago.
+ * @returns Objeto de pago con estado, monto y referencia externa.
+ */
+export async function getMercadoPagoPayment(paymentId) {
+    // Consultamos el pago exacto por ID para sync y webhook.
+    return mercadopagoRequest(`/v1/payments/${paymentId}`, {
+        method: "GET",
+    });
 }
