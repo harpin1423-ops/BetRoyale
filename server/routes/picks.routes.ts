@@ -12,12 +12,280 @@ import { authenticateToken, requireAdmin } from "../middleware/auth.js";
 // Importamos utilidades de Telegram para publicar picks, seguimientos y resultados cortos de parlays.
 import { sendTelegramMessage, formatPickParaTelegram, formatSeguimientoParaTelegram, formatResultadoParlayParaTelegram, type MetricasMensualesTelegram } from "../services/telegram.service.js";
 import { obtenerTelegramFullConfig } from "../services/settings.service.js";
+// Importamos el motor de evaluación para sugerir resultados manuales según el mercado.
+import { evaluatePickStatus, type MatchResult } from "../services/scores.service.js";
 
 // Creamos el router para las rutas de picks
 const router = Router();
 
 // Centralizamos los estados válidos para evitar typos desde el panel admin.
 const ESTADOS_PERMITIDOS = new Set(["pending", "won", "lost", "void", "half-won", "half-lost"]);
+
+/**
+ * <summary>
+ * Convierte un valor del formulario en número entero opcional sin romper cuando llega vacío.
+ * </summary>
+ * @param value - Valor recibido desde el panel admin.
+ * @returns Número entero o null cuando no existe un dato válido.
+ */
+function parseOptionalInteger(value: any): number | null {
+  // Tratamos null, undefined y cadenas vacías como ausencia de dato.
+  if (value === null || value === undefined || String(value).trim() === "") {
+    return null;
+  }
+
+  // Convertimos el texto recibido a número.
+  const parsed = Number(value);
+
+  // Si el valor no es finito, devolvemos null para no guardar basura.
+  if (!Number.isFinite(parsed)) {
+    return null;
+  }
+
+  // Redondeamos a entero porque marcador, córners y amarillas no aceptan decimales.
+  return Math.trunc(parsed);
+}
+
+/**
+ * <summary>
+ * Resuelve el total manual de una estadística usando el total explícito o la suma local/visitante.
+ * </summary>
+ * @param totalValue - Total ingresado manualmente.
+ * @param homeValue - Valor del equipo local.
+ * @param awayValue - Valor del equipo visitante.
+ * @returns Total consolidado o null cuando aún falta información.
+ */
+function resolveManualTotal(totalValue: number | null, homeValue: number | null, awayValue: number | null): number | null {
+  // Priorizamos el total explícito cuando el admin ya lo conoce.
+  if (totalValue !== null) {
+    return totalValue;
+  }
+
+  // Si no hay total directo pero sí ambos lados, sumamos local y visitante.
+  if (homeValue !== null && awayValue !== null) {
+    return homeValue + awayValue;
+  }
+
+  // Si falta información, dejamos el total en null.
+  return null;
+}
+
+/**
+ * <summary>
+ * Obtiene el identificador más útil del mercado para pasarlo al motor de evaluación.
+ * </summary>
+ * @param pickRow - Pick cargado desde base de datos con join opcional de markets.
+ * @returns Texto representativo del mercado.
+ */
+function getManualMarketReference(pickRow: any): string {
+  // Priorizamos acrónimo, luego etiqueta y por último el valor guardado en picks.pick.
+  return String(pickRow?.market_acronym || pickRow?.market_label || pickRow?.pick || "").trim();
+}
+
+/**
+ * <summary>
+ * Traduce el estado técnico del pick a una etiqueta legible para el admin.
+ * </summary>
+ * @param status - Estado técnico del pick.
+ * @returns Etiqueta en español para feedback del modal.
+ */
+function getManualStatusLabel(status: string): string {
+  // Centralizamos etiquetas humanas para que el modal y el backend hablen igual.
+  switch (String(status || "").toLowerCase()) {
+    case "won":
+      return "Ganado";
+    case "lost":
+      return "Perdido";
+    case "void":
+      return "Nulo";
+    case "half-won":
+      return "Medio Ganado";
+    case "half-lost":
+      return "Medio Perdido";
+    default:
+      return "Pendiente";
+  }
+}
+
+/**
+ * <summary>
+ * Construye una explicación breve de por qué el sistema sugiere un resultado manual.
+ * </summary>
+ * @param marketReference - Mercado evaluado.
+ * @param scoreHome - Marcador local cargado manualmente.
+ * @param scoreAway - Marcador visitante cargado manualmente.
+ * @param cornersTotal - Total de córners disponible para evaluación.
+ * @param yellowCardsTotal - Total de amarillas disponible para evaluación.
+ * @param suggestedStatus - Estado sugerido por el motor.
+ * @returns Razón legible para el panel admin.
+ */
+function buildManualResolutionReason(
+  marketReference: string,
+  scoreHome: number | null,
+  scoreAway: number | null,
+  cornersTotal: number | null,
+  yellowCardsTotal: number | null,
+  suggestedStatus: string
+): string {
+  // Iniciamos con el mercado evaluado para dar contexto rápido.
+  const details: string[] = [`Mercado evaluado: ${marketReference || "Sin mercado definido"}.`];
+
+  // Agregamos el marcador si existe porque suele ser el dato principal del pick.
+  if (scoreHome !== null && scoreAway !== null) {
+    details.push(`Marcador manual: ${scoreHome}-${scoreAway}.`);
+  }
+
+  // Agregamos total de córners si está disponible.
+  if (cornersTotal !== null) {
+    details.push(`Córners totales disponibles: ${cornersTotal}.`);
+  }
+
+  // Agregamos total de amarillas si está disponible.
+  if (yellowCardsTotal !== null) {
+    details.push(`Amarillas totales disponibles: ${yellowCardsTotal}.`);
+  }
+
+  // Cerramos con la sugerencia del sistema.
+  details.push(`Sugerencia del sistema: ${getManualStatusLabel(suggestedStatus)}.`);
+
+  // Si no había datos suficientes, lo explicamos de forma explícita.
+  if (suggestedStatus === "pending") {
+    details.push("Falta información concluyente o el mercado requiere revisión manual adicional.");
+  }
+
+  // Devolvemos una sola frase limpia para el panel.
+  return details.join(" ");
+}
+
+/**
+ * <summary>
+ * Calcula una sugerencia de estado usando marcador y estadísticas manuales sin inventar datos críticos.
+ * </summary>
+ * @param marketReference - Mercado a evaluar.
+ * @param scoreHome - Marcador local manual.
+ * @param scoreAway - Marcador visitante manual.
+ * @param cornersHome - Córners del local.
+ * @param cornersAway - Córners del visitante.
+ * @param yellowCardsHome - Amarillas del local.
+ * @param yellowCardsAway - Amarillas del visitante.
+ * @param eventId - Identificador lógico del evento para trazabilidad.
+ * @returns Estado sugerido por el motor o pending si faltan datos.
+ */
+function getSuggestedManualStatus(
+  marketReference: string,
+  scoreHome: number | null,
+  scoreAway: number | null,
+  cornersHome: number | null,
+  cornersAway: number | null,
+  yellowCardsHome: number | null,
+  yellowCardsAway: number | null,
+  eventId: string
+): string {
+  // Detectamos mercados puramente estadísticos para permitir evaluación sin marcador.
+  const isCornersMarket = /corner|corners|c[oó]rner/i.test(marketReference);
+
+  // Detectamos mercados de amarillas para permitir evaluación sin score.
+  const isYellowCardsMarket = /yellow|amarilla|tarjeta/i.test(marketReference);
+
+  // Si el mercado depende del marcador y aún falta score, devolvemos pendiente.
+  if (!isCornersMarket && !isYellowCardsMarket && (scoreHome === null || scoreAway === null)) {
+    return "pending";
+  }
+
+  // Armamos un resultado compatible con el motor de evaluación.
+  const manualResult: MatchResult = {
+    // Etiquetamos el origen manual del cálculo.
+    eventId,
+    // Marcamos el partido como terminado para evaluar el pick.
+    status: "FT",
+    // Usamos marcador manual o cero solo cuando el mercado no depende de score faltante.
+    goalsHome: scoreHome ?? 0,
+    // Usamos marcador manual o cero solo cuando el mercado no depende de score faltante.
+    goalsAway: scoreAway ?? 0,
+    // Pasamos las estadísticas manuales por equipo.
+    cornersHome,
+    // Pasamos las estadísticas manuales por equipo.
+    cornersAway,
+    // Pasamos las amarillas manuales por equipo.
+    yellowCardsHome,
+    // Pasamos las amarillas manuales por equipo.
+    yellowCardsAway,
+    // Conservamos proveedor lógico para auditoría.
+    provider: "API-Football",
+  };
+
+  // Devolvemos la sugerencia del motor de reglas.
+  return evaluatePickStatus(
+    marketReference,
+    manualResult.goalsHome ?? 0,
+    manualResult.goalsAway ?? 0,
+    manualResult
+  );
+}
+
+/**
+ * <summary>
+ * Agrega estados de selecciones para sugerir el estado global del parlay.
+ * </summary>
+ * @param statuses - Estados sugeridos o finales de cada selección.
+ * @returns Estado global sugerido para el parlay.
+ */
+function aggregateParlaySuggestedStatus(statuses: string[]): string {
+  // Normalizamos los estados recibidos para comparar con seguridad.
+  const normalizedStatuses = statuses.map((status) => String(status || "pending").toLowerCase());
+
+  // Si alguna selección se perdió, el parlay se considera perdido.
+  if (normalizedStatuses.includes("lost")) {
+    return "lost";
+  }
+
+  // Si aún hay selecciones sin datos suficientes, el parlay queda pendiente.
+  if (normalizedStatuses.includes("pending")) {
+    return "pending";
+  }
+
+  // Si existen medias liquidaciones, preferimos dejar revisión manual.
+  if (normalizedStatuses.includes("half-won") || normalizedStatuses.includes("half-lost")) {
+    return "pending";
+  }
+
+  // Si todas fueron nulas, el parlay se sugiere nulo.
+  if (normalizedStatuses.length > 0 && normalizedStatuses.every((status) => status === "void")) {
+    return "void";
+  }
+
+  // Si todas quedaron entre ganadas y nulas, el parlay sigue vivo como ganado.
+  if (normalizedStatuses.length > 0 && normalizedStatuses.every((status) => status === "won" || status === "void")) {
+    return "won";
+  }
+
+  // Cualquier mezcla no contemplada queda para revisión.
+  return "pending";
+}
+
+/**
+ * <summary>
+ * Resume en una sola frase el estado sugerido de las selecciones de un parlay.
+ * </summary>
+ * @param selections - Selecciones ya evaluadas con sugerencia por selección.
+ * @param overallStatus - Estado global sugerido del parlay.
+ * @returns Resumen corto para el modal del admin.
+ */
+function buildParlayManualSuggestedReason(selections: any[], overallStatus: string): string {
+  // Resumimos cada selección con índice, partido y estado sugerido.
+  const parts = selections.map((selection, index) => `#${index + 1} ${selection.match_name || `Selección ${index + 1}`}: ${getManualStatusLabel(selection.suggested_status)}`);
+
+  // Cerramos con la sugerencia global del sistema.
+  parts.push(`Sugerencia global del parlay: ${getManualStatusLabel(overallStatus)}.`);
+
+  // Si alguna selección sigue pendiente, lo dejamos explícito para el admin.
+  if (selections.some((selection) => selection.suggested_status === "pending")) {
+    parts.push("Hay al menos una selección con información insuficiente o que requiere revisión manual.");
+  }
+
+  // Entregamos el resumen consolidado.
+  return parts.join(" ");
+}
 
 /**
  * Convierte el JSON de selecciones de parlay en un arreglo seguro.
@@ -961,6 +1229,358 @@ router.patch("/:id/status", authenticateToken, requireAdmin, async (req, res) =>
   } catch (error: any) {
     console.error("[PICKS] Error actualizando estado:", error);
     return res.status(500).json({ error: "Error al actualizar el estado" });
+  }
+});
+
+// ─── POST /api/picks/:id/manual-resolution ───────────────────────────────────
+/**
+ * <summary>
+ * Permite cargar marcador y estadísticas manuales, obtener una sugerencia automática
+ * y confirmar manualmente el estado final de un pick individual o un parlay.
+ * </summary>
+ */
+router.post("/:id/manual-resolution", authenticateToken, requireAdmin, async (req, res) => {
+  // Leemos el ID del pick desde la URL.
+  const { id } = req.params;
+
+  // Leemos las estadísticas manuales opcionales y el estado final opcional.
+  const {
+    score_home,
+    score_away,
+    corners_total,
+    corners_home,
+    corners_away,
+    yellow_cards_total,
+    yellow_cards_home,
+    yellow_cards_away,
+    final_status,
+    selections,
+  } = req.body || {};
+
+  try {
+    // Cargamos el pick con el mercado legible para que la sugerencia sea precisa.
+    const [rows]: any = await pool.query(
+      `SELECT p.id, p.match_name, p.pick, p.status, p.is_parlay, p.selections, p.score_home, p.score_away,
+              p.corners_total, p.corners_home, p.corners_away,
+              p.yellow_cards_total, p.yellow_cards_home, p.yellow_cards_away,
+              m.label AS market_label, m.acronym AS market_acronym
+       FROM picks p
+       LEFT JOIN markets m ON p.pick = m.id
+       WHERE p.id = ?
+       LIMIT 1`,
+      [id]
+    );
+
+    // Validamos que el pick exista.
+    if (!rows || rows.length === 0) {
+      return res.status(404).json({ error: "Pick no encontrado" });
+    }
+
+    // Tomamos la fila única del pick consultado.
+    const pick = rows[0];
+
+    // Si es un parlay, resolvemos cada selección por separado y luego calculamos el estado global.
+    if (Boolean(pick.is_parlay)) {
+      // Parseamos las selecciones existentes guardadas en el pick.
+      const existingSelections = parseSeleccionesParlay(pick.selections);
+
+      // Validamos que el parlay tenga selecciones reales.
+      if (existingSelections.length === 0) {
+        return res.status(400).json({ error: "El parlay no tiene selecciones guardadas para resolver." });
+      }
+
+      // Normalizamos las selecciones recibidas desde el modal.
+      const incomingSelections = Array.isArray(selections) ? selections : [];
+
+      // Calculamos la sugerencia y los valores finales por cada selección.
+      const evaluatedSelections = existingSelections.map((existingSelection, index) => {
+        // Tomamos la selección editable enviada por el panel si existe.
+        const incomingSelection = incomingSelections[index] || {};
+
+        // Combinamos la selección persistida con los valores nuevos.
+        const mergedSelection = { ...existingSelection, ...incomingSelection };
+
+        // Parseamos marcador manual o reutilizamos el guardado.
+        const selectionScoreHome = parseOptionalInteger(incomingSelection.score_home) !== null ? parseOptionalInteger(incomingSelection.score_home) : parseOptionalInteger(existingSelection.score_home);
+        const selectionScoreAway = parseOptionalInteger(incomingSelection.score_away) !== null ? parseOptionalInteger(incomingSelection.score_away) : parseOptionalInteger(existingSelection.score_away);
+
+        // Parseamos córners manuales o reutilizamos los guardados.
+        const selectionCornersHome = parseOptionalInteger(incomingSelection.corners_home) !== null ? parseOptionalInteger(incomingSelection.corners_home) : parseOptionalInteger(existingSelection.corners_home);
+        const selectionCornersAway = parseOptionalInteger(incomingSelection.corners_away) !== null ? parseOptionalInteger(incomingSelection.corners_away) : parseOptionalInteger(existingSelection.corners_away);
+        const selectionCornersTotal =
+          parseOptionalInteger(incomingSelection.corners_total) !== null
+            ? parseOptionalInteger(incomingSelection.corners_total)
+            : (parseOptionalInteger(incomingSelection.corners_home) !== null || parseOptionalInteger(incomingSelection.corners_away) !== null)
+              ? resolveManualTotal(null, selectionCornersHome, selectionCornersAway)
+              : resolveManualTotal(parseOptionalInteger(existingSelection.corners_total), selectionCornersHome, selectionCornersAway);
+
+        // Parseamos amarillas manuales o reutilizamos los datos guardados.
+        const selectionYellowCardsHome = parseOptionalInteger(incomingSelection.yellow_cards_home) !== null ? parseOptionalInteger(incomingSelection.yellow_cards_home) : parseOptionalInteger(existingSelection.yellow_cards_home);
+        const selectionYellowCardsAway = parseOptionalInteger(incomingSelection.yellow_cards_away) !== null ? parseOptionalInteger(incomingSelection.yellow_cards_away) : parseOptionalInteger(existingSelection.yellow_cards_away);
+        const selectionYellowCardsTotal =
+          parseOptionalInteger(incomingSelection.yellow_cards_total) !== null
+            ? parseOptionalInteger(incomingSelection.yellow_cards_total)
+            : (parseOptionalInteger(incomingSelection.yellow_cards_home) !== null || parseOptionalInteger(incomingSelection.yellow_cards_away) !== null)
+              ? resolveManualTotal(null, selectionYellowCardsHome, selectionYellowCardsAway)
+              : resolveManualTotal(parseOptionalInteger(existingSelection.yellow_cards_total), selectionYellowCardsHome, selectionYellowCardsAway);
+
+        // Resolvemos el mercado de la selección para el motor de reglas.
+        const selectionMarketReference = getManualMarketReference(mergedSelection);
+
+        // Calculamos sugerencia individual para la selección.
+        const suggestedSelectionStatus = getSuggestedManualStatus(
+          selectionMarketReference,
+          selectionScoreHome,
+          selectionScoreAway,
+          selectionCornersHome,
+          selectionCornersAway,
+          selectionYellowCardsHome,
+          selectionYellowCardsAway,
+          `manual-${pick.id}-selection-${index + 1}`
+        );
+
+        // Construimos una razón corta para la selección puntual.
+        const suggestedSelectionReason = buildManualResolutionReason(
+          selectionMarketReference,
+          selectionScoreHome,
+          selectionScoreAway,
+          selectionCornersTotal,
+          selectionYellowCardsTotal,
+          suggestedSelectionStatus
+        );
+
+        // Si el admin confirmó un estado individual válido, lo respetamos; de lo contrario usamos la sugerencia.
+        const finalSelectionStatus = ESTADOS_PERMITIDOS.has(String(incomingSelection.final_status || ""))
+          ? String(incomingSelection.final_status)
+          : suggestedSelectionStatus;
+
+        // Preparamos la selección que se guardará en el JSON del parlay.
+        const persistedSelection = {
+          ...mergedSelection,
+          score_home: selectionScoreHome,
+          score_away: selectionScoreAway,
+          corners_total: selectionCornersTotal,
+          corners_home: selectionCornersHome,
+          corners_away: selectionCornersAway,
+          yellow_cards_total: selectionYellowCardsTotal,
+          yellow_cards_home: selectionYellowCardsHome,
+          yellow_cards_away: selectionYellowCardsAway,
+          status: finalSelectionStatus,
+        };
+
+        // Preparamos una versión amigable para el modal.
+        const responseSelection = {
+          match_name: mergedSelection.match_name || `Selección ${index + 1}`,
+          market_label: mergedSelection.market_label || selectionMarketReference || "Mercado",
+          market_reference: selectionMarketReference,
+          suggested_status: suggestedSelectionStatus,
+          suggested_reason: suggestedSelectionReason,
+          final_status: finalSelectionStatus,
+          manual_values: {
+            score_home: selectionScoreHome,
+            score_away: selectionScoreAway,
+            corners_total: selectionCornersTotal,
+            corners_home: selectionCornersHome,
+            corners_away: selectionCornersAway,
+            yellow_cards_total: selectionYellowCardsTotal,
+            yellow_cards_home: selectionYellowCardsHome,
+            yellow_cards_away: selectionYellowCardsAway,
+          },
+        };
+
+        // Devolvemos ambas versiones para usar en preview y persistencia.
+        return { persistedSelection, responseSelection };
+      });
+
+      // Calculamos la sugerencia global del parlay a partir de las selecciones sugeridas.
+      const suggestedParlayStatus = aggregateParlaySuggestedStatus(
+        evaluatedSelections.map((selection) => selection.responseSelection.suggested_status)
+      );
+
+      // Construimos una razón legible a nivel del parlay completo.
+      const suggestedParlayReason = buildParlayManualSuggestedReason(
+        evaluatedSelections.map((selection) => selection.responseSelection),
+        suggestedParlayStatus
+      );
+
+      // Si aún no hay estado final global, respondemos solo con la sugerencia.
+      if (final_status === null || final_status === undefined || String(final_status).trim() === "") {
+        return res.json({
+          message: "Sugerencia de parlay calculada exitosamente",
+          suggested_status: suggestedParlayStatus,
+          suggested_reason: suggestedParlayReason,
+          selections: evaluatedSelections.map((selection) => selection.responseSelection),
+        });
+      }
+
+      // Validamos el estado final global antes de guardar.
+      if (!ESTADOS_PERMITIDOS.has(String(final_status))) {
+        return res.status(400).json({ error: "Estado final no permitido" });
+      }
+
+      // Guardamos estados manuales por selección y el estado final global del parlay.
+      await pool.query(
+        `UPDATE picks
+         SET selections = ?, status = ?
+         WHERE id = ?`,
+        [
+          JSON.stringify(evaluatedSelections.map((selection) => selection.persistedSelection)),
+          final_status,
+          id,
+        ]
+      );
+
+      // Intentamos notificar el resultado final por Telegram sin bloquear el guardado.
+      try {
+        // Publicamos con el mismo flujo actual de notificaciones.
+        await notificarResultadoPickPorTelegram(id);
+      } catch (tgErr) {
+        // Telegram no debe impedir que el parlay quede guardado.
+        console.error("[PICKS] Error de Telegram en resolución manual de parlay:", tgErr);
+      }
+
+      // Respondemos con el resultado final ya consolidado.
+      return res.json({
+        message: "Resolución manual del parlay guardada exitosamente",
+        suggested_status: suggestedParlayStatus,
+        suggested_reason: suggestedParlayReason,
+        final_status,
+        selections: evaluatedSelections.map((selection) => selection.responseSelection),
+      });
+    }
+
+    // Parseamos marcador manual o reutilizamos el dato ya guardado.
+    const parsedScoreHome = parseOptionalInteger(score_home);
+    const parsedScoreAway = parseOptionalInteger(score_away);
+
+    // Parseamos córners manuales o reutilizamos los existentes.
+    const parsedCornersTotal = parseOptionalInteger(corners_total);
+    const parsedCornersHome = parseOptionalInteger(corners_home);
+    const parsedCornersAway = parseOptionalInteger(corners_away);
+
+    // Parseamos amarillas manuales o reutilizamos las existentes.
+    const parsedYellowCardsTotal = parseOptionalInteger(yellow_cards_total);
+    const parsedYellowCardsHome = parseOptionalInteger(yellow_cards_home);
+    const parsedYellowCardsAway = parseOptionalInteger(yellow_cards_away);
+
+    // Consolidamos el marcador final que usará la sugerencia.
+    const resolvedScoreHome = parsedScoreHome !== null ? parsedScoreHome : parseOptionalInteger(pick.score_home);
+    const resolvedScoreAway = parsedScoreAway !== null ? parsedScoreAway : parseOptionalInteger(pick.score_away);
+
+    // Leemos los totales ya guardados para usarlos solo cuando no hubo cambios manuales.
+    const storedCornersTotal = parseOptionalInteger(pick.corners_total);
+
+    // Leemos las amarillas totales ya guardadas para usarlas solo como fallback.
+    const storedYellowCardsTotal = parseOptionalInteger(pick.yellow_cards_total);
+
+    // Consolidamos córners totales y parciales.
+    const resolvedCornersHome = parsedCornersHome !== null ? parsedCornersHome : parseOptionalInteger(pick.corners_home);
+    const resolvedCornersAway = parsedCornersAway !== null ? parsedCornersAway : parseOptionalInteger(pick.corners_away);
+    const resolvedCornersTotal =
+      parsedCornersTotal !== null
+        ? parsedCornersTotal
+        : (parsedCornersHome !== null || parsedCornersAway !== null)
+          ? resolveManualTotal(null, resolvedCornersHome, resolvedCornersAway)
+          : resolveManualTotal(storedCornersTotal, resolvedCornersHome, resolvedCornersAway);
+
+    // Consolidamos amarillas totales y parciales.
+    const resolvedYellowCardsHome = parsedYellowCardsHome !== null ? parsedYellowCardsHome : parseOptionalInteger(pick.yellow_cards_home);
+    const resolvedYellowCardsAway = parsedYellowCardsAway !== null ? parsedYellowCardsAway : parseOptionalInteger(pick.yellow_cards_away);
+    const resolvedYellowCardsTotal =
+      parsedYellowCardsTotal !== null
+        ? parsedYellowCardsTotal
+        : (parsedYellowCardsHome !== null || parsedYellowCardsAway !== null)
+          ? resolveManualTotal(null, resolvedYellowCardsHome, resolvedYellowCardsAway)
+          : resolveManualTotal(storedYellowCardsTotal, resolvedYellowCardsHome, resolvedYellowCardsAway);
+
+    // Construimos el texto de mercado que entiende el motor de reglas.
+    const marketReference = getManualMarketReference(pick);
+
+    // Calculamos la sugerencia individual con el helper compartido.
+    const suggestedStatus = getSuggestedManualStatus(
+      marketReference,
+      resolvedScoreHome,
+      resolvedScoreAway,
+      resolvedCornersHome,
+      resolvedCornersAway,
+      resolvedYellowCardsHome,
+      resolvedYellowCardsAway,
+      `manual-${pick.id}`
+    );
+
+    // Construimos una explicación clara para el modal del admin.
+    const suggestedReason = buildManualResolutionReason(
+      marketReference,
+      resolvedScoreHome,
+      resolvedScoreAway,
+      resolvedCornersTotal,
+      resolvedYellowCardsTotal,
+      suggestedStatus
+    );
+
+    // Si el admin no confirmó aún un estado final, devolvemos solo la sugerencia.
+    if (final_status === null || final_status === undefined || String(final_status).trim() === "") {
+      return res.json({
+        message: "Sugerencia calculada exitosamente",
+        suggested_status: suggestedStatus,
+        suggested_reason: suggestedReason,
+        manual_values: {
+          score_home: resolvedScoreHome,
+          score_away: resolvedScoreAway,
+          corners_total: resolvedCornersTotal,
+          corners_home: resolvedCornersHome,
+          corners_away: resolvedCornersAway,
+          yellow_cards_total: resolvedYellowCardsTotal,
+          yellow_cards_home: resolvedYellowCardsHome,
+          yellow_cards_away: resolvedYellowCardsAway,
+        },
+      });
+    }
+
+    // Validamos el estado final para mantener consistencia con badges y métricas.
+    if (!ESTADOS_PERMITIDOS.has(String(final_status))) {
+      return res.status(400).json({ error: "Estado final no permitido" });
+    }
+
+    // Persistimos estadísticas manuales y el estado elegido por el admin.
+    await pool.query(
+      `UPDATE picks
+       SET score_home = ?, score_away = ?, corners_total = ?, corners_home = ?, corners_away = ?,
+           yellow_cards_total = ?, yellow_cards_home = ?, yellow_cards_away = ?, status = ?
+       WHERE id = ?`,
+      [
+        resolvedScoreHome,
+        resolvedScoreAway,
+        resolvedCornersTotal,
+        resolvedCornersHome,
+        resolvedCornersAway,
+        resolvedYellowCardsTotal,
+        resolvedYellowCardsHome,
+        resolvedYellowCardsAway,
+        final_status,
+        id,
+      ]
+    );
+
+    // Notificamos Telegram con el estado final confirmado por el admin.
+    try {
+      // Enviamos la notificación final con el mismo flujo existente.
+      await notificarResultadoPickPorTelegram(id);
+    } catch (tgErr) {
+      // Telegram no debe impedir que la decisión quede guardada.
+      console.error("[PICKS] Error de Telegram en resolución manual:", tgErr);
+    }
+
+    // Respondemos con el guardado final y la sugerencia usada como apoyo.
+    return res.json({
+      message: "Resolución manual guardada exitosamente",
+      suggested_status: suggestedStatus,
+      suggested_reason: suggestedReason,
+      final_status,
+    });
+  } catch (error: any) {
+    console.error("[PICKS] Error en resolución manual asistida:", error);
+    return res.status(500).json({ error: "Error al resolver manualmente el pick" });
   }
 });
 

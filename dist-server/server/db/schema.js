@@ -885,6 +885,12 @@ export async function initDB() {
         api_fixture_id INT,
         score_home   INT DEFAULT NULL,
         score_away   INT DEFAULT NULL,
+        corners_total INT DEFAULT NULL,
+        corners_home INT DEFAULT NULL,
+        corners_away INT DEFAULT NULL,
+        yellow_cards_total INT DEFAULT NULL,
+        yellow_cards_home INT DEFAULT NULL,
+        yellow_cards_away INT DEFAULT NULL,
         auto_update  BOOLEAN DEFAULT TRUE,
         created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (pick_type_id) REFERENCES pick_types(id),
@@ -899,6 +905,12 @@ export async function initDB() {
         await conexion.query(`ALTER TABLE picks ADD COLUMN IF NOT EXISTS api_fixture_id INT`).catch(() => { });
         await conexion.query(`ALTER TABLE picks ADD COLUMN IF NOT EXISTS score_home INT DEFAULT NULL`).catch(() => { });
         await conexion.query(`ALTER TABLE picks ADD COLUMN IF NOT EXISTS score_away INT DEFAULT NULL`).catch(() => { });
+        await conexion.query(`ALTER TABLE picks ADD COLUMN IF NOT EXISTS corners_total INT DEFAULT NULL`).catch(() => { });
+        await conexion.query(`ALTER TABLE picks ADD COLUMN IF NOT EXISTS corners_home INT DEFAULT NULL`).catch(() => { });
+        await conexion.query(`ALTER TABLE picks ADD COLUMN IF NOT EXISTS corners_away INT DEFAULT NULL`).catch(() => { });
+        await conexion.query(`ALTER TABLE picks ADD COLUMN IF NOT EXISTS yellow_cards_total INT DEFAULT NULL`).catch(() => { });
+        await conexion.query(`ALTER TABLE picks ADD COLUMN IF NOT EXISTS yellow_cards_home INT DEFAULT NULL`).catch(() => { });
+        await conexion.query(`ALTER TABLE picks ADD COLUMN IF NOT EXISTS yellow_cards_away INT DEFAULT NULL`).catch(() => { });
         await conexion.query(`ALTER TABLE picks ADD COLUMN IF NOT EXISTS auto_update BOOLEAN DEFAULT TRUE`).catch(() => { });
         await conexion.query(`ALTER TABLE picks ADD COLUMN IF NOT EXISTS thesportsdb_event_id VARCHAR(64) DEFAULT NULL`).catch(() => { });
         // ── 7. Tabla: pick_tracking ──────────────────────────────────────────────

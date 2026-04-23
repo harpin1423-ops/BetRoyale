@@ -93,6 +93,10 @@ export const env = {
 
   /** API Key legacy para API-Football cuando ya estaba configurada como RapidAPI */
   RAPIDAPI_KEY: process.env.RAPIDAPI_KEY || "",
+
+  // ─── Google Gemini AI ────────────────────────────────────────────────────────
+  /** API Key para Google Gemini AI */
+  GEMINI_API_KEY: process.env.GEMINI_API_KEY || "",
 } as const;
 
 // ─── Validación de variables críticas ───────────────────────────────────────

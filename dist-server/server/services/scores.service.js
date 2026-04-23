@@ -648,6 +648,32 @@ function evaluateTotalLine(value, marketId) {
 }
 /**
  * <summary>
+ * Selecciona el dato estadístico correcto según si el mercado habla del total, del local o del visitante.
+ * </summary>
+ * @param marketId - Texto del mercado que puede incluir local, visitante, home o away.
+ * @param totalValue - Total consolidado de la estadística.
+ * @param homeValue - Valor del equipo local.
+ * @param awayValue - Valor del equipo visitante.
+ * @returns Valor puntual a evaluar según el alcance detectado.
+ */
+function resolveScopedStatisticValue(marketId, totalValue, homeValue, awayValue) {
+    // Normalizamos el texto para detectar si el mercado apunta al local o al visitante.
+    const normalizedMarket = String(marketId || "").toLowerCase();
+    // Detectamos mercados explícitos del equipo local.
+    if (/(local|home|casa)/i.test(normalizedMarket) && !/(visitante|away|fuera)/i.test(normalizedMarket)) {
+        // Devolvemos el valor del equipo local cuando aplica.
+        return homeValue;
+    }
+    // Detectamos mercados explícitos del equipo visitante.
+    if (/(visitante|away|fuera)/i.test(normalizedMarket) && !/(local|home|casa)/i.test(normalizedMarket)) {
+        // Devolvemos el valor del equipo visitante cuando aplica.
+        return awayValue;
+    }
+    // En cualquier otro caso evaluamos contra el total del partido.
+    return totalValue;
+}
+/**
+ * <summary>
  * Motor de reglas: determina estado del pick usando marcador y estadisticas disponibles.
  * </summary>
  * @param marketId - ID o acronimo del mercado guardado.
@@ -669,8 +695,10 @@ export function evaluatePickStatus(marketId, goalsHome, goalsAway, result) {
         const totalCorners = result?.cornersHome !== null && result?.cornersHome !== undefined && result?.cornersAway !== null && result?.cornersAway !== undefined
             ? Number(result.cornersHome) + Number(result.cornersAway)
             : null;
-        // Evaluamos linea de corners o dejamos pendiente manual.
-        return evaluateTotalLine(totalCorners, normalizedMarket);
+        // Seleccionamos total, local o visitante según el texto del mercado.
+        const scopedCorners = resolveScopedStatisticValue(normalizedMarket, totalCorners, result?.cornersHome, result?.cornersAway);
+        // Evaluamos la línea de corners o dejamos pendiente manual.
+        return evaluateTotalLine(scopedCorners, normalizedMarket);
     }
     // Detectamos mercados de tarjetas amarillas totales.
     if (/yellow|amarilla|tarjeta/i.test(normalizedMarket)) {
@@ -678,8 +706,10 @@ export function evaluatePickStatus(marketId, goalsHome, goalsAway, result) {
         const totalYellows = result?.yellowCardsHome !== null && result?.yellowCardsHome !== undefined && result?.yellowCardsAway !== null && result?.yellowCardsAway !== undefined
             ? Number(result.yellowCardsHome) + Number(result.yellowCardsAway)
             : null;
-        // Evaluamos linea de tarjetas o dejamos pendiente manual.
-        return evaluateTotalLine(totalYellows, normalizedMarket);
+        // Seleccionamos total, local o visitante según el texto del mercado.
+        const scopedYellows = resolveScopedStatisticValue(normalizedMarket, totalYellows, result?.yellowCardsHome, result?.yellowCardsAway);
+        // Evaluamos la línea de tarjetas o dejamos pendiente manual.
+        return evaluateTotalLine(scopedYellows, normalizedMarket);
     }
     switch (normalizedMarket) {
         // Resultado final local.

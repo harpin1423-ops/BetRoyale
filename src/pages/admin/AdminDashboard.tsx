@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { GoogleGenAI, Type } from "@google/genai";
-import { Trophy, PlusCircle, List, Users, Settings, LogOut, CheckCircle, XCircle, MinusCircle, Trash2, Edit, Tag, Globe, X, BarChart3, CheckCircle2, Activity, DollarSign, Search, ChevronLeft, ChevronRight, BrainCircuit, Loader2, Send, ExternalLink, Shield, Camera } from "lucide-react";
+import { Trophy, PlusCircle, List, Users, Settings, LogOut, CheckCircle, XCircle, MinusCircle, Trash2, Edit, Tag, Globe, X, BarChart3, CheckCircle2, Activity, DollarSign, Search, ChevronLeft, ChevronRight, BrainCircuit, Loader2, Send, ExternalLink, Shield, Camera, Sparkles } from "lucide-react";
 import { NORMALIZED_PICKS, getPickDisplay, getPlanName } from "../../lib/constants";
 import { getLocalizedStatus } from "../../lib/utils";
 import { useAuth } from "../../context/AuthContext";
@@ -138,6 +138,84 @@ const formatPromoDateForDisplay = (value: unknown) => {
 // Tipamos los destinos donde el panel puede crear equipos rápidamente.
 type QuickTeamTarget = 'home_team' | 'away_team' | { selectionIndex: number; field: 'home_team' | 'away_team' };
 
+// Tipamos cada selección de resolución manual para picks combinados.
+type ManualResolutionSelectionState = {
+  // Conservamos la posición de la selección dentro del parlay.
+  index: number;
+  // Mostramos el partido de la selección.
+  matchName: string;
+  // Mostramos el mercado legible de la selección.
+  marketLabel: string;
+  // Conservamos la referencia técnica del mercado.
+  marketReference: string;
+  // Guardamos marcador manual local como texto del input.
+  score_home: string;
+  // Guardamos marcador manual visitante como texto del input.
+  score_away: string;
+  // Guardamos total de córners si el admin lo conoce directamente.
+  corners_total: string;
+  // Guardamos córners del local.
+  corners_home: string;
+  // Guardamos córners del visitante.
+  corners_away: string;
+  // Guardamos total de amarillas si el admin lo conoce directamente.
+  yellow_cards_total: string;
+  // Guardamos amarillas del local.
+  yellow_cards_home: string;
+  // Guardamos amarillas del visitante.
+  yellow_cards_away: string;
+  // Guardamos la sugerencia calculada por el backend.
+  suggested_status: string;
+  // Guardamos el razonamiento resumido de la sugerencia.
+  suggested_reason: string;
+  // Guardamos el estado final que confirma el admin.
+  final_status: string;
+};
+
+// Tipamos el modal de resolución manual asistida para mantener los campos sincronizados.
+type ManualResolutionDialogState = {
+  // Indicamos si el modal está visible.
+  isOpen: boolean;
+  // Guardamos el ID del pick afectado.
+  pickId: number;
+  // Mostramos el nombre del evento al admin.
+  matchName: string;
+  // Mostramos el mercado legible para la decisión.
+  marketLabel: string;
+  // Conservamos la referencia técnica del mercado para etiquetas internas.
+  marketReference: string;
+  // Indicamos si la resolución se está haciendo sobre un parlay.
+  is_parlay: boolean;
+  // Guardamos marcador manual local como texto del input.
+  score_home: string;
+  // Guardamos marcador manual visitante como texto del input.
+  score_away: string;
+  // Guardamos total de córners si el admin lo conoce directamente.
+  corners_total: string;
+  // Guardamos córners del local.
+  corners_home: string;
+  // Guardamos córners del visitante.
+  corners_away: string;
+  // Guardamos total de amarillas si el admin lo conoce directamente.
+  yellow_cards_total: string;
+  // Guardamos amarillas del local.
+  yellow_cards_home: string;
+  // Guardamos amarillas del visitante.
+  yellow_cards_away: string;
+  // Guardamos la sugerencia calculada por el backend.
+  suggested_status: string;
+  // Guardamos el razonamiento resumido del backend.
+  suggested_reason: string;
+  // Guardamos el estado final que confirma el admin.
+  final_status: string;
+  // Guardamos las selecciones editables cuando el pick es combinado.
+  selections: ManualResolutionSelectionState[];
+  // Controlamos el loading del botón de sugerencia.
+  isSuggesting: boolean;
+  // Controlamos el loading del guardado final.
+  isSaving: boolean;
+};
+
 // Mapeo de ligas tipo Copa a sus ligas fuente (para mostrar equipos de múltiples divisiones)
 const CUP_LEAGUES_MAPPING: Record<string, string[]> = {
   "DFB Pokal": ["Bundesliga", "2. Bundesliga"],
@@ -260,6 +338,105 @@ const getFixtureSearchDate = (value: string | undefined) => {
   return String(value).slice(0, 10);
 };
 
+/**
+ * @summary Obtiene la referencia más útil del mercado para resolución manual.
+ * @param pick - Pick cargado desde el backend.
+ * @returns Acrónimo o nombre del mercado que verá el admin.
+ */
+const getManualResolutionMarketReference = (pick: any) => {
+  // Priorizamos el acrónimo porque suele ser más corto y exacto.
+  return String(pick?.market_acronym || pick?.market_label || pick?.pick || "").trim();
+};
+
+/**
+ * @summary Detecta si el mercado está relacionado con córners.
+ * @param marketReference - Texto del mercado actual.
+ * @returns Verdadero cuando el mercado requiere córners.
+ */
+const isCornersMarketReference = (marketReference: string) => {
+  // Detectamos diferentes variantes en español e inglés.
+  return /corner|corners|c[oó]rner/i.test(String(marketReference || ""));
+};
+
+/**
+ * @summary Detecta si el mercado está relacionado con amarillas o tarjetas.
+ * @param marketReference - Texto del mercado actual.
+ * @returns Verdadero cuando el mercado requiere amarillas.
+ */
+const isYellowCardsMarketReference = (marketReference: string) => {
+  // Detectamos variantes comunes del mercado de tarjetas.
+  return /yellow|amarilla|tarjeta/i.test(String(marketReference || ""));
+};
+
+/**
+ * @summary Construye el estado inicial de una selección dentro del modal manual.
+ * @param selection - Selección del parlay recibida desde el backend.
+ * @param index - Posición de la selección dentro del parlay.
+ * @returns Estado serializable y editable para la selección.
+ */
+const buildManualResolutionSelectionState = (selection: any, index: number): ManualResolutionSelectionState => {
+  // Resolvemos la referencia del mercado para esa selección puntual.
+  const marketReference = getManualResolutionMarketReference(selection);
+
+  // Devolvemos la selección en formato editable para el modal.
+  return {
+    index,
+    matchName: String(selection?.match_name || `Selección ${index + 1}`),
+    marketLabel: String(selection?.market_label || marketReference || "Mercado"),
+    marketReference,
+    score_home: selection?.score_home !== null && selection?.score_home !== undefined ? String(selection.score_home) : "",
+    score_away: selection?.score_away !== null && selection?.score_away !== undefined ? String(selection.score_away) : "",
+    corners_total: selection?.corners_total !== null && selection?.corners_total !== undefined ? String(selection.corners_total) : "",
+    corners_home: selection?.corners_home !== null && selection?.corners_home !== undefined ? String(selection.corners_home) : "",
+    corners_away: selection?.corners_away !== null && selection?.corners_away !== undefined ? String(selection.corners_away) : "",
+    yellow_cards_total: selection?.yellow_cards_total !== null && selection?.yellow_cards_total !== undefined ? String(selection.yellow_cards_total) : "",
+    yellow_cards_home: selection?.yellow_cards_home !== null && selection?.yellow_cards_home !== undefined ? String(selection.yellow_cards_home) : "",
+    yellow_cards_away: selection?.yellow_cards_away !== null && selection?.yellow_cards_away !== undefined ? String(selection.yellow_cards_away) : "",
+    suggested_status: String(selection?.suggested_status || ""),
+    suggested_reason: String(selection?.suggested_reason || ""),
+    final_status: String(selection?.status || selection?.final_status || "pending"),
+  };
+};
+
+/**
+ * @summary Crea el estado inicial del modal de resolución manual asistida.
+ * @param pick - Pick seleccionado por el admin.
+ * @returns Estado inicial listo para abrir el modal.
+ */
+const buildManualResolutionDialogState = (pick: any): ManualResolutionDialogState => {
+  // Resolvemos el mercado legible y técnico del pick.
+  const marketReference = getManualResolutionMarketReference(pick);
+
+  // Construimos las selecciones editables solo si el pick es un parlay.
+  const manualSelections = Array.isArray(pick?.selections)
+    ? pick.selections.map((selection: any, index: number) => buildManualResolutionSelectionState(selection, index))
+    : [];
+
+  // Devolvemos el estado inicial del modal con los datos ya guardados.
+  return {
+    isOpen: true,
+    pickId: Number(pick.id),
+    matchName: String(pick.match_name || ""),
+    marketLabel: String(pick.market_label || marketReference || "Mercado"),
+    marketReference,
+    is_parlay: Boolean(pick?.is_parlay),
+    score_home: pick?.score_home !== null && pick?.score_home !== undefined ? String(pick.score_home) : "",
+    score_away: pick?.score_away !== null && pick?.score_away !== undefined ? String(pick.score_away) : "",
+    corners_total: pick?.corners_total !== null && pick?.corners_total !== undefined ? String(pick.corners_total) : "",
+    corners_home: pick?.corners_home !== null && pick?.corners_home !== undefined ? String(pick.corners_home) : "",
+    corners_away: pick?.corners_away !== null && pick?.corners_away !== undefined ? String(pick.corners_away) : "",
+    yellow_cards_total: pick?.yellow_cards_total !== null && pick?.yellow_cards_total !== undefined ? String(pick.yellow_cards_total) : "",
+    yellow_cards_home: pick?.yellow_cards_home !== null && pick?.yellow_cards_home !== undefined ? String(pick.yellow_cards_home) : "",
+    yellow_cards_away: pick?.yellow_cards_away !== null && pick?.yellow_cards_away !== undefined ? String(pick.yellow_cards_away) : "",
+    suggested_status: "",
+    suggested_reason: "",
+    final_status: String(pick?.status || "pending"),
+    selections: manualSelections,
+    isSuggesting: false,
+    isSaving: false,
+  };
+};
+
 export function AdminDashboard() {
   // Leemos la sesión del administrador una sola vez para evitar declaraciones duplicadas.
   const { token, logout } = useAuth();
@@ -283,6 +460,7 @@ export function AdminDashboard() {
   const [isSubmittingPromoCode, setIsSubmittingPromoCode] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmittingPick, setIsSubmittingPick] = useState(false);
+  const [isGeneratingAnalysis, setIsGeneratingAnalysis] = useState(false);
   const [isSubmittingTracking, setIsSubmittingTracking] = useState(false);
   const [activeTrackingPickId, setActiveTrackingPickId] = useState<number | null>(null);
   // Guardamos el mensaje de seguimiento temporal que se publica en Telegram.
@@ -292,6 +470,8 @@ export function AdminDashboard() {
   const [globalError, setGlobalError] = useState<string | null>(null);
   const [telegramFullConfig, setTelegramFullConfig] = useState({ telegram_channel_id: "", telegram_invite_link: "" });
   const [ticketModalPick, setTicketModalPick] = useState<any | null>(null);
+  // Guardamos el estado del modal para resolución manual asistida.
+  const [manualResolutionDialog, setManualResolutionDialog] = useState<ManualResolutionDialogState | null>(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -330,6 +510,61 @@ export function AdminDashboard() {
       toast.error(error.message);
     } finally {
       setIsRunningCron(false);
+    }
+  };
+
+  /**
+   * @summary Genera un análisis profesional para el pick usando IA.
+   */
+  const handleGenerateAnalysis = async () => {
+    // Verificamos que haya datos suficientes para el análisis
+    if (!formData.is_parlay \u0026\u0026 !formData.match_name) {
+      toast.error("Por favor selecciona los equipos o ingresa el nombre del partido.");
+      return;
+    }
+
+    if (formData.is_parlay \u0026\u0026 formData.selections.length === 0) {
+      toast.error("Por favor agrega al menos una selección al parlay.");
+      return;
+    }
+
+    setIsGeneratingAnalysis(true);
+    try {
+      // Obtenemos los nombres legibles de liga y mercado para un mejor análisis
+      const leagueName = leagues.find(l =\u003e l.id.toString() === formData.league_id)?.name || "";
+      const marketLabel = markets.find(m =\u003e m.id.toString() === formData.pick)?.label || formData.pick;
+
+      // Enriquecemos selecciones de parlay con etiquetas legibles
+      const enrichedSelections = formData.is_parlay ? formData.selections.map(sel =\u003e ({
+        ...sel,
+        pick_label: markets.find(m =\u003e m.id.toString() === sel.pick)?.label || sel.pick
+      })) : [];
+
+      const res = await fetch("/api/ai/analyze-pick", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          match_name: formData.match_name,
+          league_name: leagueName,
+          pick: marketLabel,
+          odds: formData.odds,
+          is_parlay: formData.is_parlay,
+          selections: enrichedSelections
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Error al generar análisis");
+
+      setFormData(prev =\u003e ({ ...prev, analysis: data.analysis }));
+      toast.success("Análisis generado correctamente");
+    } catch (error: any) {
+      toast.error(error.message || "Error al conectar con el servicio de IA");
+    } finally {
+      setIsGeneratingAnalysis(false);
     }
   };
 
@@ -1612,6 +1847,171 @@ export function AdminDashboard() {
     }
   };
 
+  /**
+   * @summary Abre el modal de resolución manual asistida para un pick individual.
+   * @param pick - Pick que el admin desea resolver manualmente.
+   */
+  const openManualResolutionDialog = (pick: any) => {
+    // Los parlays requieren resolución por selección, así que por ahora avisamos y no abrimos modal.
+    if (pick?.is_parlay) {
+      toast.info("La resolución manual asistida por ahora está disponible para picks individuales.");
+      return;
+    }
+
+    // Abrimos el modal con los valores manuales ya guardados, si existen.
+    setManualResolutionDialog(buildManualResolutionDialogState(pick));
+  };
+
+  /**
+   * @summary Actualiza un campo editable del modal de resolución manual.
+   * @param field - Campo del formulario que se debe modificar.
+   * @param value - Nuevo valor digitado por el admin.
+   */
+  const updateManualResolutionField = (
+    field:
+      | "score_home"
+      | "score_away"
+      | "corners_total"
+      | "corners_home"
+      | "corners_away"
+      | "yellow_cards_total"
+      | "yellow_cards_home"
+      | "yellow_cards_away"
+      | "final_status",
+    value: string
+  ) => {
+    // Si el modal no existe aún, no hacemos nada.
+    if (!manualResolutionDialog) return;
+
+    // Limpiamos la sugerencia previa para evitar que se vea desactualizada.
+    setManualResolutionDialog({
+      ...manualResolutionDialog,
+      [field]: value,
+      suggested_status: field === "final_status" ? manualResolutionDialog.suggested_status : "",
+      suggested_reason: field === "final_status" ? manualResolutionDialog.suggested_reason : "",
+    });
+  };
+
+  /**
+   * @summary Solicita al backend una sugerencia de resultado usando los datos manuales cargados.
+   */
+  const requestManualResolutionSuggestion = async () => {
+    // Validamos que el modal esté abierto antes de consultar.
+    if (!manualResolutionDialog) return;
+
+    // Marcamos el botón como cargando.
+    setManualResolutionDialog({ ...manualResolutionDialog, isSuggesting: true });
+
+    try {
+      // Enviamos únicamente los datos manuales actuales para obtener la sugerencia.
+      const response = await fetch(`/api/picks/${manualResolutionDialog.pickId}/manual-resolution`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          score_home: manualResolutionDialog.score_home,
+          score_away: manualResolutionDialog.score_away,
+          corners_total: manualResolutionDialog.corners_total,
+          corners_home: manualResolutionDialog.corners_home,
+          corners_away: manualResolutionDialog.corners_away,
+          yellow_cards_total: manualResolutionDialog.yellow_cards_total,
+          yellow_cards_home: manualResolutionDialog.yellow_cards_home,
+          yellow_cards_away: manualResolutionDialog.yellow_cards_away,
+        }),
+      });
+
+      // Leemos el payload para mostrar feedback útil.
+      const data = await response.json();
+
+      // Si el backend rechazó la operación, mostramos el mensaje.
+      if (!response.ok) {
+        throw new Error(data.error || "No se pudo calcular la sugerencia manual.");
+      }
+
+      // Refrescamos el modal con la sugerencia calculada.
+      setManualResolutionDialog({
+        ...manualResolutionDialog,
+        isSuggesting: false,
+        suggested_status: String(data.suggested_status || "pending"),
+        suggested_reason: String(data.suggested_reason || ""),
+        final_status: String(data.suggested_status || manualResolutionDialog.final_status || "pending"),
+        score_home: data.manual_values?.score_home !== null && data.manual_values?.score_home !== undefined ? String(data.manual_values.score_home) : manualResolutionDialog.score_home,
+        score_away: data.manual_values?.score_away !== null && data.manual_values?.score_away !== undefined ? String(data.manual_values.score_away) : manualResolutionDialog.score_away,
+        corners_total: data.manual_values?.corners_total !== null && data.manual_values?.corners_total !== undefined ? String(data.manual_values.corners_total) : manualResolutionDialog.corners_total,
+        corners_home: data.manual_values?.corners_home !== null && data.manual_values?.corners_home !== undefined ? String(data.manual_values.corners_home) : manualResolutionDialog.corners_home,
+        corners_away: data.manual_values?.corners_away !== null && data.manual_values?.corners_away !== undefined ? String(data.manual_values.corners_away) : manualResolutionDialog.corners_away,
+        yellow_cards_total: data.manual_values?.yellow_cards_total !== null && data.manual_values?.yellow_cards_total !== undefined ? String(data.manual_values.yellow_cards_total) : manualResolutionDialog.yellow_cards_total,
+        yellow_cards_home: data.manual_values?.yellow_cards_home !== null && data.manual_values?.yellow_cards_home !== undefined ? String(data.manual_values.yellow_cards_home) : manualResolutionDialog.yellow_cards_home,
+        yellow_cards_away: data.manual_values?.yellow_cards_away !== null && data.manual_values?.yellow_cards_away !== undefined ? String(data.manual_values.yellow_cards_away) : manualResolutionDialog.yellow_cards_away,
+      });
+
+      // Notificamos que ya existe una sugerencia disponible.
+      toast.success("Sugerencia calculada. Tú decides si la confirmas o la ajustas.");
+    } catch (error: any) {
+      // Dejamos de cargar y mostramos el error sin cerrar el modal.
+      setManualResolutionDialog({ ...manualResolutionDialog, isSuggesting: false });
+      toast.error(error.message || "No se pudo calcular la sugerencia manual.");
+    }
+  };
+
+  /**
+   * @summary Guarda la resolución manual final elegida por el admin.
+   */
+  const saveManualResolutionDecision = async () => {
+    // Validamos que el modal exista antes de enviar.
+    if (!manualResolutionDialog) return;
+
+    // Requerimos que el admin confirme un estado final explícito.
+    if (!manualResolutionDialog.final_status) {
+      toast.error("Selecciona el estado final antes de guardar.");
+      return;
+    }
+
+    // Marcamos guardado en curso para evitar doble clic.
+    setManualResolutionDialog({ ...manualResolutionDialog, isSaving: true });
+
+    try {
+      // Enviamos estadísticas manuales y el estado final elegido.
+      const response = await fetch(`/api/picks/${manualResolutionDialog.pickId}/manual-resolution`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          score_home: manualResolutionDialog.score_home,
+          score_away: manualResolutionDialog.score_away,
+          corners_total: manualResolutionDialog.corners_total,
+          corners_home: manualResolutionDialog.corners_home,
+          corners_away: manualResolutionDialog.corners_away,
+          yellow_cards_total: manualResolutionDialog.yellow_cards_total,
+          yellow_cards_home: manualResolutionDialog.yellow_cards_home,
+          yellow_cards_away: manualResolutionDialog.yellow_cards_away,
+          final_status: manualResolutionDialog.final_status,
+        }),
+      });
+
+      // Parseamos la respuesta para feedback coherente.
+      const data = await response.json();
+
+      // Si hubo error, lo propagamos para el toast.
+      if (!response.ok) {
+        throw new Error(data.error || "No se pudo guardar la resolución manual.");
+      }
+
+      // Cerramos el modal y refrescamos la tabla con los nuevos datos.
+      setManualResolutionDialog(null);
+      toast.success("Resolución manual guardada correctamente.");
+      fetchPicks();
+    } catch (error: any) {
+      // Dejamos de cargar sin perder lo digitado por el admin.
+      setManualResolutionDialog({ ...manualResolutionDialog, isSaving: false });
+      toast.error(error.message || "No se pudo guardar la resolución manual.");
+    }
+  };
+
   const verifyPickResults = () => {
     if (selectedPicks.length === 0) {
       toast.error("Selecciona al menos un pick para verificar.");
@@ -2807,7 +3207,27 @@ export function AdminDashboard() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted-foreground">Comentario / Análisis (Opcional)</label>
+                  <div className="flex justify-between items-center">
+                    <label className="text-sm font-medium text-muted-foreground">Comentario / Análisis (Opcional)</label>
+                    <button
+                      type="button"
+                      onClick={handleGenerateAnalysis}
+                      disabled={isGeneratingAnalysis}
+                      className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-[11px] font-black text-primary hover:bg-primary/20 transition-all disabled:opacity-50"
+                    >
+                      {isGeneratingAnalysis ? (
+                        \u003c\u003e
+                          \u003cLoader2 size={12} className="animate-spin" /\u003e
+                          Generando...
+                        \u003c/\u003e
+                      ) : (
+                        \u003c\u003e
+                          \u003cSparkles size={12} /\u003e
+                          Generar Análisis con IA
+                        \u003c/\u003e
+                      )}
+                    </button>
+                  </div>
                   <textarea name="analysis" value={formData.analysis} onChange={handleInputChange} rows={3} placeholder="Breve justificación del pick..." className="w-full bg-background border border-white/10 rounded-lg px-4 py-2.5 text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"></textarea>
                 </div>
 
@@ -3130,6 +3550,15 @@ export function AdminDashboard() {
                                       title="Añadir Seguimiento"
                                     >
                                       <PlusCircle className="w-4 h-4" />
+                                    </button>
+
+                                    {/* Resolución manual asistida para confirmar marcador o estadísticas cuando la API no alcanza. */}
+                                    <button
+                                      onClick={() => openManualResolutionDialog(pick)}
+                                      className="p-1.5 rounded hover:bg-amber-500/20 text-amber-400 transition-colors"
+                                      title={pick.is_parlay ? "Resolución manual asistida disponible próximamente para parlays" : "Resolución manual asistida"}
+                                    >
+                                      <Shield className="w-4 h-4" />
                                     </button>
 
                                     {pick.status === 'pending' && (
@@ -5175,6 +5604,201 @@ export function AdminDashboard() {
                   >
                     Aceptar
                   </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal para resolución manual asistida con sugerencia automática. */}
+        {manualResolutionDialog && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+            <div className="bg-card w-full max-w-4xl rounded-2xl shadow-2xl border border-white/10 overflow-hidden">
+              <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
+                <div>
+                  <h3 className="text-xl font-black text-foreground">Resolución Manual Asistida</h3>
+                  <p className="text-sm text-muted-foreground">{manualResolutionDialog.matchName}</p>
+                </div>
+                <button
+                  onClick={() => setManualResolutionDialog(null)}
+                  className="rounded-lg p-2 text-muted-foreground hover:text-white hover:bg-white/10 transition-colors"
+                  title="Cerrar"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-6 max-h-[85vh] overflow-y-auto">
+                <div className="rounded-xl border border-primary/15 bg-primary/5 px-4 py-3">
+                  <div className="text-[11px] font-black uppercase tracking-[0.2em] text-primary/80">Mercado</div>
+                  <div className="mt-1 text-base font-bold text-foreground">{manualResolutionDialog.marketLabel}</div>
+                  <div className="mt-2 text-xs text-muted-foreground">
+                    {isCornersMarketReference(manualResolutionDialog.marketReference)
+                      ? "Este mercado puede resolverse con córners totales o por equipo."
+                      : isYellowCardsMarketReference(manualResolutionDialog.marketReference)
+                        ? "Este mercado puede resolverse con amarillas totales o por equipo."
+                        : "Este mercado se resuelve principalmente con el marcador final."}
+                  </div>
+                </div>
+
+                <div className="grid gap-6 lg:grid-cols-3">
+                  <div className={`rounded-2xl border px-4 py-4 ${!isCornersMarketReference(manualResolutionDialog.marketReference) && !isYellowCardsMarketReference(manualResolutionDialog.marketReference) ? "border-primary/30 bg-primary/5" : "border-white/10 bg-white/[0.02]"}`}>
+                    <div className="text-xs font-black uppercase tracking-[0.18em] text-primary">Marcador Final</div>
+                    <div className="mt-1 text-xs text-muted-foreground">Útil para mercados de ganador, doble oportunidad y goles.</div>
+                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                      <div>
+                        <label className="mb-2 block text-[11px] font-bold uppercase text-muted-foreground">Goles Local</label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={manualResolutionDialog.score_home}
+                          onChange={(e) => updateManualResolutionField("score_home", e.target.value)}
+                          className="w-full rounded-xl border border-white/10 bg-background px-3 py-2.5 text-sm text-foreground focus:border-primary focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-2 block text-[11px] font-bold uppercase text-muted-foreground">Goles Visitante</label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={manualResolutionDialog.score_away}
+                          onChange={(e) => updateManualResolutionField("score_away", e.target.value)}
+                          className="w-full rounded-xl border border-white/10 bg-background px-3 py-2.5 text-sm text-foreground focus:border-primary focus:outline-none"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className={`rounded-2xl border px-4 py-4 ${isCornersMarketReference(manualResolutionDialog.marketReference) ? "border-primary/30 bg-primary/5" : "border-white/10 bg-white/[0.02]"}`}>
+                    <div className="text-xs font-black uppercase tracking-[0.18em] text-primary">Córners</div>
+                    <div className="mt-1 text-xs text-muted-foreground">Puedes cargar total del partido o discriminar local y visitante.</div>
+                    <div className="mt-4 grid gap-3">
+                      <div>
+                        <label className="mb-2 block text-[11px] font-bold uppercase text-muted-foreground">Córners Totales</label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={manualResolutionDialog.corners_total}
+                          onChange={(e) => updateManualResolutionField("corners_total", e.target.value)}
+                          className="w-full rounded-xl border border-white/10 bg-background px-3 py-2.5 text-sm text-foreground focus:border-primary focus:outline-none"
+                        />
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div>
+                          <label className="mb-2 block text-[11px] font-bold uppercase text-muted-foreground">Córners Local</label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={manualResolutionDialog.corners_home}
+                            onChange={(e) => updateManualResolutionField("corners_home", e.target.value)}
+                            className="w-full rounded-xl border border-white/10 bg-background px-3 py-2.5 text-sm text-foreground focus:border-primary focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-2 block text-[11px] font-bold uppercase text-muted-foreground">Córners Visitante</label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={manualResolutionDialog.corners_away}
+                            onChange={(e) => updateManualResolutionField("corners_away", e.target.value)}
+                            className="w-full rounded-xl border border-white/10 bg-background px-3 py-2.5 text-sm text-foreground focus:border-primary focus:outline-none"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className={`rounded-2xl border px-4 py-4 ${isYellowCardsMarketReference(manualResolutionDialog.marketReference) ? "border-primary/30 bg-primary/5" : "border-white/10 bg-white/[0.02]"}`}>
+                    <div className="text-xs font-black uppercase tracking-[0.18em] text-primary">Amarillas</div>
+                    <div className="mt-1 text-xs text-muted-foreground">Ideal para mercados de tarjetas del partido, local o visitante.</div>
+                    <div className="mt-4 grid gap-3">
+                      <div>
+                        <label className="mb-2 block text-[11px] font-bold uppercase text-muted-foreground">Amarillas Totales</label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={manualResolutionDialog.yellow_cards_total}
+                          onChange={(e) => updateManualResolutionField("yellow_cards_total", e.target.value)}
+                          className="w-full rounded-xl border border-white/10 bg-background px-3 py-2.5 text-sm text-foreground focus:border-primary focus:outline-none"
+                        />
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div>
+                          <label className="mb-2 block text-[11px] font-bold uppercase text-muted-foreground">Amarillas Local</label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={manualResolutionDialog.yellow_cards_home}
+                            onChange={(e) => updateManualResolutionField("yellow_cards_home", e.target.value)}
+                            className="w-full rounded-xl border border-white/10 bg-background px-3 py-2.5 text-sm text-foreground focus:border-primary focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-2 block text-[11px] font-bold uppercase text-muted-foreground">Amarillas Visitante</label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={manualResolutionDialog.yellow_cards_away}
+                            onChange={(e) => updateManualResolutionField("yellow_cards_away", e.target.value)}
+                            className="w-full rounded-xl border border-white/10 bg-background px-3 py-2.5 text-sm text-foreground focus:border-primary focus:outline-none"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                    <div className="flex-1">
+                      <label className="mb-2 block text-[11px] font-bold uppercase text-muted-foreground">Estado Final Confirmado por Admin</label>
+                      <select
+                        value={manualResolutionDialog.final_status}
+                        onChange={(e) => updateManualResolutionField("final_status", e.target.value)}
+                        className="w-full rounded-xl border border-white/10 bg-background px-3 py-2.5 text-sm text-foreground focus:border-primary focus:outline-none"
+                      >
+                        <option value="pending">Pendiente</option>
+                        <option value="won">Ganado</option>
+                        <option value="lost">Perdido</option>
+                        <option value="void">Nulo</option>
+                        <option value="half-won">Medio Ganado</option>
+                        <option value="half-lost">Medio Perdido</option>
+                      </select>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={requestManualResolutionSuggestion}
+                        disabled={manualResolutionDialog.isSuggesting || manualResolutionDialog.isSaving}
+                        className="inline-flex items-center gap-2 rounded-xl border border-primary/30 px-4 py-2.5 text-sm font-bold text-primary transition-colors hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {manualResolutionDialog.isSuggesting ? <Loader2 className="h-4 w-4 animate-spin" /> : <BrainCircuit className="h-4 w-4" />}
+                        Sugerir resultado
+                      </button>
+                      <button
+                        type="button"
+                        onClick={saveManualResolutionDecision}
+                        disabled={manualResolutionDialog.isSaving || manualResolutionDialog.isSuggesting}
+                        className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-black text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {manualResolutionDialog.isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                        Guardar resolución
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 rounded-xl border border-white/10 bg-background/60 p-4">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <span className="text-[11px] font-black uppercase tracking-[0.18em] text-muted-foreground">Sugerencia del sistema</span>
+                      <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-black ${manualResolutionDialog.suggested_status === "won" ? "bg-emerald-500/15 text-emerald-400" : manualResolutionDialog.suggested_status === "lost" ? "bg-red-500/15 text-red-400" : manualResolutionDialog.suggested_status === "void" ? "bg-slate-500/15 text-slate-300" : "bg-yellow-500/15 text-yellow-400"}`}>
+                        {manualResolutionDialog.suggested_status ? getLocalizedStatus(manualResolutionDialog.suggested_status) : "Sin calcular"}
+                      </span>
+                    </div>
+                    <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+                      {manualResolutionDialog.suggested_reason || "Ingresa los datos del partido y pulsa “Sugerir resultado” para recibir una recomendación automática."}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
