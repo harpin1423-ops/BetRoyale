@@ -76,8 +76,8 @@ export function Pricing() {
     { id: "cuota_2", name: "VIP Cuota 2+", priceUSD: 10, icon: <Zap className="w-6 h-6 text-blue-400" />, features: ["Picks diarios (Cuotas 2.0-2.9)", "Stake recomendado (1-3%)", "Análisis técnico de ligas top", "Notificaciones vía Web", "Soporte VIP 24/7"] },
     { id: "cuota_3", name: "VIP Cuota 3+", priceUSD: 15, icon: <Star className="w-6 h-6 text-primary" />, popular: true, features: ["Picks diarios (Cuotas 3.0-3.9)", "Stake recomendado (1-2%)", "Acceso a Combinadas Especiales", "Grupo Exclusivo de Telegram", "Soporte VIP 24/7"] },
     { id: "cuota_4", name: "VIP Cuota 4+", priceUSD: 20, icon: <Shield className="w-6 h-6 text-purple-400" />, features: ["Picks de Valor (Cuotas 4.0-4.9)", "Stake conservador (0.5-1%)", "Estrategia de Alto Rendimiento", "Contacto Directo 1 a 1", "Soporte VIP 24/7"] },
-    { id: "cuota_5", name: "VIP Cuota 5+", priceUSD: 25, icon: <Target className="w-6 h-6 text-red-400" />, features: ["Picks Exclusivos (Cuotas 5.0+)", "Stake Mínimo (0.25-0.5%)", "Información de Ligas Exóticas", "Atención Prioritaria 24/7", "Soporte VIP 24/7"] },
-    { id: "all_plans", name: "Todos los Planes", priceUSD: 56, icon: <Crown className="w-6 h-6 text-yellow-400" />, popular: true, discount: "Ahorra 20%", features: ["Acceso Total a todos los VIP", "Todas las cuotas (2.0 a 5.0+)", "Soporte VIP 24/7", "Análisis de Mercados en Vivo", "Auditoría de Bankroll Mensual"] }
+    // { id: "cuota_5", name: "VIP Cuota 5+", priceUSD: 25, icon: <Target className="w-6 h-6 text-red-400" />, features: ["Picks Exclusivos (Cuotas 5.0+)", "Stake Mínimo (0.25-0.5%)", "Información de Ligas Exóticas", "Atención Prioritaria 24/7", "Soporte VIP 24/7"] },
+    { id: "all_plans", name: "Todos los Planes", priceUSD: 40, icon: <Crown className="w-6 h-6 text-yellow-400" />, popular: true, discount: "Ahorra 15%", features: ["Acceso Total a todos los VIP", "Cuotas Premium (2.0 a 4.0+)", "Soporte VIP 24/7", "Análisis de Mercados en Vivo", "Auditoría de Bankroll Mensual"] }
   ];
 
   const handlePayment = async (plan: typeof plans[0]) => {

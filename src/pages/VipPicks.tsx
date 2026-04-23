@@ -63,7 +63,7 @@ export function VipPicks() {
         const vipPicks = Array.isArray(picksData) ? picksData.filter((p: any) => p.pick_type_slug !== 'free') : [];
         setPicks(vipPicks);
         
-        const vipTypes = Array.isArray(typesData) ? typesData.filter((t: any) => t.slug !== 'free') : [];
+        const vipTypes = Array.isArray(typesData) ? typesData.filter((t: any) => t.slug !== 'free' && t.slug !== 'cuota_5') : [];
         setPickTypes(vipTypes);
         setPlanSettings(Array.isArray(settingsData) ? settingsData : []);
         setTelegramLinks(tgData);

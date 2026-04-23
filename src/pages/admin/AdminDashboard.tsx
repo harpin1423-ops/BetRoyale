@@ -868,7 +868,7 @@ export function AdminDashboard() {
           headers: { "Authorization": `Bearer ${token}` }
         });
         const typesData = await typesRes.json();
-        setPickTypes(Array.isArray(typesData) ? typesData : []);
+        setPickTypes(Array.isArray(typesData) ? typesData.filter((t: any) => t.slug !== 'cuota_5') : []);
       } else {
         toast.error(result.error || "Error al actualizar");
       }
@@ -1419,7 +1419,7 @@ export function AdminDashboard() {
           }
         });
         const data = await res.json();
-        setPickTypes(data);
+        setPickTypes(Array.isArray(data) ? data.filter((t: any) => t.slug !== 'cuota_5') : []);
         if (data.length > 0 && !editingPickId) {
           setFormData(prev => ({ ...prev, pick_type_id: data[0].id.toString() }));
         }
@@ -4241,7 +4241,7 @@ export function AdminDashboard() {
                       { value: "cuota_2", label: "VIP Cuota 2+" },
                       { value: "cuota_3", label: "VIP Cuota 3+" },
                       { value: "cuota_4", label: "VIP Cuota 4+" },
-                      { value: "cuota_5", label: "VIP Cuota 5+" },
+                      // { value: "cuota_5", label: "VIP Cuota 5+" },
                       { value: "all_plans", label: "Todos los Planes" },
                     ]}
                     value={planFilter}

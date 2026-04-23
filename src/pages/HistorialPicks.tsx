@@ -503,7 +503,7 @@ export const HistorialPicks: React.FC = () => {
               <option value="cuota_2">VIP Cuota 2+</option>
               <option value="cuota_3">VIP Cuota 3+</option>
               <option value="cuota_4">VIP Cuota 4+</option>
-              <option value="cuota_5">VIP Cuota 5+</option>
+              {/* <option value="cuota_5">VIP Cuota 5+</option> */}
             </select>
 
             {/* Buscador de texto */}

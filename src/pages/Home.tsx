@@ -615,7 +615,7 @@ export function Home() {
             <p className="text-muted-foreground max-w-2xl mx-auto">Elige el plan que mejor se adapte a tu estilo de inversión.</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 max-w-7xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 max-w-7xl mx-auto">
             {/* Plan 1 */}
             <div className="p-6 rounded-3xl bg-card border border-white/10 flex flex-col group hover:border-blue-400/30 transition-all">
               <h3 className="text-xl font-bold mb-2">VIP Cuota 2+</h3>
@@ -673,28 +673,10 @@ export function Home() {
               <Link to="/pricing" className="w-full py-2.5 rounded-lg bg-white/10 hover:bg-white/20 font-semibold text-center transition-colors text-sm">Seleccionar</Link>
             </div>
 
-            {/* Plan 4 */}
-            <div className="p-6 rounded-3xl bg-card border border-white/10 flex flex-col group hover:border-red-400/30 transition-all">
-              <h3 className="text-xl font-bold mb-2">VIP Cuota 5+</h3>
-              <p className="text-sm text-muted-foreground mb-4">Información privilegiada y cuotas explosivas.</p>
-              <div className="mb-6">
-                <span className="text-3xl font-bold">$25</span>
-                <span className="text-sm text-muted-foreground">/mes</span>
-              </div>
-              <ul className="space-y-3 mb-6 flex-1 text-sm">
-                <li className="flex items-start gap-2"><CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" /> Picks Exclusivos (Cuotas 5.0+)</li>
-                <li className="flex items-start gap-2"><CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" /> Stake Mínimo (0.25-0.5%)</li>
-                <li className="flex items-start gap-2"><CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" /> Información de Ligas Exóticas</li>
-                <li className="flex items-start gap-2"><CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" /> Acceso a todos los planes</li>
-                <li className="flex items-start gap-2"><CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" /> Soporte VIP 24/7</li>
-              </ul>
-              <Link to="/pricing" className="w-full py-2.5 rounded-lg bg-white/10 hover:bg-white/20 font-semibold text-center transition-colors text-sm">Seleccionar</Link>
-            </div>
-
             {/* Plan 5 - Highlighted */}
             <div className="p-6 rounded-3xl bg-gradient-to-b from-card to-secondary/40 border-2 border-primary relative flex flex-col transform md:-translate-y-2 shadow-[0_0_40px_rgba(212,175,55,0.15)] group hover:scale-[1.05] transition-all">
               <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-wider py-0.5 px-3 rounded-full whitespace-nowrap">
-                Ahorra 20%
+                Ahorra 15%
               </div>
               <div className="flex items-center gap-2 mb-2">
                 <Crown className="w-5 h-5 text-accent" />
@@ -702,12 +684,12 @@ export function Home() {
               </div>
               <p className="text-sm text-muted-foreground mb-4">La experiencia definitiva para el apostador profesional.</p>
               <div className="mb-6">
-                <span className="text-3xl font-bold">$56</span>
+                <span className="text-3xl font-bold">$40</span>
                 <span className="text-sm text-muted-foreground">/mes</span>
               </div>
               <ul className="space-y-3 mb-6 flex-1 text-sm">
                 <li className="flex items-start gap-2"><CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" /> Acceso Total a todos los VIP</li>
-                <li className="flex items-start gap-2"><CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" /> Todas las cuotas (2.0 a 5.0+)</li>
+                <li className="flex items-start gap-2"><CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" /> Cuotas Premium (2.0 a 4.0+)</li>
                 <li className="flex items-start gap-2"><CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" /> Análisis de Mercados en Vivo</li>
                 <li className="flex items-start gap-2"><CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" /> Auditoría de Bankroll Mensual</li>
                 <li className="flex items-start gap-2"><CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" /> Soporte VIP 24/7</li>
