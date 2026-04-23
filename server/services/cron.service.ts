@@ -251,6 +251,12 @@ async function handleParlayResolution(pick: any): Promise<void> {
     sel.status = selStatus;
     anyUpdated = true;
 
+    // Si el mercado no se puede evaluar automáticamente, el parlay sigue pendiente.
+    if (selStatus === "pending") {
+      allFinished = false;
+      continue;
+    }
+
     if (selStatus === "lost") anyLost = true;
   }
 

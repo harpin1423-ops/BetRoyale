@@ -173,6 +173,42 @@ const getCompatibleLeagueIds = (selectedLeagueId: string | number | null, league
   return sourceLeagueIds;
 };
 
+/**
+ * @summary Detecta si una fila o selección ya tiene marcador completo.
+ * @param item - Pick o selección de parlay que puede contener score_home y score_away.
+ * @returns Verdadero cuando ambos lados del marcador existen.
+ */
+const hasResolvedScore = (item: any) => {
+  // Validamos local y visitante contra null/undefined, permitiendo marcador cero.
+  return item?.score_home !== null && item?.score_home !== undefined && item?.score_away !== null && item?.score_away !== undefined;
+};
+
+/**
+ * @summary Detecta si una fila o selección está vinculada a una API de resultados.
+ * @param item - Pick o selección de parlay que puede contener IDs de API.
+ * @returns Verdadero cuando existe un identificador de TheSportsDB o API legacy.
+ */
+const hasResultProviderLink = (item: any) => {
+  // Priorizamos TheSportsDB y conservamos compatibilidad con api_fixture_id.
+  return Boolean(item?.thesportsdb_event_id || item?.api_fixture_id);
+};
+
+/**
+ * @summary Construye una fecha de formulario desde la respuesta de TheSportsDB.
+ * @param fixture - Partido retornado por el buscador externo.
+ * @returns Valor datetime-local o cadena vacía cuando no hay fecha.
+ */
+const getFixtureDateTimeValue = (fixture: any) => {
+  // Evitamos generar fechas incompletas.
+  if (!fixture?.date) return "";
+
+  // Normalizamos la hora recibida por TheSportsDB.
+  const rawTime = String(fixture.time || "00:00").slice(0, 5);
+
+  // Devolvemos el valor compatible con inputs datetime-local.
+  return `${fixture.date}T${rawTime || "00:00"}`;
+};
+
 export function AdminDashboard() {
   // Leemos la sesión del administrador una sola vez para evitar declaraciones duplicadas.
   const { token, logout } = useAuth();
@@ -1089,14 +1125,19 @@ export function AdminDashboard() {
   };
 
   /**
-   * Busca partidos en la API externa para vinculación automática.
+   * @summary Busca partidos en la API externa para vinculación automática.
+   * @param queryOverride - Texto puntual que debe usarse en vez del estado del input.
    */
-  const handleSearchFixtures = async () => {
-    if (!fixtureSearchQuery.trim() || isSearchingFixtures) return;
+  const handleSearchFixtures = async (queryOverride?: string) => {
+    // Definimos la búsqueda final para evitar usar un estado anterior.
+    const finalQuery = (queryOverride || fixtureSearchQuery).trim();
+
+    // Evitamos consultas vacías o duplicadas.
+    if (!finalQuery || isSearchingFixtures) return;
     
     setIsSearchingFixtures(true);
     try {
-      const res = await fetch(`/api/scores/search?q=${encodeURIComponent(fixtureSearchQuery)}`, {
+      const res = await fetch(`/api/scores/search?q=${encodeURIComponent(finalQuery)}`, {
         headers: { "Authorization": `Bearer ${token}` }
       });
       const data = await res.json();
@@ -1159,7 +1200,7 @@ export function AdminDashboard() {
       ...prev,
       selections: [
         ...prev.selections,
-        { country_id: "", league_id: "", home_team: "", away_team: "", match_name: "", match_time: "", pick: "", odds: "", api_fixture_id: "" }
+        { country_id: "", league_id: "", home_team: "", away_team: "", match_name: "", match_time: "", pick: "", odds: "", api_fixture_id: "", thesportsdb_event_id: "" }
       ]
     }));
   };
@@ -2225,7 +2266,7 @@ export function AdminDashboard() {
                       </div>
 
                       {/* ─── Buscador de Partidos API-Football ─── */}
-                      <div className="md:col-span-12 p-6 bg-primary/5 border border-primary/20 rounded-3xl space-y-4">
+                      <div id="fixture-search-area" className="md:col-span-12 p-6 bg-primary/5 border border-primary/20 rounded-3xl space-y-4">
                         <div className="flex justify-between items-center">
                           <div className="flex items-center gap-3">
                             <div className="p-2 bg-primary/10 rounded-xl">
@@ -2259,7 +2300,7 @@ export function AdminDashboard() {
                           />
                           <button
                             type="button"
-                            onClick={handleSearchFixtures}
+                            onClick={() => handleSearchFixtures()}
                             disabled={isSearchingFixtures}
                             className="bg-primary/20 text-primary border border-primary/30 px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-primary hover:text-primary-foreground transition-all flex items-center gap-2 min-w-[140px] justify-center"
                           >
@@ -2283,7 +2324,7 @@ export function AdminDashboard() {
                                      newSelections[activeSelectionFixtureIndex] = {
                                        ...newSelections[activeSelectionFixtureIndex],
                                        thesportsdb_event_id: fix.id,
-                                       match_date: fix.date
+                                       match_time: newSelections[activeSelectionFixtureIndex]?.match_time || getFixtureDateTimeValue(fix)
                                      };
                                      setFormData(prev => ({ ...prev, selections: newSelections }));
                                      setActiveSelectionFixtureIndex(null);
@@ -2294,7 +2335,7 @@ export function AdminDashboard() {
                                        ...prev, 
                                        thesportsdb_event_id: fix.id,
                                        // Si no hay fecha cargada, usamos la de la API
-                                       match_date: prev.match_date || (fix.date ? `${fix.date}T${fix.time || '00:00'}` : prev.match_date)
+                                       match_date: prev.match_date || getFixtureDateTimeValue(fix)
                                      }));
                                    }
                                  }}
@@ -2526,14 +2567,13 @@ export function AdminDashboard() {
                                         onClick={() => {
                                           setActiveSelectionFixtureIndex(index);
                                           setFixtureSearchQuery(sel.match_name || "");
-                                          // Scroll to search area or focus? For now just set state
                                           if (sel.match_name) {
-                                            handleSearchFixtures();
+                                            handleSearchFixtures(sel.match_name);
                                           }
                                           const searchEl = document.getElementById('fixture-search-area');
                                           if (searchEl) searchEl.scrollIntoView({ behavior: 'smooth' });
                                         }}
-                                        className={`shrink-0 flex items-center justify-center w-10 h-10 rounded-xl border transition-all ${sel.api_fixture_id ? 'bg-primary/20 border-primary text-primary' : 'bg-white/5 border-white/10 text-muted-foreground hover:border-primary hover:text-primary'}`}
+                                        className={`shrink-0 flex items-center justify-center w-10 h-10 rounded-xl border transition-all ${hasResultProviderLink(sel) ? 'bg-primary/20 border-primary text-primary' : 'bg-white/5 border-white/10 text-muted-foreground hover:border-primary hover:text-primary'}`}
                                         title="Vincular con API de Resultados"
                                       >
                                         <Activity className="w-4 h-4" />
@@ -2848,7 +2888,7 @@ export function AdminDashboard() {
                       <tbody className="divide-y divide-white/10">
                         {filteredPicks.length === 0 ? (
                           <tr>
-                            <td colSpan={8} className="p-8 text-center text-muted-foreground">No hay picks que coincidan con los filtros.</td>
+                            <td colSpan={9} className="p-8 text-center text-muted-foreground">No hay picks que coincidan con los filtros.</td>
                           </tr>
                         ) : (
                           paginatedPicks.map((pick) => (
@@ -2885,9 +2925,9 @@ export function AdminDashboard() {
                                         <div key={idx} className="text-[10px] text-muted-foreground border-l border-white/10 pl-2">
                                           <div className="flex items-center justify-between">
                                             <span className="font-bold text-primary/70">{sel.match_name}</span>
-                                            {sel.score_home !== undefined && sel.score_home !== null && (
-                                              <span className="ml-2 font-black text-primary px-1.5 py-0.5 bg-primary/10 rounded">
-                                                {sel.score_home} - {sel.score_away}
+                                            {hasResultProviderLink(sel) && (
+                                              <span className="ml-2 shrink-0 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-1.5 py-0.5 text-[8px] font-black text-emerald-400">
+                                                API
                                               </span>
                                             )}
                                           </div>
@@ -2911,29 +2951,44 @@ export function AdminDashboard() {
                                     </div>
                                   )}
                                 </td>
+                                <td className="p-4 font-black text-foreground">{pick.odds}</td>
                                 <td className="p-4">
-                                  {pick.score_home !== null && pick.score_away !== null ? (
+                                  <span className={`px-2 py-1 rounded text-xs font-medium ${pick.pick_type_slug === 'free' ? 'bg-primary/20 text-primary' : 'bg-accent/20 text-accent'}`}>
+                                    {(pick.pick_type_name || pick.pick_type || 'FREE').toUpperCase()}
+                                  </span>
+                                </td>
+                                <td className="p-4">
+                                  {Boolean(pick.is_parlay) && Array.isArray(pick.selections) ? (
+                                    <div className="min-w-[210px] space-y-1.5">
+                                      {pick.selections.map((sel: any, idx: number) => (
+                                        <div key={`${pick.id}-score-${idx}`} className="flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-2 py-1">
+                                          <span className="text-[10px] font-black text-muted-foreground">#{idx + 1}</span>
+                                          {hasResolvedScore(sel) ? (
+                                            <span className={`min-w-[3.4rem] rounded px-2 py-0.5 text-center text-xs font-black ${sel.status === 'lost' ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'}`}>
+                                              {sel.score_home} - {sel.score_away}
+                                            </span>
+                                          ) : (
+                                            <span className={`rounded px-2 py-0.5 text-[10px] font-black ${hasResultProviderLink(sel) ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20' : 'bg-white/5 text-muted-foreground border border-white/10'}`}>
+                                              {hasResultProviderLink(sel) ? 'Pendiente API' : 'Sin vínculo'}
+                                            </span>
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  ) : hasResolvedScore(pick) ? (
                                     <div className="flex items-center gap-2">
                                       <span className="px-2 py-1 bg-primary/10 border border-primary/20 rounded font-black text-primary min-w-[3rem] text-center">
                                         {pick.score_home} - {pick.score_away}
                                       </span>
-                                      {/* Mostrar indicador de pulso si el evento está vinculado a cualquier API */}
-                                      {(pick.api_fixture_id || pick.thesportsdb_event_id) && (
+                                      {hasResultProviderLink(pick) && (
                                         <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" title="Actualización automática activa" />
                                       )}
                                     </div>
                                   ) : (
                                     <span className="text-muted-foreground italic text-xs">
-                                      {/* Mostrar texto de pendiente si hay vinculación activa */}
-                                      {(pick.api_fixture_id || pick.thesportsdb_event_id) ? 'Pendiente API' : '-'}
+                                      {hasResultProviderLink(pick) ? 'Pendiente API' : 'Sin vínculo'}
                                     </span>
                                   )}
-                                </td>
-                                <td className="p-4">{pick.odds}</td>
-                                <td className="p-4">
-                                  <span className={`px-2 py-1 rounded text-xs font-medium ${pick.pick_type_slug === 'free' ? 'bg-primary/20 text-primary' : 'bg-accent/20 text-accent'}`}>
-                                    {(pick.pick_type_name || pick.pick_type || 'FREE').toUpperCase()}
-                                  </span>
                                 </td>
                                 <td className="p-4">
                                   <span className={`px-2 py-1 rounded text-xs font-medium ${pick.status === 'won' ? 'bg-green-500/20 text-green-500' :
@@ -2987,7 +3042,7 @@ export function AdminDashboard() {
                               {/* Tracking Row (if active or has tracking) */}
                               {(activeTrackingPickId === pick.id || (pick.tracking && pick.tracking.length > 0)) && (
                                 <tr key={`tracking-${pick.id}`} className="bg-white/5">
-                                  <td colSpan={7} className="p-4 border-t border-white/5">
+                                  <td colSpan={9} className="p-4 border-t border-white/5">
                                     <div className="pl-4 border-l-2 border-primary/50">
                                       <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Seguimiento en vivo</h4>
 

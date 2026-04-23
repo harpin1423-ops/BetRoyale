@@ -894,6 +894,7 @@ export async function initDB() {
         await conexion.query(`ALTER TABLE picks ADD COLUMN IF NOT EXISTS score_home INT DEFAULT NULL`).catch(() => { });
         await conexion.query(`ALTER TABLE picks ADD COLUMN IF NOT EXISTS score_away INT DEFAULT NULL`).catch(() => { });
         await conexion.query(`ALTER TABLE picks ADD COLUMN IF NOT EXISTS auto_update BOOLEAN DEFAULT TRUE`).catch(() => { });
+        await conexion.query(`ALTER TABLE picks ADD COLUMN IF NOT EXISTS thesportsdb_event_id VARCHAR(64) DEFAULT NULL`).catch(() => { });
         // ── 7. Tabla: pick_tracking ──────────────────────────────────────────────
         // Mensajes de seguimiento opcionales para un pick (ej: "Partido suspendido")
         await conexion.query(`
