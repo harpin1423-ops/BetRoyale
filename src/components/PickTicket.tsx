@@ -870,21 +870,24 @@ export function PickTicket({ pick }: { pick: PickData }) {
             >
               {theme.label}
             </div>
-            <div
-              style={{
-                padding: "6px 21px",
-                borderRadius: 999,
-                border: `1.5px solid ${status.border}`,
-                color: status.color,
-                background: status.background,
-                fontSize: 12,
-                fontWeight: 950,
-                letterSpacing: "0.22em",
-                textTransform: "uppercase",
-              }}
-            >
-              {status.label}
-            </div>
+            {/* Solo mostramos el badge de estado en el header si NO hay ribbon (ej: pendiente) */}
+            {!isResolved && (
+              <div
+                style={{
+                  padding: "6px 21px",
+                  borderRadius: 999,
+                  border: `1.5px solid ${status.border}`,
+                  color: status.color,
+                  background: status.background,
+                  fontSize: 12,
+                  fontWeight: 950,
+                  letterSpacing: "0.22em",
+                  textTransform: "uppercase",
+                }}
+              >
+                {status.label}
+              </div>
+            )}
           </div>
         </header>
 
@@ -1065,7 +1068,7 @@ export function PickTicket({ pick }: { pick: PickData }) {
             </div>
           </aside>
 
-          <section style={{ minWidth: 0, display: "flex", flexDirection: "column", padding: "18px 24px 12px", height: "100%", boxSizing: "border-box" }}>
+          <section style={{ minWidth: 0, display: "flex", flexDirection: "column", padding: "18px 24px 22px", height: "100%", boxSizing: "border-box" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-start", gap: 14, marginBottom: 12 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
                 <span style={{ width: 9, height: 9, borderRadius: "50%", background: theme.accent, boxShadow: `0 0 18px ${theme.accent}`, flexShrink: 0 }} />
@@ -1106,13 +1109,24 @@ export function PickTicket({ pick }: { pick: PickData }) {
                   {getPredictionLabel(pick)}{getMarketAcronym(pick)}
                 </div>
                 {isResolved && pick.score_home !== null && pick.score_home !== undefined && pick.score_away !== null && pick.score_away !== undefined && (
-                  <div style={{ marginTop: 26, fontSize: 18, fontWeight: 950, color: "#cbd5e1" }}>
-                    Resultado: {pick.score_home}-{pick.score_away}
+                  <div 
+                    style={{ 
+                      marginTop: 26, 
+                      padding: "8px 18px",
+                      borderRadius: 12,
+                      background: "rgba(255, 255, 255, 0.08)",
+                      border: "1px solid rgba(255, 255, 255, 0.15)",
+                      display: "inline-block",
+                      alignSelf: "flex-start"
+                    }}
+                  >
+                    <span style={{ fontSize: 14, fontWeight: 950, letterSpacing: "0.1em", color: "#94a3b8", textTransform: "uppercase", marginRight: 10 }}>Resultado Final</span>
+                    <span style={{ fontSize: 24, fontWeight: 950, color: "#f8fafc" }}>{pick.score_home} - {pick.score_away}</span>
                   </div>
                 )}
               </article>
             ) : (
-              <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", gap: compactParlay ? 7 : 9 }}>
+              <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", gap: compactParlay ? 7 : 9, paddingBottom: 10 }}>
                 {selections.map((selection, index) => {
                   // Calculamos si hay marcador completo para mostrarlo solo en resueltos.
                   const hasScore = selection.score_home !== null && selection.score_home !== undefined && selection.score_away !== null && selection.score_away !== undefined;
@@ -1182,8 +1196,19 @@ export function PickTicket({ pick }: { pick: PickData }) {
                             @{parseNumber(selection.odds, 1).toFixed(2)}
                           </div>
                           {isResolved && hasScore && (
-                            <div style={{ padding: "4px 9px", borderRadius: 999, background: "rgba(255, 255, 255, 0.06)", color: "#cbd5e1", fontSize: 10, fontWeight: 900 }}>
-                              Resultado: {selection.score_home}-{selection.score_away}
+                            <div 
+                              style={{ 
+                                padding: "6px 14px", 
+                                borderRadius: 10, 
+                                background: "rgba(255, 255, 255, 0.12)", 
+                                border: "1px solid rgba(255, 255, 255, 0.20)",
+                                color: "#f8fafc", 
+                                fontSize: 12, 
+                                fontWeight: 950,
+                                boxShadow: "0 4px 12px rgba(0,0,0,0.25)"
+                              }}
+                            >
+                              FINAL: {selection.score_home} - {selection.score_away}
                             </div>
                           )}
                         </div>
