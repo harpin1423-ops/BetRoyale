@@ -67,6 +67,50 @@ function paisCoincideConLiga(countryId: unknown, leagueCountryId: number): boole
   return Number(countryId) === Number(leagueCountryId);
 }
 
+/**
+ * <summary>
+ * Normaliza el nombre oficial y el ID de API-Football antes de persistirlos en la base de datos.
+ * </summary>
+ * @param apiNameInput - Alias técnico opcional usado como compatibilidad o fallback.
+ * @param apiProviderNameInput - Nombre oficial del equipo según API-Football.
+ * @param apiTeamIdInput - ID oficial del equipo en API-Football.
+ * @returns Datos normalizados o un error de validación cuando el ID no es numérico.
+ */
+function normalizeTeamProviderData(
+  apiNameInput: unknown,
+  apiProviderNameInput: unknown,
+  apiTeamIdInput: unknown
+): { apiName: string | null; apiProviderName: string | null; apiTeamId: number | null; error: string | null } {
+  // Normalizamos el alias legado de API-Football dejando null cuando llega vacío.
+  const apiName = apiNameInput && String(apiNameInput).trim() ? String(apiNameInput).trim() : null;
+
+  // Normalizamos el nombre oficial del proveedor dejando null cuando no viene informado.
+  const apiProviderName = apiProviderNameInput && String(apiProviderNameInput).trim() ? String(apiProviderNameInput).trim() : null;
+
+  // Si no existe ID del proveedor, guardamos null para permitir equipos aún no vinculados.
+  if (apiTeamIdInput === null || apiTeamIdInput === undefined || String(apiTeamIdInput).trim() === "") {
+    // Devolvemos el alias técnico como fallback del nombre oficial cuando todavía no hay vínculo completo.
+    return { apiName: apiName || apiProviderName, apiProviderName: apiProviderName || apiName, apiTeamId: null, error: null };
+  }
+
+  // Convertimos el ID del proveedor a número entero.
+  const parsedApiTeamId = Number(apiTeamIdInput);
+
+  // Validamos que el ID recibido sea numérico y positivo.
+  if (!Number.isInteger(parsedApiTeamId) || parsedApiTeamId <= 0) {
+    // Devolvemos un mensaje legible para el panel de administración.
+    return { apiName, apiProviderName, apiTeamId: null, error: "El ID oficial de API-Football debe ser un entero positivo" };
+  }
+
+  // Devolvemos datos normalizados usando el nombre oficial como respaldo del alias técnico.
+  return {
+    apiName: apiName || apiProviderName,
+    apiProviderName: apiProviderName || apiName,
+    apiTeamId: parsedApiTeamId,
+    error: null,
+  };
+}
+
 // ─── GET /api/teams ──────────────────────────────────────────────────────────
 /** 
  * Devuelve todos los equipos. 
@@ -80,6 +124,8 @@ teamsRouter.get("/", async (req, res) => {
       SELECT t.id,
              t.name,
              t.api_name,
+             t.api_provider_name,
+             t.api_team_id,
              t.league_id,
              COALESCE(t.country_id, l.country_id) AS country_id
       FROM teams t
@@ -122,10 +168,10 @@ teamsRouter.get("/", async (req, res) => {
 // ─── GET /api/teams/provider-alias-suggestions ───────────────────────────────
 /**
  * <summary>
- * Sugiere aliases de API-Football para un equipo local sin modificar su nombre visible.
+ * Sugiere vínculos de API-Football para un equipo local sin modificar su nombre visible.
  * </summary>
  * @param q - Nombre visible del equipo usado como consulta en API-Football.
- * @returns Lista corta de candidatos sugeridos para el alias técnico.
+ * @returns Lista corta de candidatos sugeridos para el vínculo exacto del proveedor.
  */
 teamsRouter.get("/provider-alias-suggestions", authenticateToken, requireAdmin, async (req, res) => {
   // Leemos el texto de búsqueda desde query params.
@@ -151,7 +197,7 @@ teamsRouter.get("/provider-alias-suggestions", authenticateToken, requireAdmin, 
 // ─── POST /api/teams ─────────────────────────────────────────────────────────
 /** Crea un nuevo equipo. Solo administradores. */
 teamsRouter.post("/", authenticateToken, requireAdmin, async (req, res) => {
-  const { name, league_id, country_id, api_name } = req.body;
+  const { name, league_id, country_id, api_name, api_provider_name, api_team_id } = req.body;
 
   // Validamos campos mínimos antes de consultar datos relacionados.
   if (!name || !league_id) {
@@ -172,13 +218,25 @@ teamsRouter.post("/", authenticateToken, requireAdmin, async (req, res) => {
       return res.status(400).json({ error: "La liga no pertenece al país seleccionado" });
     }
 
-    // Normalizamos el alias de API-Football, dejando null para usar fallback al nombre visible.
-    const apiName = api_name && String(api_name).trim() ? String(api_name).trim() : null;
+    // Normalizamos el vínculo técnico con API-Football antes de persistirlo.
+    const normalizedProviderData = normalizeTeamProviderData(api_name, api_provider_name, api_team_id);
 
-    // Guardamos el equipo con el país oficial de la liga y su alias de proveedor.
+    // Si el vínculo técnico no es válido, detenemos el guardado con un mensaje claro.
+    if (normalizedProviderData.error) {
+      return res.status(400).json({ error: normalizedProviderData.error });
+    }
+
+    // Guardamos el equipo con el país oficial de la liga y su vínculo exacto al proveedor.
     const [resultado] = await pool.query(
-      "INSERT INTO teams (name, api_name, league_id, country_id) VALUES (?, ?, ?, ?)",
-      [String(name).trim(), apiName, league_id, leagueCountryId]
+      "INSERT INTO teams (name, api_name, api_provider_name, api_team_id, league_id, country_id) VALUES (?, ?, ?, ?, ?, ?)",
+      [
+        String(name).trim(),
+        normalizedProviderData.apiName,
+        normalizedProviderData.apiProviderName,
+        normalizedProviderData.apiTeamId,
+        league_id,
+        leagueCountryId,
+      ]
     );
 
     return res.status(201).json({
@@ -198,7 +256,7 @@ teamsRouter.post("/", authenticateToken, requireAdmin, async (req, res) => {
 /** Actualiza un equipo existente. Solo administradores. */
 teamsRouter.put("/:id", authenticateToken, requireAdmin, async (req, res) => {
   const { id } = req.params;
-  const { name, league_id, country_id, api_name } = req.body;
+  const { name, league_id, country_id, api_name, api_provider_name, api_team_id } = req.body;
 
   // Validamos campos mínimos antes de actualizar.
   if (!name || !league_id) {
@@ -219,13 +277,26 @@ teamsRouter.put("/:id", authenticateToken, requireAdmin, async (req, res) => {
       return res.status(400).json({ error: "La liga no pertenece al país seleccionado" });
     }
 
-    // Normalizamos el alias de API-Football, permitiendo limpiar el campo.
-    const apiName = api_name && String(api_name).trim() ? String(api_name).trim() : null;
+    // Normalizamos el vínculo técnico con API-Football antes de guardarlo.
+    const normalizedProviderData = normalizeTeamProviderData(api_name, api_provider_name, api_team_id);
 
-    // Actualizamos nombre visible, alias API, liga y país oficial de la liga.
+    // Si el vínculo técnico no es válido, detenemos el guardado con un mensaje claro.
+    if (normalizedProviderData.error) {
+      return res.status(400).json({ error: normalizedProviderData.error });
+    }
+
+    // Actualizamos nombre visible, vínculo API exacto, liga y país oficial de la liga.
     await pool.query(
-      "UPDATE teams SET name = ?, api_name = ?, league_id = ?, country_id = ? WHERE id = ?",
-      [String(name).trim(), apiName, league_id, leagueCountryId, id]
+      "UPDATE teams SET name = ?, api_name = ?, api_provider_name = ?, api_team_id = ?, league_id = ?, country_id = ? WHERE id = ?",
+      [
+        String(name).trim(),
+        normalizedProviderData.apiName,
+        normalizedProviderData.apiProviderName,
+        normalizedProviderData.apiTeamId,
+        league_id,
+        leagueCountryId,
+        id,
+      ]
     );
 
     return res.json({ message: "Equipo actualizado correctamente" });

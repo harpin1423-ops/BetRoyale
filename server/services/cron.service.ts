@@ -9,6 +9,7 @@ import cron from "node-cron";
 import { pool } from "../config/database.js";
 import {
   getMatchResultByName,
+  getMatchResultByProviderTeamIds,
   getFixtureResult,
   evaluatePickStatus,
   isFinished,
@@ -78,23 +79,27 @@ function buildProviderMatchName(homeName: string | null, homeApiName: string | n
 
 /**
  * <summary>
- * Obtiene el nombre tecnico para una seleccion de parlay desde los IDs de equipos.
+ * Obtiene el contexto técnico de una selección de parlay usando sus equipos locales.
  * </summary>
  * @param selection - Seleccion del parlay con home_team y away_team opcionales.
- * @returns Texto optimizado para API-Football.
+ * @returns Nombre técnico e IDs del proveedor cuando existen.
  */
-async function buildProviderMatchNameFromSelection(selection: any): Promise<string> {
+async function getProviderSelectionContext(selection: any): Promise<{ providerMatchName: string; homeProviderTeamId: number | null; awayProviderTeamId: number | null }> {
   // Leemos IDs de equipos guardados dentro de la seleccion.
   const teamIds = [selection?.home_team, selection?.away_team].filter(Boolean);
 
   // Si no tenemos ambos IDs, usamos el match_name guardado.
   if (teamIds.length < 2) {
-    return String(selection?.match_name || "").trim();
+    return {
+      providerMatchName: String(selection?.match_name || "").trim(),
+      homeProviderTeamId: null,
+      awayProviderTeamId: null,
+    };
   }
 
-  // Consultamos nombres visibles y alias API en lote.
+  // Consultamos nombres visibles, nombres oficiales e IDs API en lote.
   const [rows]: any = await pool.query(
-    "SELECT id, name, api_name FROM teams WHERE id IN (?)",
+    "SELECT id, name, api_name, api_provider_name, api_team_id FROM teams WHERE id IN (?)",
     [teamIds]
   );
 
@@ -104,8 +109,21 @@ async function buildProviderMatchNameFromSelection(selection: any): Promise<stri
   // Buscamos el equipo visitante dentro de la respuesta.
   const awayTeam = rows.find((team: any) => String(team.id) === String(selection.away_team));
 
-  // Construimos el nombre tecnico conservando fallback visible.
-  return buildProviderMatchName(homeTeam?.name, homeTeam?.api_name, awayTeam?.name, awayTeam?.api_name, selection.match_name);
+  // Construimos el nombre técnico conservando el nombre oficial del proveedor cuando exista.
+  const providerMatchName = buildProviderMatchName(
+    homeTeam?.name,
+    homeTeam?.api_provider_name || homeTeam?.api_name,
+    awayTeam?.name,
+    awayTeam?.api_provider_name || awayTeam?.api_name,
+    selection.match_name
+  );
+
+  // Devolvemos nombre técnico junto con los IDs oficiales de ambos equipos.
+  return {
+    providerMatchName,
+    homeProviderTeamId: homeTeam?.api_team_id ?? null,
+    awayProviderTeamId: awayTeam?.api_team_id ?? null,
+  };
 }
 
 /**
@@ -129,9 +147,13 @@ async function processPendingPicks(minMinutes: number = 105): Promise<{ processe
            m.label AS market_label,
            m.acronym AS market_acronym,
            ht.name AS home_team_name,
+           ht.api_provider_name AS home_team_api_provider_name,
            ht.api_name AS home_team_api_name,
+           ht.api_team_id AS home_team_api_team_id,
            at.name AS away_team_name,
-           at.api_name AS away_team_api_name
+           at.api_provider_name AS away_team_api_provider_name,
+           at.api_name AS away_team_api_name,
+           at.api_team_id AS away_team_api_team_id
     FROM picks p
     LEFT JOIN leagues  l  ON p.league_id     = l.id
     LEFT JOIN pick_types pt ON p.pick_type_id = pt.id
@@ -188,16 +210,25 @@ async function handleSinglePickResolution(pick: any): Promise<void> {
     result = await getFixtureResult(String(pick.api_fixture_id));
   }
 
-  // Construimos el nombre tecnico con alias API para evitar fallos por nombres visibles.
+  // Construimos el nombre técnico con el nombre oficial del proveedor cuando exista.
   const providerMatchName = buildProviderMatchName(
     pick.home_team_name,
-    pick.home_team_api_name,
+    pick.home_team_api_provider_name || pick.home_team_api_name,
     pick.away_team_name,
-    pick.away_team_api_name,
+    pick.away_team_api_provider_name || pick.away_team_api_name,
     pick.match_name
   );
 
-  // Estrategia 2: por nombre tecnico de partido + fecha.
+  // Estrategia 2: por IDs oficiales del proveedor cuando ambos equipos ya están vinculados.
+  if (!result && pick.home_team_api_team_id && pick.away_team_api_team_id) {
+    result = await getMatchResultByProviderTeamIds(
+      pick.home_team_api_team_id,
+      pick.away_team_api_team_id,
+      pick.match_date
+    );
+  }
+
+  // Estrategia 3: por nombre técnico de partido + fecha.
   if (!result) {
     result = await getMatchResultByName(providerMatchName, pick.match_date);
   }
@@ -313,10 +344,22 @@ async function handleParlayResolution(pick: any): Promise<void> {
       result = await getFixtureResult(String(fixtureId));
     }
 
-    // Construimos nombre tecnico usando aliases API de equipos de la seleccion.
-    const providerMatchName = await buildProviderMatchNameFromSelection(sel);
+    // Construimos contexto técnico usando nombre oficial e IDs API de los equipos de la selección.
+    const providerSelectionContext = await getProviderSelectionContext(sel);
 
-    // Si no hay ID, buscamos por alias API y fecha.
+    // Leemos el nombre técnico de la selección para posibles búsquedas por texto.
+    const providerMatchName = providerSelectionContext.providerMatchName;
+
+    // Si ambos equipos tienen vínculo exacto, buscamos primero por IDs del proveedor.
+    if (!result && providerSelectionContext.homeProviderTeamId && providerSelectionContext.awayProviderTeamId && sel.match_time) {
+      result = await getMatchResultByProviderTeamIds(
+        providerSelectionContext.homeProviderTeamId,
+        providerSelectionContext.awayProviderTeamId,
+        sel.match_time
+      );
+    }
+
+    // Si no hay ID exacto, buscamos por nombre técnico y fecha.
     if (!result && sel.match_name && sel.match_time) {
       result = await getMatchResultByName(providerMatchName || sel.match_name, sel.match_time);
     }

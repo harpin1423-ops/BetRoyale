@@ -11,16 +11,19 @@ import { pool } from "../config/database.js";
 const router = Router();
 /**
  * GET /api/scores/search?q=Barcelona+vs+Real+Madrid&date=2026-04-22
- * Busca partidos en API-Football por nombre/alias y fecha opcional.
+ * Busca partidos en API-Football por IDs oficiales de equipo o por nombre/alias y fecha opcional.
  * Solo accesible para administradores.
  */
 router.get("/search", authenticateToken, requireAdmin, async (req, res) => {
-    const { q, date } = req.query;
-    if (!q || typeof q !== "string") {
-        return res.status(400).json({ error: "Falta el término de búsqueda (q)" });
+    const { q, date, home_provider_team_id, away_provider_team_id } = req.query;
+    // Validamos que exista una búsqueda textual o ambos IDs del proveedor.
+    if ((!q || typeof q !== "string") && (!home_provider_team_id || !away_provider_team_id)) {
+        return res.status(400).json({ error: "Debes enviar q o ambos IDs oficiales de API-Football" });
     }
     try {
-        const fixtures = await searchFixtures(q, typeof date === "string" ? date : undefined);
+        // Ejecutamos la búsqueda priorizando los IDs exactos cuando estén disponibles.
+        const fixtures = await searchFixtures(typeof q === "string" ? q : "", typeof date === "string" ? date : undefined, typeof home_provider_team_id === "string" ? home_provider_team_id : undefined, typeof away_provider_team_id === "string" ? away_provider_team_id : undefined);
+        // Respondemos la lista de fixtures ya normalizados para el panel.
         res.json({ fixtures, source: "API-Football" });
     }
     catch (error) {

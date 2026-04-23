@@ -1060,10 +1060,12 @@ export async function initDB(): Promise<void> {
     await conexion.query(`
       CREATE TABLE IF NOT EXISTS teams (
         id         INT AUTO_INCREMENT PRIMARY KEY,
-        name       VARCHAR(255) NOT NULL,
-        api_name   VARCHAR(255) DEFAULT NULL,
-        league_id  INT,
-        country_id INT,
+        name              VARCHAR(255) NOT NULL,
+        api_name          VARCHAR(255) DEFAULT NULL,
+        api_provider_name VARCHAR(255) DEFAULT NULL,
+        api_team_id       INT DEFAULT NULL,
+        league_id         INT,
+        country_id        INT,
         UNIQUE KEY unique_team_league (name, league_id),
         FOREIGN KEY (league_id)  REFERENCES leagues(id) ON DELETE CASCADE,
         FOREIGN KEY (country_id) REFERENCES countries(id) ON DELETE CASCADE
@@ -1072,6 +1074,12 @@ export async function initDB(): Promise<void> {
 
     // Agregamos alias API-Football para consultar proveedores sin cambiar el nombre visible.
     await conexion.query(`ALTER TABLE teams ADD COLUMN IF NOT EXISTS api_name VARCHAR(255) DEFAULT NULL`).catch(() => {});
+    // Agregamos el nombre oficial del proveedor para mostrarlo en el panel sin tocar el nombre local.
+    await conexion.query(`ALTER TABLE teams ADD COLUMN IF NOT EXISTS api_provider_name VARCHAR(255) DEFAULT NULL`).catch(() => {});
+    // Agregamos el ID oficial de API-Football para vinculación exacta de fixtures.
+    await conexion.query(`ALTER TABLE teams ADD COLUMN IF NOT EXISTS api_team_id INT DEFAULT NULL`).catch(() => {});
+    // Rellenamos el nombre oficial con el alias existente cuando la migración parte de datos antiguos.
+    await conexion.query(`UPDATE teams SET api_provider_name = api_name WHERE (api_provider_name IS NULL OR api_provider_name = '') AND api_name IS NOT NULL AND api_name != ''`).catch(() => {});
 
     // ── 14. Tabla: app_settings ─────────────────────────────────────────────
     // Configuraciones globales del panel que no pertenecen a una entidad normal.

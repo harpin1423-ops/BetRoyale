@@ -291,38 +291,60 @@ const getFixtureDateTimeValue = (fixture: any) => {
  * @summary Obtiene el nombre que se debe usar para consultar API-Football.
  * @param teams - Catalogo local de equipos cargado en el panel.
  * @param teamId - ID del equipo seleccionado en BetRoyale.
- * @returns Alias API-Football si existe, o nombre visible como respaldo.
+ * @returns Nombre oficial API-Football, alias técnico o nombre visible como respaldo.
  */
 const getTeamProviderName = (teams: any[], teamId: string | number | undefined) => {
   // Buscamos el equipo por ID usando comparacion tolerante entre string y number.
   const team = teams.find((item) => String(item.id) === String(teamId || ""));
 
-  // Devolvemos alias tecnico cuando esta configurado.
-  return String(team?.api_name || team?.name || "").trim();
+  // Devolvemos el nombre oficial del proveedor cuando exista, o el alias técnico como respaldo.
+  return String(team?.api_provider_name || team?.api_name || team?.name || "").trim();
 };
 
 /**
- * @summary Construye una consulta precisa para API-Football desde equipos seleccionados.
+ * @summary Obtiene el ID oficial de API-Football configurado para un equipo local.
+ * @param teams - Catalogo local de equipos cargado en el panel.
+ * @param teamId - ID del equipo seleccionado en BetRoyale.
+ * @returns ID oficial del proveedor o cadena vacía cuando aún no existe vínculo exacto.
+ */
+const getTeamProviderId = (teams: any[], teamId: string | number | undefined) => {
+  // Buscamos el equipo por ID usando comparación tolerante entre string y number.
+  const team = teams.find((item) => String(item.id) === String(teamId || ""));
+
+  // Devolvemos el ID oficial del proveedor cuando exista.
+  return String(team?.api_team_id || "").trim();
+};
+
+/**
+ * @summary Construye el contexto completo de búsqueda para API-Football desde los equipos seleccionados.
  * @param homeTeamId - ID local seleccionado en BetRoyale.
  * @param awayTeamId - ID visitante seleccionado en BetRoyale.
  * @param fallback - Nombre visible del partido si no hay IDs.
  * @param teams - Catalogo local de equipos con aliases API.
- * @returns Texto "Local API vs Visitante API" o fallback.
+ * @returns Consulta visible y los IDs oficiales del proveedor cuando existen.
  */
-const buildProviderFixtureQuery = (homeTeamId: string | number | undefined, awayTeamId: string | number | undefined, fallback: string, teams: any[]) => {
+const buildProviderFixtureSearchContext = (homeTeamId: string | number | undefined, awayTeamId: string | number | undefined, fallback: string, teams: any[]) => {
   // Resolvemos nombre tecnico local.
   const homeProviderName = getTeamProviderName(teams, homeTeamId);
 
   // Resolvemos nombre tecnico visitante.
   const awayProviderName = getTeamProviderName(teams, awayTeamId);
 
-  // Usamos ambos aliases para evitar errores por nombres comerciales.
-  if (homeProviderName && awayProviderName) {
-    return `${homeProviderName} vs ${awayProviderName}`;
-  }
+  // Resolvemos ID oficial del proveedor para el equipo local.
+  const homeProviderTeamId = getTeamProviderId(teams, homeTeamId);
 
-  // Si faltan IDs, usamos el nombre visible guardado.
-  return String(fallback || "").trim();
+  // Resolvemos ID oficial del proveedor para el equipo visitante.
+  const awayProviderTeamId = getTeamProviderId(teams, awayTeamId);
+
+  // Si ambos lados tienen nombre técnico, construimos una consulta humana clara.
+  const query = homeProviderName && awayProviderName ? `${homeProviderName} vs ${awayProviderName}` : String(fallback || "").trim();
+
+  // Devolvemos la consulta visible junto con los IDs exactos para búsquedas precisas.
+  return {
+    query,
+    homeProviderTeamId,
+    awayProviderTeamId,
+  };
 };
 
 /**
@@ -453,7 +475,23 @@ export function AdminDashboard() {
   const [users, setUsers] = useState<any[]>([]);
   const [promoCodes, setPromoCodes] = useState<any[]>([]);
   const [teams, setTeams] = useState<any[]>([]);
-  const [teamForm, setTeamForm] = useState({ id: null as number | null, name: "", api_name: "", league_id: "", country_id: "" });
+  // Guardamos nombre local, nombre oficial e ID oficial de API-Football para cada equipo.
+  const [teamForm, setTeamForm] = useState({
+    // Conservamos el ID local cuando estamos editando.
+    id: null as number | null,
+    // Guardamos el nombre visible de BetRoyale.
+    name: "",
+    // Guardamos el alias técnico legacy como respaldo.
+    api_name: "",
+    // Guardamos el nombre oficial del equipo según API-Football.
+    api_provider_name: "",
+    // Guardamos el ID oficial del equipo en API-Football.
+    api_team_id: "",
+    // Guardamos la liga local asociada al equipo.
+    league_id: "",
+    // Guardamos el país local asociado a la liga.
+    country_id: ""
+  });
   const [isSubmittingTeam, setIsSubmittingTeam] = useState(false);
   // Guardamos el loading de sugerencias de alias API-Football para equipos.
   const [isSuggestingTeamAlias, setIsSuggestingTeamAlias] = useState(false);
@@ -1006,6 +1044,8 @@ export function AdminDashboard() {
         body: JSON.stringify({
           name: teamForm.name.trim(),
           api_name: teamForm.api_name.trim() || null,
+          api_provider_name: teamForm.api_provider_name.trim() || null,
+          api_team_id: teamForm.api_team_id.trim() || null,
           league_id: parseInt(teamForm.league_id),
           country_id: parseInt(teamForm.country_id)
         })
@@ -1014,7 +1054,7 @@ export function AdminDashboard() {
       if (!res.ok) throw new Error(data.error || "Error al guardar equipo");
 
       toast.success("Equipo guardado exitosamente");
-      setTeamForm({ id: null, name: "", api_name: "", league_id: "", country_id: "" });
+      setTeamForm({ id: null, name: "", api_name: "", api_provider_name: "", api_team_id: "", league_id: "", country_id: "" });
       setTeamAliasSuggestions([]);
       fetchTeams();
     } catch (error: any) {
@@ -1025,10 +1065,10 @@ export function AdminDashboard() {
   };
 
   /**
-   * @summary Consulta candidatos de alias en API-Football para el equipo del formulario o uno elegido desde la tabla.
+   * @summary Consulta candidatos de vínculo en API-Football para el equipo del formulario o uno elegido desde la tabla.
    * @param teamOverride - Equipo opcional que permite sugerir alias sin depender del formulario actual.
    */
-  const handleSuggestTeamAlias = async (teamOverride?: { id?: number | null; name: string; league_id?: string; country_id?: string; api_name?: string }) => {
+  const handleSuggestTeamAlias = async (teamOverride?: { id?: number | null; name: string; league_id?: string; country_id?: string; api_name?: string; api_provider_name?: string; api_team_id?: string | number }) => {
     // Resolvemos el equipo objetivo desde override o desde el formulario activo.
     const targetTeam = teamOverride || teamForm;
 
@@ -1044,6 +1084,8 @@ export function AdminDashboard() {
         id: teamOverride.id ?? null,
         name: targetTeam.name,
         api_name: targetTeam.api_name || "",
+        api_provider_name: targetTeam.api_provider_name || "",
+        api_team_id: String(targetTeam.api_team_id || ""),
         league_id: targetTeam.league_id || "",
         country_id: targetTeam.country_id || "",
       });
@@ -1078,11 +1120,16 @@ export function AdminDashboard() {
         return;
       }
 
-      // Aplicamos automáticamente la primera coincidencia como propuesta inicial.
-      setTeamForm((prev) => ({ ...prev, api_name: candidates[0].provider_name || prev.api_name }));
+      // Aplicamos automáticamente la primera coincidencia como propuesta inicial del vínculo exacto.
+      setTeamForm((prev) => ({
+        ...prev,
+        api_name: candidates[0].provider_name || prev.api_name,
+        api_provider_name: candidates[0].provider_name || prev.api_provider_name,
+        api_team_id: String(candidates[0].provider_id || prev.api_team_id || ""),
+      }));
 
-      // Confirmamos que el alias técnico se sugirió sin tocar el nombre visible.
-      toast.success(`Alias sugerido: ${candidates[0].provider_name}`);
+      // Confirmamos que el vínculo exacto quedó sugerido sin tocar el nombre visible.
+      toast.success(`Vínculo sugerido: ${candidates[0].provider_name}${candidates[0].provider_id ? ` · ID ${candidates[0].provider_id}` : ""}`);
     } catch (error: any) {
       toast.error(error.message || "No se pudo sugerir el alias API-Football");
     } finally {
@@ -1092,15 +1139,20 @@ export function AdminDashboard() {
   };
 
   /**
-   * @summary Aplica una sugerencia puntual de alias API-Football sobre el formulario de equipos.
-   * @param providerName - Nombre técnico elegido por el administrador desde la lista de sugerencias.
+   * @summary Aplica una sugerencia puntual de API-Football sobre el formulario de equipos.
+   * @param candidate - Candidato elegido por el administrador desde la lista de sugerencias.
    */
-  const handleApplySuggestedTeamAlias = (providerName: string) => {
-    // Aplicamos el alias técnico sin alterar el nombre visible del equipo.
-    setTeamForm((prev) => ({ ...prev, api_name: providerName }));
+  const handleApplySuggestedTeamAlias = (candidate: any) => {
+    // Aplicamos el nombre oficial, el ID oficial y el alias técnico sin alterar el nombre visible del equipo.
+    setTeamForm((prev) => ({
+      ...prev,
+      api_name: candidate?.provider_name || prev.api_name,
+      api_provider_name: candidate?.provider_name || prev.api_provider_name,
+      api_team_id: String(candidate?.provider_id || prev.api_team_id || ""),
+    }));
 
     // Confirmamos la selección para que el admin sepa que ya quedó cargada.
-    toast.success(`Alias aplicado: ${providerName}`);
+    toast.success(`Vínculo aplicado: ${candidate?.provider_name || "API-Football"}${candidate?.provider_id ? ` · ID ${candidate.provider_id}` : ""}`);
   };
 
   /**
@@ -1143,6 +1195,8 @@ export function AdminDashboard() {
       id: team.id,
       name: team.name || "",
       api_name: team.api_name || "",
+      api_provider_name: team.api_provider_name || "",
+      api_team_id: team.api_team_id ? String(team.api_team_id) : "",
       league_id: team.league_id?.toString() || "",
       country_id: countryId
     });
@@ -1516,21 +1570,36 @@ export function AdminDashboard() {
    * @summary Busca partidos en la API externa para vinculación automática.
    * @param queryOverride - Texto puntual que debe usarse en vez del estado del input.
    * @param dateOverride - Fecha puntual para reducir falsos positivos en API-Football.
+   * @param providerTeamLinkOverride - IDs exactos del proveedor cuando ambos equipos ya están vinculados.
    */
-  const handleSearchFixtures = async (queryOverride?: string, dateOverride?: string) => {
+  const handleSearchFixtures = async (
+    queryOverride?: string,
+    dateOverride?: string,
+    providerTeamLinkOverride?: { homeProviderTeamId?: string; awayProviderTeamId?: string }
+  ) => {
     // Definimos la búsqueda final para evitar usar un estado anterior.
     const finalQuery = (queryOverride || fixtureSearchQuery).trim();
 
     // Definimos la fecha final desde parametro o desde el formulario activo.
     const finalDate = getFixtureSearchDate(dateOverride || (formData.is_parlay && activeSelectionFixtureIndex !== null ? formData.selections[activeSelectionFixtureIndex]?.match_time : formData.match_date));
 
-    // Evitamos consultas vacías o duplicadas.
-    if (!finalQuery || isSearchingFixtures) return;
+    // Leemos el vínculo exacto del proveedor si ya fue resuelto por el llamador.
+    const providerTeamLink = providerTeamLinkOverride || {};
+
+    // Validamos que exista búsqueda visible o ambos IDs del proveedor.
+    if ((!finalQuery && !(providerTeamLink.homeProviderTeamId && providerTeamLink.awayProviderTeamId)) || isSearchingFixtures) return;
     
     setIsSearchingFixtures(true);
     try {
-      const params = new URLSearchParams({ q: finalQuery });
+      const params = new URLSearchParams();
+
+      // Solo enviamos q cuando realmente exista texto visible para depuración y fallback.
+      if (finalQuery) params.set("q", finalQuery);
+
       if (finalDate) params.set("date", finalDate);
+      if (providerTeamLink.homeProviderTeamId) params.set("home_provider_team_id", providerTeamLink.homeProviderTeamId);
+      if (providerTeamLink.awayProviderTeamId) params.set("away_provider_team_id", providerTeamLink.awayProviderTeamId);
+
       const res = await fetch(`/api/scores/search?${params.toString()}`, {
         headers: { "Authorization": `Bearer ${token}` }
       });
@@ -1571,22 +1640,29 @@ export function AdminDashboard() {
     // Detectamos si la busqueda pertenece a una seleccion de parlay.
     const activeSelection = formData.is_parlay && activeSelectionFixtureIndex !== null ? formData.selections[activeSelectionFixtureIndex] : null;
 
-    // Construimos la consulta por alias para parlay o pick individual.
-    const providerQuery = activeSelection
-      ? buildProviderFixtureQuery(activeSelection.home_team, activeSelection.away_team, activeSelection.match_name, teams)
-      : buildProviderFixtureQuery(formData.home_team, formData.away_team, formData.match_name, teams);
+    // Construimos el contexto de búsqueda para parlay o pick individual.
+    const providerSearchContext = activeSelection
+      ? buildProviderFixtureSearchContext(activeSelection.home_team, activeSelection.away_team, activeSelection.match_name, teams)
+      : buildProviderFixtureSearchContext(formData.home_team, formData.away_team, formData.match_name, teams);
 
     // Preferimos lo escrito manualmente, pero si esta vacio usamos aliases API.
-    const finalQuery = fixtureSearchQuery.trim() || providerQuery;
+    const finalQuery = fixtureSearchQuery.trim() || providerSearchContext.query;
 
-    // Sin consulta no hay busqueda posible.
-    if (!finalQuery) return;
+    // Sin consulta visible ni IDs exactos no hay búsqueda posible.
+    if (!finalQuery && !(providerSearchContext.homeProviderTeamId && providerSearchContext.awayProviderTeamId)) return;
 
     // Reflejamos en pantalla la busqueda tecnica que se enviara al proveedor.
     setFixtureSearchQuery(finalQuery);
 
-    // Ejecutamos busqueda con fecha de la seleccion o del pick simple.
-    handleSearchFixtures(finalQuery, activeSelection ? activeSelection.match_time : formData.match_date);
+    // Ejecutamos búsqueda con fecha de la selección o del pick simple.
+    handleSearchFixtures(
+      finalQuery,
+      activeSelection ? activeSelection.match_time : formData.match_date,
+      {
+        homeProviderTeamId: providerSearchContext.homeProviderTeamId,
+        awayProviderTeamId: providerSearchContext.awayProviderTeamId,
+      }
+    );
   };
 
   /**
@@ -1668,18 +1744,25 @@ export function AdminDashboard() {
       return;
     }
 
-    // Construimos la búsqueda técnica usando alias API cuando existan.
-    const providerQuery = buildProviderFixtureQuery(selection.home_team, selection.away_team, selection.match_name, teams);
+    // Construimos la búsqueda técnica usando nombre oficial e IDs API cuando existan.
+    const providerSearchContext = buildProviderFixtureSearchContext(selection.home_team, selection.away_team, selection.match_name, teams);
 
     // Activamos el índice de la selección para que el panel sepa dónde aplicar el fixture.
     setActiveSelectionFixtureIndex(selectionIndex);
 
     // Reflejamos la consulta en el input del buscador compartido.
-    setFixtureSearchQuery(providerQuery || selection.match_name || "");
+    setFixtureSearchQuery(providerSearchContext.query || selection.match_name || "");
 
     // Disparamos la búsqueda automática cuando ya tenemos datos suficientes.
-    if (providerQuery || selection.match_name) {
-      handleSearchFixtures(providerQuery || selection.match_name, selection.match_time);
+    if (providerSearchContext.query || selection.match_name || (providerSearchContext.homeProviderTeamId && providerSearchContext.awayProviderTeamId)) {
+      handleSearchFixtures(
+        providerSearchContext.query || selection.match_name,
+        selection.match_time,
+        {
+          homeProviderTeamId: providerSearchContext.homeProviderTeamId,
+          awayProviderTeamId: providerSearchContext.awayProviderTeamId,
+        }
+      );
     }
 
     // Llevamos al admin hasta el panel de búsqueda compartido.
@@ -1699,6 +1782,11 @@ export function AdminDashboard() {
 
     // Detectamos si el panel está en modo vinculación de selección.
     const isSelectionMode = Boolean(activeSelection);
+
+    // Resolvemos el contexto exacto del proveedor para el pick activo o la selección activa.
+    const activeProviderSearchContext = isSelectionMode
+      ? buildProviderFixtureSearchContext(activeSelection?.home_team, activeSelection?.away_team, activeSelection?.match_name || "", teams)
+      : buildProviderFixtureSearchContext(formData.home_team, formData.away_team, formData.match_name, teams);
 
     // Calculamos el ID actualmente vinculado según el contexto activo del panel.
     const linkedFixtureId = String(isSelectionMode
@@ -1743,7 +1831,14 @@ export function AdminDashboard() {
             <div className="flex-1 min-w-0">
               <div className="text-[10px] font-black uppercase tracking-[0.24em] text-primary/70">Selección activa del parlay</div>
               <div className="text-sm font-black text-foreground truncate">{activeSelection.match_name || "Selección sin nombre final"}</div>
-              <div className="text-[11px] text-muted-foreground truncate">{buildProviderFixtureQuery(activeSelection.home_team, activeSelection.away_team, activeSelection.match_name, teams) || "Completa local y visitante para una búsqueda más precisa"}</div>
+              <div className="text-[11px] text-muted-foreground truncate">
+                {activeProviderSearchContext.query || "Completa local y visitante para una búsqueda más precisa"}
+              </div>
+              {activeProviderSearchContext.homeProviderTeamId && activeProviderSearchContext.awayProviderTeamId && (
+                <div className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-300/90">
+                  Vinculación exacta API: {activeProviderSearchContext.homeProviderTeamId} vs {activeProviderSearchContext.awayProviderTeamId}
+                </div>
+              )}
             </div>
             <button
               type="button"
@@ -1773,6 +1868,13 @@ export function AdminDashboard() {
             {isSearchingFixtures ? <Loader2 className="w-4 h-4 animate-spin" /> : "Buscar"}
           </button>
         </div>
+
+        {activeProviderSearchContext.homeProviderTeamId && activeProviderSearchContext.awayProviderTeamId && (
+          <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-[11px] text-emerald-100">
+            <span className="font-black uppercase tracking-[0.18em] text-emerald-300">Búsqueda exacta activa</span>
+            <span className="ml-2">Este cruce se está consultando por IDs oficiales de API-Football: {activeProviderSearchContext.homeProviderTeamId} vs {activeProviderSearchContext.awayProviderTeamId}.</span>
+          </div>
+        )}
 
         {fixtureSearchResults.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[240px] overflow-y-auto pr-2 custom-scrollbar">
@@ -4973,15 +5075,15 @@ export function AdminDashboard() {
               // Validamos coincidencia por liga.
               const matchesLeague = !teamLeagueFilter || leagueId === teamLeagueFilter;
 
-              // Validamos coincidencia por nombre visible o alias API.
-              const matchesSearch = !teamSearch || `${team.name || ""} ${team.api_name || ""}`.toLowerCase().includes(teamSearch.toLowerCase());
+              // Validamos coincidencia por nombre visible, nombre oficial, alias o ID del proveedor.
+              const matchesSearch = !teamSearch || `${team.name || ""} ${team.api_provider_name || ""} ${team.api_name || ""} ${team.api_team_id || ""}`.toLowerCase().includes(teamSearch.toLowerCase());
 
               // Devolvemos solo equipos compatibles con filtros activos.
               return matchesCountry && matchesLeague && matchesSearch;
             });
 
-            // Contamos cuántos equipos visibles aún no tienen alias técnico configurado.
-            const filteredTeamsWithoutAliasCount = filteredTeams.filter((team) => !String(team.api_name || "").trim()).length;
+            // Contamos cuántos equipos visibles aún no tienen un vínculo exacto por ID del proveedor.
+            const filteredTeamsWithoutExactLinkCount = filteredTeams.filter((team) => !String(team.api_team_id || "").trim()).length;
 
             // Renderizamos el módulo completo de equipos.
             return (
@@ -4996,7 +5098,7 @@ export function AdminDashboard() {
                       <span className="font-bold text-primary">{filteredTeams.length}</span> equipos visibles
                     </div>
                     <div className="bg-card border border-amber-500/20 rounded-xl px-4 py-3 text-amber-200">
-                      <span className="font-bold text-amber-300">{filteredTeamsWithoutAliasCount}</span> sin alias API
+                      <span className="font-bold text-amber-300">{filteredTeamsWithoutExactLinkCount}</span> sin vínculo exacto API
                     </div>
                   </div>
                 </div>
@@ -5051,15 +5153,40 @@ export function AdminDashboard() {
                         </div>
 
                         <div className="space-y-2">
-                          <label className="text-sm font-medium text-muted-foreground">Nombre en API-Football</label>
+                          <label className="text-sm font-medium text-muted-foreground">Nombre oficial en API-Football</label>
+                          <input
+                            type="text"
+                            value={teamForm.api_provider_name}
+                            onChange={(e) => setTeamForm(prev => ({ ...prev, api_provider_name: e.target.value }))}
+                            placeholder="Ej: 1. FC Kaiserslautern"
+                            className="w-full bg-background border border-white/10 rounded-xl px-5 py-4 text-sm text-foreground focus:outline-none focus:border-primary transition-all"
+                          />
+                          <p className="text-[11px] text-muted-foreground">Este es el nombre exacto del proveedor. En la web se mantiene tu nombre local.</p>
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-muted-foreground">ID oficial API-Football</label>
+                          <input
+                            type="number"
+                            min="1"
+                            value={teamForm.api_team_id}
+                            onChange={(e) => setTeamForm(prev => ({ ...prev, api_team_id: e.target.value }))}
+                            placeholder="Ej: 745"
+                            className="w-full bg-background border border-white/10 rounded-xl px-5 py-4 text-sm text-foreground focus:outline-none focus:border-primary transition-all"
+                          />
+                          <p className="text-[11px] text-muted-foreground">Cuando este ID existe, la vinculación de fixtures usa el equipo exacto del proveedor.</p>
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-muted-foreground">Alias técnico (fallback)</label>
                           <input
                             type="text"
                             value={teamForm.api_name}
                             onChange={(e) => setTeamForm(prev => ({ ...prev, api_name: e.target.value }))}
-                            placeholder="Ej: Paris SG"
+                            placeholder="Ej: Kaiserslautern"
                             className="w-full bg-background border border-white/10 rounded-xl px-5 py-4 text-sm text-foreground focus:outline-none focus:border-primary transition-all"
                           />
-                          <p className="text-[11px] text-muted-foreground">Este alias solo se usa para consultar resultados. En la web se mantiene el nombre visible.</p>
+                          <p className="text-[11px] text-muted-foreground">Solo se usa como respaldo si todavía no existe el ID oficial del proveedor.</p>
                           <button
                             type="button"
                             onClick={() => handleSuggestTeamAlias()}
@@ -5067,7 +5194,7 @@ export function AdminDashboard() {
                             className="w-full rounded-xl border border-primary/20 bg-primary/10 px-4 py-3 text-xs font-black uppercase tracking-widest text-primary hover:bg-primary hover:text-primary-foreground transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                           >
                             {isSuggestingTeamAlias ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                            {isSuggestingTeamAlias ? "Buscando alias..." : "Sugerir alias API-Football"}
+                            {isSuggestingTeamAlias ? "Buscando vínculo..." : "Sugerir vínculo API-Football"}
                           </button>
                           {teamAliasSuggestions.length > 0 && (
                             <div className="rounded-xl border border-white/10 bg-black/20 p-3 space-y-2">
@@ -5077,12 +5204,14 @@ export function AdminDashboard() {
                                   <button
                                     key={`${candidate.provider_name}-${suggestionIndex}`}
                                     type="button"
-                                    onClick={() => handleApplySuggestedTeamAlias(candidate.provider_name)}
+                                    onClick={() => handleApplySuggestedTeamAlias(candidate)}
                                     className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-left hover:border-primary hover:bg-primary/10 transition-all"
                                   >
                                     <div className="min-w-0">
                                       <div className="text-sm font-bold text-white truncate">{candidate.provider_name}</div>
-                                      <div className="text-[11px] text-muted-foreground truncate">{candidate.country_name || "Sin país"} {candidate.code ? `· ${candidate.code}` : ""}</div>
+                                      <div className="text-[11px] text-muted-foreground truncate">
+                                        {candidate.country_name || "Sin país"} {candidate.code ? `· ${candidate.code}` : ""} {candidate.provider_id ? `· ID ${candidate.provider_id}` : ""}
+                                      </div>
                                     </div>
                                     <span className="rounded-lg border border-primary/20 bg-primary/10 px-2 py-1 text-[10px] font-black uppercase tracking-widest text-primary">
                                       Usar
@@ -5114,7 +5243,7 @@ export function AdminDashboard() {
                             <button
                               type="button"
                               onClick={() => {
-                                setTeamForm({ id: null, name: "", api_name: "", league_id: "", country_id: "" });
+                                setTeamForm({ id: null, name: "", api_name: "", api_provider_name: "", api_team_id: "", league_id: "", country_id: "" });
                                 setTeamAliasSuggestions([]);
                               }}
                               className="px-4 py-3 rounded-xl bg-white/10 text-white font-bold text-sm hover:bg-white/20 transition-all"
@@ -5136,10 +5265,10 @@ export function AdminDashboard() {
                         <input
                           type="text"
                           placeholder="Buscar equipo..."
-                          value={teamSearch}
-                          onChange={(e) => setTeamSearch(e.target.value)}
-                          className="w-full bg-card border border-white/10 rounded-2xl pl-12 pr-4 py-4 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all shadow-lg"
-                        />
+                            value={teamSearch}
+                            onChange={(e) => setTeamSearch(e.target.value)}
+                            className="w-full bg-card border border-white/10 rounded-2xl pl-12 pr-4 py-4 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all shadow-lg"
+                          />
                       </div>
 
                       <SearchableSelect
@@ -5178,7 +5307,7 @@ export function AdminDashboard() {
                             <tr>
                               <th className="p-4 text-xs font-bold text-primary uppercase tracking-wider">País</th>
                               <th className="p-4 text-xs font-bold text-primary uppercase tracking-wider">Liga</th>
-                              <th className="p-4 text-xs font-bold text-primary uppercase tracking-wider">Equipo</th>
+                              <th className="p-4 text-xs font-bold text-primary uppercase tracking-wider">Tu nombre BD</th>
                               <th className="p-4 text-xs font-bold text-primary uppercase tracking-wider">API-Football</th>
                               <th className="p-4 text-xs font-bold text-primary uppercase tracking-wider text-right">Acciones</th>
                             </tr>
@@ -5208,17 +5337,25 @@ export function AdminDashboard() {
                                       </div>
                                     </td>
                                     <td className="p-4 text-muted-foreground">{teamLeague?.name || "-"}</td>
-                                    <td className="p-4 font-bold text-white">{team.name}</td>
                                     <td className="p-4">
-                                      {String(team.api_name || "").trim() ? (
-                                        <span className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-2 py-1 text-xs font-bold text-emerald-300">
-                                          {team.api_name}
-                                        </span>
-                                      ) : (
-                                        <span className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-2 py-1 text-xs font-bold text-amber-300">
-                                          Sin alias API
-                                        </span>
-                                      )}
+                                      <div className="font-bold text-white">{team.name}</div>
+                                      <div className="text-[11px] text-muted-foreground">Nombre local BetRoyale</div>
+                                    </td>
+                                    <td className="p-4">
+                                      <div className="flex flex-col gap-2">
+                                        {String(team.api_provider_name || team.api_name || "").trim() ? (
+                                          <span className={`rounded-lg border px-2 py-1 text-xs font-bold ${String(team.api_team_id || "").trim() ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-300" : "border-amber-500/20 bg-amber-500/10 text-amber-300"}`}>
+                                            {team.api_provider_name || team.api_name}
+                                          </span>
+                                        ) : (
+                                          <span className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-2 py-1 text-xs font-bold text-amber-300">
+                                            Sin nombre API
+                                          </span>
+                                        )}
+                                        <div className="text-[11px] text-muted-foreground">
+                                          {String(team.api_team_id || "").trim() ? `ID oficial: ${team.api_team_id}` : "Sin ID oficial vinculado"}
+                                        </div>
+                                      </div>
                                     </td>
                                     <td className="p-4">
                                       <div className="flex items-center justify-end gap-2">
@@ -5227,11 +5364,13 @@ export function AdminDashboard() {
                                             id: team.id,
                                             name: team.name || "",
                                             api_name: team.api_name || "",
+                                            api_provider_name: team.api_provider_name || "",
+                                            api_team_id: team.api_team_id || "",
                                             league_id: team.league_id?.toString() || "",
                                             country_id: team.country_id?.toString() || teamLeague?.country_id?.toString() || ""
                                           })}
                                           className="p-1.5 rounded hover:bg-primary/20 text-primary transition-colors"
-                                          title="Sugerir alias API-Football"
+                                          title="Sugerir vínculo API-Football"
                                         >
                                           <Sparkles className="w-4 h-4" />
                                         </button>

@@ -312,17 +312,37 @@ function mapFixtureForAdmin(fixture: any): any {
 
   // Devolvemos una estructura compatible con el buscador existente.
   return {
+    // Exponemos el ID oficial del fixture para vinculación posterior.
     id: String(fixture?.fixture?.id || ""),
+    // Exponemos el nombre visible del cruce para el panel admin.
     name: `${fixture?.teams?.home?.name || "Local"} vs ${fixture?.teams?.away?.name || "Visitante"}`,
+    // Exponemos el ID oficial del equipo local para depuración o UI futura.
+    homeTeamId: fixture?.teams?.home?.id ?? null,
+    // Exponemos el ID oficial del equipo visitante para depuración o UI futura.
+    awayTeamId: fixture?.teams?.away?.id ?? null,
+    // Exponemos el nombre oficial del local según el proveedor.
+    homeTeamName: fixture?.teams?.home?.name || "",
+    // Exponemos el nombre oficial del visitante según el proveedor.
+    awayTeamName: fixture?.teams?.away?.name || "",
+    // Exponemos la liga del fixture para el panel.
     league: fixture?.league?.name || "",
+    // Exponemos el país del fixture para contexto visual.
     country: fixture?.league?.country || "",
+    // Exponemos la fecha del fixture en formato simple.
     date,
+    // Exponemos la hora del fixture en formato HH:mm.
     time,
+    // Exponemos el estado corto/largo del proveedor.
     status: fixture?.fixture?.status?.short || fixture?.fixture?.status?.long || "",
+    // Exponemos el marcador local si ya existe.
     homeScore: fixture?.goals?.home ?? null,
+    // Exponemos el marcador visitante si ya existe.
     awayScore: fixture?.goals?.away ?? null,
+    // Exponemos el logo local cuando el proveedor lo entrega.
     homeLogo: fixture?.teams?.home?.logo || "",
+    // Exponemos el logo visitante cuando el proveedor lo entrega.
     awayLogo: fixture?.teams?.away?.logo || "",
+    // Exponemos el logo de la liga para cards del panel.
     leagueLogo: fixture?.league?.logo || "",
   };
 }
@@ -347,6 +367,88 @@ async function searchProviderTeams(teamName: string): Promise<any[]> {
 
 /**
  * <summary>
+ * Normaliza el ID de un equipo del proveedor para búsquedas exactas por API-Football.
+ * </summary>
+ * @param value - ID recibido desde rutas, formulario o base de datos.
+ * @returns ID numérico o null cuando no es válido.
+ */
+function normalizeProviderTeamId(value: string | number | null | undefined): number | null {
+  // Tratamos vacío, null o undefined como ausencia de vínculo.
+  if (value === null || value === undefined || String(value).trim() === "") {
+    return null;
+  }
+
+  // Convertimos el valor recibido a número.
+  const parsedValue = Number(value);
+
+  // Solo aceptamos enteros positivos como IDs oficiales de API-Football.
+  if (!Number.isInteger(parsedValue) || parsedValue <= 0) {
+    return null;
+  }
+
+  // Devolvemos el ID listo para usar en filtros exactos.
+  return parsedValue;
+}
+
+/**
+ * <summary>
+ * Detecta si un nombre de equipo parece juvenil, filial o reserva para bajar su prioridad.
+ * </summary>
+ * @param teamName - Nombre oficial entregado por API-Football.
+ * @returns Verdadero cuando el equipo parece no ser la plantilla principal.
+ */
+function isYouthOrReserveTeamName(teamName: string): boolean {
+  // Normalizamos el texto para detectar sufijos comunes de categorías inferiores.
+  const normalizedTeamName = normalizeComparable(teamName);
+
+  // Detectamos juveniles, filiales, equipos femeninos o reservas.
+  return /\bu(?:17|18|19|20|21|23)\b|\bii\b|\biii\b|\breserv(?:a|e|es)\b|\bwomen\b|\bfemin(?:ino|ine|ino)\b/.test(normalizedTeamName);
+}
+
+/**
+ * <summary>
+ * Calcula un puntaje de coincidencia para priorizar el mejor equipo sugerido por API-Football.
+ * </summary>
+ * @param expectedName - Nombre local del equipo en BetRoyale.
+ * @param providerName - Nombre oficial devuelto por API-Football.
+ * @returns Puntaje donde un valor mayor indica una mejor coincidencia.
+ */
+function getProviderCandidateScore(expectedName: string, providerName: string): number {
+  // Normalizamos ambos lados para comparaciones exactas o por inclusión.
+  const normalizedExpectedName = normalizeComparable(expectedName);
+
+  // Normalizamos el nombre del proveedor para compararlo de forma estable.
+  const normalizedProviderName = normalizeComparable(providerName);
+
+  // Partimos de un puntaje neutro.
+  let score = 0;
+
+  // Priorizamos coincidencias exactas del nombre completo.
+  if (normalizedExpectedName === normalizedProviderName) {
+    score += 10;
+  }
+
+  // Priorizamos coincidencias por inclusión para nombres con prefijos como "1. FC".
+  if (normalizedProviderName.includes(normalizedExpectedName) || normalizedExpectedName.includes(normalizedProviderName)) {
+    score += 4;
+  }
+
+  // Sumamos un punto adicional cuando la comparación flexible ya considera válido el alias.
+  if (teamNameMatches(expectedName, providerName)) {
+    score += 2;
+  }
+
+  // Penalizamos juveniles o reservas para favorecer el primer equipo.
+  if (isYouthOrReserveTeamName(providerName)) {
+    score -= 5;
+  }
+
+  // Devolvemos el puntaje final para ordenar sugerencias.
+  return score;
+}
+
+/**
+ * <summary>
  * Expone candidatos de alias API-Football para el panel de equipos sin alterar el nombre visible local.
  * </summary>
  * @param teamName - Nombre visible del equipo en BetRoyale usado para buscar coincidencias en el proveedor.
@@ -362,15 +464,22 @@ export async function searchProviderTeamCandidates(teamName: string): Promise<an
       // Leemos el nombre oficial del equipo que usa API-Football.
       const providerName = String(candidate?.team?.name || "").trim();
 
-      // Calculamos una prioridad alta cuando el alias coincide de forma razonable.
-      const similarityScore = teamNameMatches(teamName, providerName) ? 1 : 0;
+      // Calculamos una prioridad alta cuando el equipo coincide y no parece juvenil o reserva.
+      const similarityScore = getProviderCandidateScore(teamName, providerName);
 
       // Devolvemos únicamente los campos útiles para la UI administrativa.
       return {
+        // Guardamos el ID oficial del equipo en API-Football.
+        provider_id: candidate?.team?.id ?? null,
+        // Guardamos el nombre oficial del proveedor.
         provider_name: providerName,
+        // Guardamos el país oficial para ayudar a desambiguar.
         country_name: String(candidate?.team?.country || "").trim(),
+        // Guardamos el código corto cuando exista.
         code: String(candidate?.team?.code || "").trim(),
+        // Guardamos el logo para posibles mejoras visuales.
         logo: String(candidate?.team?.logo || "").trim(),
+        // Conservamos el puntaje interno para ordenar resultados antes de responder.
         similarity_score: similarityScore,
       };
     })
@@ -491,14 +600,140 @@ function fixtureMatchesFullQuery(fixture: any, homeQuery: string, awayQuery: str
 
 /**
  * <summary>
- * Busca partidos en API-Football usando aliases de equipos y fecha opcional.
+ * Valida si un fixture coincide exactamente con los IDs oficiales de API-Football esperados.
+ * </summary>
+ * @param fixture - Fixture candidato de API-Football.
+ * @param homeProviderTeamId - ID esperado del equipo local según el proveedor.
+ * @param awayProviderTeamId - ID esperado del equipo visitante según el proveedor.
+ * @returns true cuando el fixture corresponde al mismo cruce exacto.
+ */
+function fixtureMatchesProviderTeamIds(fixture: any, homeProviderTeamId: number, awayProviderTeamId: number): boolean {
+  // Leemos el ID local del fixture devuelto por API-Football.
+  const fixtureHomeTeamId = normalizeProviderTeamId(fixture?.teams?.home?.id);
+
+  // Leemos el ID visitante del fixture devuelto por API-Football.
+  const fixtureAwayTeamId = normalizeProviderTeamId(fixture?.teams?.away?.id);
+
+  // Si alguno de los lados del fixture no tiene ID, no lo consideramos exacto.
+  if (!fixtureHomeTeamId || !fixtureAwayTeamId) {
+    return false;
+  }
+
+  // Validamos el orden local-visitante esperado.
+  const normalMatch = fixtureHomeTeamId === homeProviderTeamId && fixtureAwayTeamId === awayProviderTeamId;
+
+  // Validamos el orden invertido por si el pick quedó guardado al revés.
+  const invertedMatch = fixtureHomeTeamId === awayProviderTeamId && fixtureAwayTeamId === homeProviderTeamId;
+
+  // Aceptamos cualquiera de las dos direcciones exactas.
+  return normalMatch || invertedMatch;
+}
+
+/**
+ * <summary>
+ * Busca fixtures por IDs oficiales de los equipos para evitar ambigüedad por nombres o aliases.
+ * </summary>
+ * @param homeProviderTeamId - ID oficial del equipo local en API-Football.
+ * @param awayProviderTeamId - ID oficial del equipo visitante en API-Football.
+ * @param matchDate - Fecha del partido para recortar el universo de fixtures.
+ * @returns Fixtures compatibles con el cruce exacto de ambos IDs.
+ */
+export async function searchFixturesByProviderTeamIds(
+  homeProviderTeamId: string | number,
+  awayProviderTeamId: string | number,
+  matchDate?: string
+): Promise<any[]> {
+  // Normalizamos el ID local del proveedor.
+  const normalizedHomeProviderTeamId = normalizeProviderTeamId(homeProviderTeamId);
+
+  // Normalizamos el ID visitante del proveedor.
+  const normalizedAwayProviderTeamId = normalizeProviderTeamId(awayProviderTeamId);
+
+  // Si falta cualquiera de los IDs, no podemos hacer una búsqueda exacta.
+  if (!normalizedHomeProviderTeamId || !normalizedAwayProviderTeamId) {
+    return [];
+  }
+
+  // Extraemos la fecha si el panel o el cron la tiene disponible.
+  const date = matchDate ? extractDateFromMatchDate(matchDate) : null;
+
+  // Si existe fecha exacta, usamos el endpoint diario para reducir consumo y falsos positivos.
+  if (date) {
+    // Consultamos los fixtures del día completo en horario Colombia.
+    const data = await apiFootballFetch("fixtures", { date, timezone: BETROYALE_TIMEZONE });
+
+    // Normalizamos los fixtures devueltos por API-Football.
+    const dailyFixtures = Array.isArray(data?.response) ? data.response : [];
+
+    // Filtramos solo el cruce exacto entre ambos IDs oficiales.
+    return dailyFixtures
+      .filter((fixture: any) => fixtureMatchesProviderTeamIds(fixture, normalizedHomeProviderTeamId, normalizedAwayProviderTeamId))
+      .slice(0, 20)
+      .map(mapFixtureForAdmin);
+  }
+
+  // Calculamos temporadas candidatas cuando no hubo fecha exacta.
+  const seasons = getCandidateSeasons(null);
+
+  // Acumulamos fixtures evitando duplicados por ID.
+  const fixturesById = new Map<string, any>();
+
+  // Probamos un conjunto corto de temporadas para no agotar cuota del proveedor.
+  for (const season of seasons) {
+    // Consultamos el calendario del equipo local en la temporada candidata.
+    const data = await apiFootballFetch("fixtures", {
+      team: normalizedHomeProviderTeamId,
+      season,
+      next: 20,
+      timezone: BETROYALE_TIMEZONE,
+    });
+
+    // Normalizamos la respuesta como arreglo.
+    const fixtures = Array.isArray(data?.response) ? data.response : [];
+
+    // Guardamos solo fixtures que coincidan exactamente con ambos IDs oficiales.
+    fixtures
+      .filter((fixture: any) => fixtureMatchesProviderTeamIds(fixture, normalizedHomeProviderTeamId, normalizedAwayProviderTeamId))
+      .forEach((fixture: any) => {
+        // Persistimos una sola copia por fixture.
+        fixturesById.set(String(fixture?.fixture?.id || ""), fixture);
+      });
+
+    // Si ya encontramos resultados exactos, evitamos más consultas.
+    if (fixturesById.size > 0) {
+      break;
+    }
+  }
+
+  // Convertimos el mapa a la estructura usada por el panel admin.
+  return Array.from(fixturesById.values()).slice(0, 20).map(mapFixtureForAdmin);
+}
+
+/**
+ * <summary>
+ * Busca partidos en API-Football usando IDs oficiales de equipo cuando existan, o aliases y fecha opcional como respaldo.
  * </summary>
  * @param query - Texto de busqueda, idealmente "Local vs Visitante".
  * @param matchDate - Fecha del partido para reducir falsos positivos.
+ * @param homeProviderTeamId - ID oficial del equipo local en API-Football.
+ * @param awayProviderTeamId - ID oficial del equipo visitante en API-Football.
  * @returns Fixtures compatibles con el panel admin.
  */
-export async function searchFixtures(query: string, matchDate?: string): Promise<any[]> {
+export async function searchFixtures(
+  query: string,
+  matchDate?: string,
+  homeProviderTeamId?: string | number,
+  awayProviderTeamId?: string | number
+): Promise<any[]> {
   try {
+    // Si tenemos ambos IDs oficiales, priorizamos una búsqueda exacta por proveedor.
+    const fixturesByProviderIds = await searchFixturesByProviderTeamIds(homeProviderTeamId ?? null, awayProviderTeamId ?? null, matchDate);
+
+    // Si la búsqueda exacta devolvió resultados, ya no necesitamos comparaciones por texto.
+    if (fixturesByProviderIds.length > 0) {
+      return fixturesByProviderIds;
+    }
+
     // Dividimos la consulta para buscar por equipo local y filtrar el rival.
     const { home, away } = splitMatchQuery(query);
 
@@ -727,6 +962,32 @@ export async function getMatchResultByName(matchName: string, matchDate: string)
   if (fixtures.length === 0) return null;
 
   // Consultamos el resultado completo del primer candidato.
+  return getFixtureResult(fixtures[0].id);
+}
+
+/**
+ * <summary>
+ * Busca un partido por IDs oficiales de API-Football y devuelve su resultado final si existe.
+ * </summary>
+ * @param homeProviderTeamId - ID oficial del equipo local en API-Football.
+ * @param awayProviderTeamId - ID oficial del equipo visitante en API-Football.
+ * @param matchDate - Fecha usada para localizar el fixture exacto.
+ * @returns Resultado normalizado o null cuando el proveedor no encuentra el cruce.
+ */
+export async function getMatchResultByProviderTeamIds(
+  homeProviderTeamId: string | number,
+  awayProviderTeamId: string | number,
+  matchDate: string
+): Promise<MatchResult | null> {
+  // Buscamos fixtures exactos usando ambos IDs oficiales del proveedor.
+  const fixtures = await searchFixturesByProviderTeamIds(homeProviderTeamId, awayProviderTeamId, matchDate);
+
+  // Si no hay fixture exacto, devolvemos null para permitir fallback por texto.
+  if (fixtures.length === 0) {
+    return null;
+  }
+
+  // Consultamos el resultado completo del primer fixture exacto encontrado.
   return getFixtureResult(fixtures[0].id);
 }
 
