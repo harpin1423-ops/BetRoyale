@@ -3673,6 +3673,7 @@ export function AdminDashboard() {
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
                     <label className="text-sm font-medium text-muted-foreground">Comentario / Análisis (Opcional)</label>
+                    {/* 
                     <button
                       type="button"
                       onClick={handleGenerateAnalysis}
@@ -3691,6 +3692,7 @@ export function AdminDashboard() {
                         </>
                       )}
                     </button>
+                    */}
                   </div>
                   <textarea name="analysis" value={formData.analysis} onChange={handleInputChange} rows={3} placeholder="Breve justificación del pick..." className="w-full bg-background border border-white/10 rounded-lg px-4 py-2.5 text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"></textarea>
                 </div>
