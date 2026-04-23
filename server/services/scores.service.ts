@@ -72,14 +72,35 @@ function extractDateFromMatchDate(value: string): string | null {
   // Validamos que exista un valor antes de aplicar expresiones regulares.
   if (!value) return null;
 
-  // Buscamos el prefijo de fecha ISO/MySQL que comparten los formatos del proyecto.
-  const match = String(value).match(/^(\d{4}-\d{2}-\d{2})/);
+  // Convertimos el valor a texto para soportar entradas del formulario y de MySQL.
+  const rawValue = String(value).trim();
+
+  // Buscamos el prefijo de fecha ISO/MySQL que comparten los formatos tecnicos.
+  const match = rawValue.match(/^(\d{4}-\d{2}-\d{2})/);
 
   // Devolvemos null cuando no hay coincidencia segura.
-  if (!match) return null;
+  if (match) {
+    // Devolvemos solamente la fecha para API-Football.
+    return match[1];
+  }
 
-  // Devolvemos solamente la fecha para API-Football.
-  return match[1];
+  // Aceptamos fechas localizadas tipo 22/4/2026 que puede mostrar el panel al editar.
+  const localizedMatch = rawValue.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})/);
+
+  // Si no se reconoce formato localizado, devolvemos null.
+  if (!localizedMatch) return null;
+
+  // Normalizamos dia a dos digitos.
+  const day = localizedMatch[1].padStart(2, "0");
+
+  // Normalizamos mes a dos digitos.
+  const month = localizedMatch[2].padStart(2, "0");
+
+  // Leemos el año de cuatro digitos.
+  const year = localizedMatch[3];
+
+  // Devolvemos formato requerido por API-Football.
+  return `${year}-${month}-${day}`;
 }
 
 /**

@@ -2951,11 +2951,11 @@ export function AdminDashboard() {
                 </div>
 
                 <div className="bg-card border border-white/10 rounded-2xl overflow-hidden">
-                  <div className="overflow-x-auto max-h-[600px] overflow-y-auto custom-scrollbar">
-                    <table className="w-full text-left text-sm">
+                  <div className="overflow-x-hidden max-h-[600px] overflow-y-auto custom-scrollbar">
+                    <table className="w-full table-fixed text-left text-sm">
                       <thead className="bg-primary/20 border-b border-primary/30 sticky top-0 z-10 backdrop-blur-md">
                         <tr>
-                          <th className="p-4 w-10">
+                          <th className="p-3 w-[3%]">
                             <input
                               type="checkbox"
                               checked={paginatedPicks.length > 0 && selectedPicks.length === paginatedPicks.length}
@@ -2964,21 +2964,21 @@ export function AdminDashboard() {
                             />
                           </th>
                           {/* Fijamos ancho de fecha para que no empuje las columnas de resultado. */}
-                          <th className="p-4 w-[170px] text-xs font-bold text-primary uppercase tracking-wider whitespace-nowrap">Fecha</th>
+                          <th className="p-3 w-[11%] text-[11px] font-bold text-primary uppercase tracking-wider">Fecha</th>
                           {/* Reservamos espacio al partido porque aqui viven equipos, liga y selecciones de parlay. */}
-                          <th className="p-4 min-w-[330px] text-xs font-bold text-primary uppercase tracking-wider">Partido</th>
+                          <th className="p-3 w-[24%] text-[11px] font-bold text-primary uppercase tracking-wider">Partido</th>
                           {/* Mantenemos el pick junto al marcador para validar lectura operacional. */}
-                          <th className="p-4 min-w-[230px] text-xs font-bold text-primary uppercase tracking-wider">Pick</th>
+                          <th className="p-3 w-[15%] text-[11px] font-bold text-primary uppercase tracking-wider">Pick</th>
                           {/* Acercamos el marcador al pick para que el admin vea resultado y mercado en el mismo bloque visual. */}
-                          <th className="p-4 min-w-[190px] text-xs font-bold text-primary uppercase tracking-wider">Marcador</th>
+                          <th className="p-3 w-[13%] text-[11px] font-bold text-primary uppercase tracking-wider">Marcador</th>
                           {/* Centramos cuota con ancho compacto. */}
-                          <th className="p-4 w-[95px] text-xs font-bold text-primary uppercase tracking-wider text-center">Cuota</th>
+                          <th className="p-3 w-[6%] text-[11px] font-bold text-primary uppercase tracking-wider text-center">Cuota</th>
                           {/* Ampliamos plan para evitar doble linea en VIP Cuota 4+ / 5+. */}
-                          <th className="p-4 min-w-[180px] text-xs font-bold text-primary uppercase tracking-wider">Plan</th>
+                          <th className="p-3 w-[10%] text-[11px] font-bold text-primary uppercase tracking-wider">Plan</th>
                           {/* Dejamos estado con ancho estable. */}
-                          <th className="p-4 w-[130px] text-xs font-bold text-primary uppercase tracking-wider">Estado</th>
+                          <th className="p-3 w-[8%] text-[11px] font-bold text-primary uppercase tracking-wider">Estado</th>
                           {/* Reservamos espacio a todas las acciones sin apretarlas. */}
-                          <th className="p-4 min-w-[230px] text-xs font-bold text-primary uppercase tracking-wider text-right">Acciones</th>
+                          <th className="p-3 w-[10%] text-[11px] font-bold text-primary uppercase tracking-wider text-right">Acciones</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-white/10">
@@ -2990,7 +2990,7 @@ export function AdminDashboard() {
                           paginatedPicks.map((pick) => (
                             <React.Fragment key={pick.id}>
                               <tr className="hover:bg-white/5 transition-colors">
-                                <td className="p-4">
+                                <td className="p-3 align-top">
                                   <input
                                     type="checkbox"
                                     checked={selectedPicks.includes(pick.id)}
@@ -3005,10 +3005,15 @@ export function AdminDashboard() {
                                   />
                                 </td>
                                 {/* Mostramos fecha en una sola linea para que no rompa la altura de la fila. */}
-                                <td className="p-4 w-[170px] whitespace-nowrap">{new Date(pick.match_date).toLocaleString()}</td>
+                                <td className="p-3 align-top text-xs leading-tight">
+                                  {/* Partimos fecha y hora para ahorrar ancho sin perder claridad. */}
+                                  <div className="font-bold text-foreground">{new Date(pick.match_date).toLocaleDateString()}</div>
+                                  {/* Mostramos la hora en una segunda linea compacta. */}
+                                  <div className="text-muted-foreground">{new Date(pick.match_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                                </td>
                                 {/* Agrupamos toda la informacion del partido/parlay en una columna amplia. */}
-                                <td className="p-4 min-w-[330px]">
-                                  <div className="font-medium">
+                                <td className="p-3 align-top break-words">
+                                  <div className="font-medium leading-snug">
                                     {pick.is_parlay ? `Parlay (${pick.selections?.length || 0} selecciones)` : pick.match_name}
                                   </div>
                                   {!pick.is_parlay && (
@@ -3021,8 +3026,8 @@ export function AdminDashboard() {
                                     <div className="mt-2 space-y-1">
                                       {pick.selections.map((sel: any, idx: number) => (
                                         <div key={idx} className="text-[10px] text-muted-foreground border-l border-white/10 pl-2">
-                                          <div className="flex items-center justify-between">
-                                            <span className="font-bold text-primary/70">{sel.match_name}</span>
+                                          <div className="flex items-start justify-between gap-1">
+                                            <span className="font-bold text-primary/70 leading-tight">{sel.match_name}</span>
                                             {hasResultProviderLink(sel) && (
                                               <span className="ml-2 shrink-0 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-1.5 py-0.5 text-[8px] font-black text-emerald-400">
                                                 API
@@ -3040,29 +3045,29 @@ export function AdminDashboard() {
                                   )}
                                 </td>
                                 {/* La columna pick queda antes del marcador para revisar mercado y resultado de corrido. */}
-                                <td className="p-4 min-w-[230px] font-medium text-primary">
+                                <td className="p-3 align-top font-medium text-primary">
                                   {pick.is_parlay ? (
                                     <div className="text-xs text-muted-foreground">Combinada</div>
                                   ) : (
-                                    <div className="flex items-center gap-2">
-                                      <span className="px-2 py-0.5 rounded bg-primary/20 text-xs font-bold">{pick.market_acronym || getPickDisplay(pick.pick).acronym}</span>
-                                      <span>{pick.market_label || getPickDisplay(pick.pick).label}</span>
+                                    <div className="flex flex-wrap items-center gap-1.5 leading-tight">
+                                      <span className="px-1.5 py-0.5 rounded bg-primary/20 text-[10px] font-bold">{pick.market_acronym || getPickDisplay(pick.pick).acronym}</span>
+                                      <span className="break-words">{pick.market_label || getPickDisplay(pick.pick).label}</span>
                                     </div>
                                   )}
                                 </td>
                                 {/* Marcador queda pegado al mercado para corregir la lectura operativa del gestor. */}
-                                <td className="p-4 min-w-[190px]">
+                                <td className="p-3 align-top">
                                   {Boolean(pick.is_parlay) && Array.isArray(pick.selections) ? (
-                                    <div className="min-w-[210px] space-y-1.5">
+                                    <div className="w-full space-y-1.5">
                                       {pick.selections.map((sel: any, idx: number) => (
-                                        <div key={`${pick.id}-score-${idx}`} className="flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-2 py-1">
+                                        <div key={`${pick.id}-score-${idx}`} className="flex flex-wrap items-center justify-between gap-1 rounded-lg border border-white/10 bg-white/[0.03] px-2 py-1">
                                           <span className="text-[10px] font-black text-muted-foreground">#{idx + 1}</span>
                                           {hasResolvedScore(sel) ? (
                                             <span className={`min-w-[3.4rem] rounded px-2 py-0.5 text-center text-xs font-black ${sel.status === 'lost' ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'}`}>
                                               {sel.score_home} - {sel.score_away}
                                             </span>
                                           ) : (
-                                            <span className={`rounded px-2 py-0.5 text-[10px] font-black ${hasResultProviderLink(sel) ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20' : 'bg-white/5 text-muted-foreground border border-white/10'}`}>
+                                            <span className={`rounded px-1.5 py-0.5 text-[9px] font-black ${hasResultProviderLink(sel) ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20' : 'bg-white/5 text-muted-foreground border border-white/10'}`}>
                                               {hasResultProviderLink(sel) ? 'Pendiente API' : 'Sin vínculo'}
                                             </span>
                                           )}
@@ -3085,16 +3090,16 @@ export function AdminDashboard() {
                                   )}
                                 </td>
                                 {/* Cuota se muestra compacta y centrada despues del marcador. */}
-                                <td className="p-4 w-[95px] text-center font-black text-foreground">{pick.odds}</td>
+                                <td className="p-3 align-top text-center font-black text-foreground">{pick.odds}</td>
                                 {/* Plan tiene ancho y badge nowrap para que VIP Cuota 4+ no salte de linea. */}
-                                <td className="p-4 min-w-[180px]">
-                                  <span className={`inline-flex whitespace-nowrap px-2.5 py-1 rounded text-xs font-medium ${pick.pick_type_slug === 'free' ? 'bg-primary/20 text-primary' : 'bg-accent/20 text-accent'}`}>
+                                <td className="p-3 align-top">
+                                  <span title={(pick.pick_type_name || pick.pick_type || 'FREE').toUpperCase()} className={`inline-flex max-w-full whitespace-nowrap overflow-hidden text-ellipsis px-2 py-1 rounded text-[10px] font-bold ${pick.pick_type_slug === 'free' ? 'bg-primary/20 text-primary' : 'bg-accent/20 text-accent'}`}>
                                     {(pick.pick_type_name || pick.pick_type || 'FREE').toUpperCase()}
                                   </span>
                                 </td>
                                 {/* Estado conserva un ancho estable y legible. */}
-                                <td className="p-4 w-[130px]">
-                                  <span className={`px-2 py-1 rounded text-xs font-medium ${pick.status === 'won' ? 'bg-green-500/20 text-green-500' :
+                                <td className="p-3 align-top">
+                                  <span className={`inline-flex max-w-full px-2 py-1 rounded text-[10px] font-bold ${pick.status === 'won' ? 'bg-green-500/20 text-green-500' :
                                     pick.status === 'lost' ? 'bg-red-500/20 text-red-500' :
                                       pick.status === 'void' ? 'bg-gray-500/20 text-gray-400' :
                                         'bg-yellow-500/20 text-yellow-500'
@@ -3103,12 +3108,12 @@ export function AdminDashboard() {
                                   </span>
                                 </td>
                                 {/* Acciones tienen ancho minimo para no invadir estado o plan. */}
-                                <td className="p-4 min-w-[230px] text-right">
-                                  <div className="flex items-center justify-end gap-2">
+                                <td className="p-3 align-top text-right">
+                                  <div className="flex flex-wrap items-center justify-end gap-1.5">
                                     {/* Tracking Button */}
                                     <button
                                       onClick={() => setActiveTrackingPickId(activeTrackingPickId === pick.id ? null : pick.id)}
-                                      className="p-1.5 rounded hover:bg-blue-500/20 text-blue-400 transition-colors mr-2"
+                                      className="p-1.5 rounded hover:bg-blue-500/20 text-blue-400 transition-colors"
                                       title="Añadir Seguimiento"
                                     >
                                       <PlusCircle className="w-4 h-4" />
@@ -3127,10 +3132,10 @@ export function AdminDashboard() {
                                         </button>
                                       </>
                                     )}
-                                    <button onClick={() => resendPickToTelegram(pick.id)} className="p-1.5 rounded hover:bg-emerald-500/20 text-emerald-400 transition-colors ml-2" title="Reenviar a Telegram">
+                                    <button onClick={() => resendPickToTelegram(pick.id)} className="p-1.5 rounded hover:bg-emerald-500/20 text-emerald-400 transition-colors" title="Reenviar a Telegram">
                                       <Send className="w-4 h-4" />
                                     </button>
-                                    <button onClick={() => setTicketModalPick(pick)} className="p-1.5 rounded hover:bg-purple-500/20 text-purple-400 transition-colors ml-2" title="Generar Ticket para Redes">
+                                    <button onClick={() => setTicketModalPick(pick)} className="p-1.5 rounded hover:bg-purple-500/20 text-purple-400 transition-colors" title="Generar Ticket para Redes">
                                       <Camera className="w-4 h-4" />
                                     </button>
                                     <button onClick={() => handleEditPick(pick)} className="p-1.5 rounded hover:bg-blue-500/20 text-blue-400 transition-colors" title="Editar">
