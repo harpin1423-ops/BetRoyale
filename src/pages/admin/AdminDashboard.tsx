@@ -3811,24 +3811,6 @@ export function AdminDashboard() {
                   <h3 className="text-lg font-semibold">Picks</h3>
                   <button
                     type="button"
-                    onClick={verifyPickResults}
-                    disabled={isVerifying || selectedPicks.length === 0}
-                    className="bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-white px-3 py-2 rounded-lg text-sm flex items-center gap-2 transition-colors"
-                  >
-                    {isVerifying ? (
-                      <>
-                        <Loader2 size={16} className="animate-spin" />
-                        Verificando...
-                      </>
-                    ) : (
-                      <>
-                        <BrainCircuit size={16} />
-                        Verificar Seleccionados con IA
-                      </>
-                    )}
-                  </button>
-                  <button
-                    type="button"
                     onClick={handleRunCron}
                     disabled={isRunningCron}
                     className="bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded-xl text-sm flex items-center gap-2 transition-all font-bold shadow-lg shadow-emerald-500/20"
