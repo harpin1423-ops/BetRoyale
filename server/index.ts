@@ -109,6 +109,7 @@ export async function startServer(): Promise<void> {
   app.use("/api/picks", picksRouter);
   app.use("/api/markets", marketsRouter);
   app.use("/api/scores", scoresRouter);
+  app.use("/api/ai", aiRouter);
 
   // ─── Ruta de Diagnóstico (Solo para desarrollo o admin) ─────────────────────
   app.get("/api/debug/status", async (_req, res) => {
