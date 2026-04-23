@@ -19,7 +19,7 @@ router.post("/analyze-pick", authenticateToken, requireAdmin, async (req, res) =
     const { match_name, league_name, pick, odds, is_parlay, selections } = req.body;
 
     // Validamos datos mínimos
-    if (!match_name \u0026\u0026 !is_parlay) {
+    if (!match_name && !is_parlay) {
       return res.status(400).json({ 
         status: "error", 
         message: "Faltan datos del partido o selecciones del parlay." 
