@@ -1955,10 +1955,23 @@ export function AdminDashboard() {
 
       // Si es un parlay, enviamos las selecciones actuales para sugerencia múltiple.
       if (manualResolutionDialog.is_parlay) {
-        requestBody.selections = manualResolutionDialog.selections.map(sel => ({
-          ...sel,
-          // Mapeamos los campos para que coincidan con lo que espera el backend.
-          final_status: sel.final_status
+        requestBody.selections = manualResolutionDialog.selections.map((sel) => ({
+          // Enviamos solo los campos manuales necesarios para no contaminar el JSON persistido.
+          score_home: sel.score_home,
+          // Enviamos solo el marcador visitante digitado.
+          score_away: sel.score_away,
+          // Enviamos el total de córners manual si existe.
+          corners_total: sel.corners_total,
+          // Enviamos los córners del local.
+          corners_home: sel.corners_home,
+          // Enviamos los córners del visitante.
+          corners_away: sel.corners_away,
+          // Enviamos el total de amarillas manual si existe.
+          yellow_cards_total: sel.yellow_cards_total,
+          // Enviamos las amarillas del local.
+          yellow_cards_home: sel.yellow_cards_home,
+          // Enviamos las amarillas del visitante.
+          yellow_cards_away: sel.yellow_cards_away,
         }));
       }
 
@@ -2056,10 +2069,25 @@ export function AdminDashboard() {
 
       // Si es un parlay, enviamos las selecciones con sus estados manuales.
       if (manualResolutionDialog.is_parlay) {
-        requestBody.selections = manualResolutionDialog.selections.map(sel => ({
-          ...sel,
-          // El backend espera 'final_status' dentro del objeto de selección.
-          final_status: sel.final_status
+        requestBody.selections = manualResolutionDialog.selections.map((sel) => ({
+          // Enviamos solo los campos manuales necesarios para cada selección.
+          score_home: sel.score_home,
+          // Enviamos el marcador visitante manual.
+          score_away: sel.score_away,
+          // Enviamos el total de córners si el admin lo conoce.
+          corners_total: sel.corners_total,
+          // Enviamos los córners del local.
+          corners_home: sel.corners_home,
+          // Enviamos los córners del visitante.
+          corners_away: sel.corners_away,
+          // Enviamos el total de amarillas si el admin lo conoce.
+          yellow_cards_total: sel.yellow_cards_total,
+          // Enviamos las amarillas del local.
+          yellow_cards_home: sel.yellow_cards_home,
+          // Enviamos las amarillas del visitante.
+          yellow_cards_away: sel.yellow_cards_away,
+          // Enviamos también el estado final confirmado para esa selección.
+          final_status: sel.final_status,
         }));
       }
 
@@ -2110,32 +2138,31 @@ export function AdminDashboard() {
         setIsVerifying(true);
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+      // Leemos la clave pública del navegador desde Vite.
+      const geminiApiKey = String((import.meta as any)?.env?.VITE_GEMINI_API_KEY || "").trim();
+
+      // Cortamos temprano si el panel no tiene la clave configurada.
+      if (!geminiApiKey) {
+        throw new Error("Falta VITE_GEMINI_API_KEY para verificar picks con Gemini.");
+      }
+
+      // Inicializamos el cliente con la SDK instalada actualmente en el proyecto.
+      const ai = new GoogleGenerativeAI(geminiApiKey);
+
+      // Construimos el modelo una sola vez para reutilizarlo en todo el lote.
+      const model = ai.getGenerativeModel({ model: "gemini-1.5-pro" });
 
       for (const pick of picksToVerify) {
         try {
           // Si es un parlay, necesitamos buscar los partidos individuales
           // Asumimos que el pick tiene la información necesaria o que la IA puede inferirla del match_name
-          const response = await ai.models.generateContent({
-            model: "gemini-3.1-pro-preview",
-            contents: `Busca el resultado final del partido o partidos asociados al pick: "${pick.match_name}" que se jugó el ${pick.match_date}. El pronóstico fue: "${pick.pick}". Determina si el pick fue 'won', 'lost' o 'void'. Responde SOLO con un JSON con la propiedad "status" que contenga una de esas tres palabras.`,
-            config: {
-              tools: [{ googleSearch: {} }],
-              responseMimeType: "application/json",
-              responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                  status: {
-                    type: Type.STRING,
-                    description: "El resultado del pick: 'won', 'lost', o 'void'",
-                  }
-                },
-                required: ["status"]
-              }
-            },
-          });
+          const response = await model.generateContent(
+            // Forzamos una salida JSON mínima para no depender de esquemas incompatibles con esta SDK.
+            `Busca el resultado final del partido o partidos asociados al pick: "${pick.match_name}" que se jugó el ${pick.match_date}. El pronóstico fue: "${pick.pick}". Determina si el pick fue "won", "lost" o "void". Responde SOLO con JSON válido como {"status":"won"}.`
+          );
 
-          const resultText = response.text?.trim() || "{}";
+          // Leemos el texto generado por Gemini para parsearlo como JSON.
+          const resultText = response.response.text()?.trim() || "{}";
           let status = "";
           try {
             const result = JSON.parse(resultText);
@@ -5845,79 +5872,152 @@ export function AdminDashboard() {
                           </span>
                         </div>
                         
-                        <div className="p-6 grid gap-6 md:grid-cols-3">
-                          {/* Marcador */}
-                          <div className="space-y-3">
-                            <div className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Marcador</div>
-                            <div className="grid grid-cols-2 gap-2">
-                              <input
-                                type="number"
-                                placeholder="Loc"
-                                value={sel.score_home}
-                                onChange={(e) => updateManualResolutionSelectionField(idx, "score_home", e.target.value)}
-                                className="w-full rounded-lg border border-white/10 bg-background px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none"
-                              />
-                              <input
-                                type="number"
-                                placeholder="Vis"
-                                value={sel.score_away}
-                                onChange={(e) => updateManualResolutionSelectionField(idx, "score_away", e.target.value)}
-                                className="w-full rounded-lg border border-white/10 bg-background px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none"
-                              />
+                        <div className="p-6 space-y-6">
+                          <div className="text-xs text-muted-foreground">
+                            {isCornersMarketReference(sel.marketReference)
+                              ? "Esta selección puede resolverse con córners totales o por equipo."
+                              : isYellowCardsMarketReference(sel.marketReference)
+                                ? "Esta selección puede resolverse con amarillas totales o por equipo."
+                                : "Esta selección se resuelve principalmente con el marcador final."}
+                          </div>
+
+                          <div className="grid gap-6 md:grid-cols-3">
+                            <div className={`rounded-2xl border px-4 py-4 ${!isCornersMarketReference(sel.marketReference) && !isYellowCardsMarketReference(sel.marketReference) ? "border-primary/30 bg-primary/5" : "border-white/10 bg-background/40"}`}>
+                              <div className="text-xs font-black uppercase tracking-[0.18em] text-primary">Marcador Final</div>
+                              <div className="mt-1 text-xs text-muted-foreground">Útil para ganador, goles y doble oportunidad.</div>
+                              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                                <div>
+                                  <label className="mb-2 block text-[11px] font-bold uppercase text-muted-foreground">Goles Local</label>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    value={sel.score_home}
+                                    onChange={(e) => updateManualResolutionSelectionField(idx, "score_home", e.target.value)}
+                                    className="w-full rounded-xl border border-white/10 bg-background px-3 py-2.5 text-sm text-foreground focus:border-primary focus:outline-none"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="mb-2 block text-[11px] font-bold uppercase text-muted-foreground">Goles Visitante</label>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    value={sel.score_away}
+                                    onChange={(e) => updateManualResolutionSelectionField(idx, "score_away", e.target.value)}
+                                    className="w-full rounded-xl border border-white/10 bg-background px-3 py-2.5 text-sm text-foreground focus:border-primary focus:outline-none"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className={`rounded-2xl border px-4 py-4 ${isCornersMarketReference(sel.marketReference) ? "border-primary/30 bg-primary/5" : "border-white/10 bg-background/40"}`}>
+                              <div className="text-xs font-black uppercase tracking-[0.18em] text-primary">Córners</div>
+                              <div className="mt-1 text-xs text-muted-foreground">Puedes cargar el total del partido o discriminar local y visitante.</div>
+                              <div className="mt-4 grid gap-3">
+                                <div>
+                                  <label className="mb-2 block text-[11px] font-bold uppercase text-muted-foreground">Córners Totales</label>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    value={sel.corners_total}
+                                    onChange={(e) => updateManualResolutionSelectionField(idx, "corners_total", e.target.value)}
+                                    className="w-full rounded-xl border border-white/10 bg-background px-3 py-2.5 text-sm text-foreground focus:border-primary focus:outline-none"
+                                  />
+                                </div>
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                  <div>
+                                    <label className="mb-2 block text-[11px] font-bold uppercase text-muted-foreground">Córners Local</label>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      value={sel.corners_home}
+                                      onChange={(e) => updateManualResolutionSelectionField(idx, "corners_home", e.target.value)}
+                                      className="w-full rounded-xl border border-white/10 bg-background px-3 py-2.5 text-sm text-foreground focus:border-primary focus:outline-none"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="mb-2 block text-[11px] font-bold uppercase text-muted-foreground">Córners Visitante</label>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      value={sel.corners_away}
+                                      onChange={(e) => updateManualResolutionSelectionField(idx, "corners_away", e.target.value)}
+                                      className="w-full rounded-xl border border-white/10 bg-background px-3 py-2.5 text-sm text-foreground focus:border-primary focus:outline-none"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className={`rounded-2xl border px-4 py-4 ${isYellowCardsMarketReference(sel.marketReference) ? "border-primary/30 bg-primary/5" : "border-white/10 bg-background/40"}`}>
+                              <div className="text-xs font-black uppercase tracking-[0.18em] text-primary">Amarillas</div>
+                              <div className="mt-1 text-xs text-muted-foreground">Ideal para mercados de tarjetas del partido, local o visitante.</div>
+                              <div className="mt-4 grid gap-3">
+                                <div>
+                                  <label className="mb-2 block text-[11px] font-bold uppercase text-muted-foreground">Amarillas Totales</label>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    value={sel.yellow_cards_total}
+                                    onChange={(e) => updateManualResolutionSelectionField(idx, "yellow_cards_total", e.target.value)}
+                                    className="w-full rounded-xl border border-white/10 bg-background px-3 py-2.5 text-sm text-foreground focus:border-primary focus:outline-none"
+                                  />
+                                </div>
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                  <div>
+                                    <label className="mb-2 block text-[11px] font-bold uppercase text-muted-foreground">Amarillas Local</label>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      value={sel.yellow_cards_home}
+                                      onChange={(e) => updateManualResolutionSelectionField(idx, "yellow_cards_home", e.target.value)}
+                                      className="w-full rounded-xl border border-white/10 bg-background px-3 py-2.5 text-sm text-foreground focus:border-primary focus:outline-none"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="mb-2 block text-[11px] font-bold uppercase text-muted-foreground">Amarillas Visitante</label>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      value={sel.yellow_cards_away}
+                                      onChange={(e) => updateManualResolutionSelectionField(idx, "yellow_cards_away", e.target.value)}
+                                      className="w-full rounded-xl border border-white/10 bg-background px-3 py-2.5 text-sm text-foreground focus:border-primary focus:outline-none"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
                             </div>
                           </div>
 
-                          {/* Córners (Solo si aplica) */}
-                          <div className="space-y-3">
-                            <div className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Córners</div>
-                            <div className="grid grid-cols-2 gap-2">
-                              <input
-                                type="number"
-                                placeholder="Loc"
-                                value={sel.corners_home}
-                                onChange={(e) => updateManualResolutionSelectionField(idx, "corners_home", e.target.value)}
-                                className="w-full rounded-lg border border-white/10 bg-background px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none"
-                              />
-                              <input
-                                type="number"
-                                placeholder="Vis"
-                                value={sel.corners_away}
-                                onChange={(e) => updateManualResolutionSelectionField(idx, "corners_away", e.target.value)}
-                                className="w-full rounded-lg border border-white/10 bg-background px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none"
-                              />
+                          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_240px]">
+                            <div className="rounded-xl border border-white/10 bg-background/50 p-4">
+                              <div className="text-[11px] font-black uppercase tracking-[0.18em] text-muted-foreground">Sugerencia por selección</div>
+                              <div className="mt-3 flex flex-wrap items-center gap-3">
+                                <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-black ${sel.suggested_status === "won" ? "bg-emerald-500/15 text-emerald-400" : sel.suggested_status === "lost" ? "bg-red-500/15 text-red-400" : sel.suggested_status === "void" ? "bg-slate-500/15 text-slate-300" : "bg-yellow-500/15 text-yellow-400"}`}>
+                                  {sel.suggested_status ? getLocalizedStatus(sel.suggested_status) : "Sin calcular"}
+                                </span>
+                              </div>
+                              <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+                                {sel.suggested_reason || "Completa los datos de esta selección y usa “Sugerir resultado” para obtener una recomendación."}
+                              </p>
                             </div>
-                          </div>
 
-                          {/* Estado de la Selección */}
-                          <div className="space-y-3">
-                            <div className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Estado Selección</div>
-                            <select
-                              value={sel.final_status}
-                              onChange={(e) => updateManualResolutionSelectionField(idx, "final_status", e.target.value)}
-                              className="w-full rounded-lg border border-white/10 bg-background px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none"
-                            >
-                              <option value="pending">Pendiente</option>
-                              <option value="won">Ganado</option>
-                              <option value="lost">Perdido</option>
-                              <option value="void">Nulo</option>
-                              <option value="half-won">Medio Ganado</option>
-                              <option value="half-lost">Medio Perdido</option>
-                            </select>
+                            <div className="rounded-xl border border-white/10 bg-background/50 p-4">
+                              <label className="mb-2 block text-[11px] font-bold uppercase text-muted-foreground">Estado Selección</label>
+                              <select
+                                value={sel.final_status}
+                                onChange={(e) => updateManualResolutionSelectionField(idx, "final_status", e.target.value)}
+                                className="w-full rounded-xl border border-white/10 bg-background px-3 py-2.5 text-sm text-foreground focus:border-primary focus:outline-none"
+                              >
+                                <option value="pending">Pendiente</option>
+                                <option value="won">Ganado</option>
+                                <option value="lost">Perdido</option>
+                                <option value="void">Nulo</option>
+                                <option value="half-won">Medio Ganado</option>
+                                <option value="half-lost">Medio Perdido</option>
+                              </select>
+                            </div>
                           </div>
                         </div>
-
-                        {/* Feedback IA por selección */}
-                        {sel.suggested_status && (
-                          <div className="px-6 py-3 bg-primary/5 border-t border-white/5 flex items-start gap-3">
-                            <BrainCircuit className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                            <div>
-                              <span className={`text-[10px] font-black uppercase ${sel.suggested_status === 'won' ? 'text-emerald-400' : sel.suggested_status === 'lost' ? 'text-red-400' : 'text-yellow-400'}`}>
-                                Sugerencia: {getLocalizedStatus(sel.suggested_status)}
-                              </span>
-                              <p className="text-[11px] text-muted-foreground mt-0.5 italic">{sel.suggested_reason}</p>
-                            </div>
-                          </div>
-                        )}
                       </div>
                     ))}
                   </div>

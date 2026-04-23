@@ -67,6 +67,9 @@ export const env = {
     APIFOOTBALL_RAPIDAPI_HOST: process.env.APIFOOTBALL_RAPIDAPI_HOST || "api-football-v1.p.rapidapi.com",
     /** API Key legacy para API-Football cuando ya estaba configurada como RapidAPI */
     RAPIDAPI_KEY: process.env.RAPIDAPI_KEY || "",
+    // ─── Google Gemini AI ────────────────────────────────────────────────────────
+    /** API Key para Google Gemini AI */
+    GEMINI_API_KEY: process.env.GEMINI_API_KEY || "",
 };
 // ─── Validación de variables críticas ───────────────────────────────────────
 // Advertir si alguna variable crítica de producción no está configurada

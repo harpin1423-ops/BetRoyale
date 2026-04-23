@@ -465,7 +465,13 @@ export function formatPickParaTelegram(pick, esActualizacion = false) {
                 mensaje += `   📅 ${selectionDateTime.fecha}\n`;
                 mensaje += `   🕒 ${selectionDateTime.hora}\n`;
             }
-            mensaje += `   🎯 ${selectionMarket}${selectionOdds ? ` @ ⭐ <b>${selectionOdds}</b>` : ""}\n`;
+            mensaje += `   🎯 ${selectionMarket}${selectionOdds ? ` @ ⭐ <b>${selectionOdds}</b>` : ""}`;
+            // Si es una actualización de resultado, mostramos el estado de la selección.
+            if (esActualizacion && selection.status && selection.status !== "pending") {
+                const selEmoji = emojiEstado[selection.status] || "📌";
+                mensaje += ` ${selEmoji}`;
+            }
+            mensaje += `\n`;
         });
     }
     // Si el pick ya tiene resultado, lo mostramos

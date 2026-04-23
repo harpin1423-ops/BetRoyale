@@ -32,6 +32,7 @@ import { teamsRouter } from "./routes/teams.routes.js";
 import { apiLimiter } from "./middleware/rateLimiter.js";
 import { initCronJobs } from "./services/cron.service.js";
 import scoresRouter from "./routes/scores.routes.js";
+import aiRouter from "./routes/ai.routes.js";
 /**
  * Crea y configura la instancia del servidor Express,
  * registra todos los middlewares y rutas, y arranca el servidor.
@@ -98,6 +99,8 @@ export async function startServer() {
     app.use("/api/telegram", telegramRouter);
     /** Búsqueda de resultados y marcadores externos */
     app.use("/api/scores", scoresRouter);
+    /** Inteligencia Artificial: análisis de picks y comentarios */
+    app.use("/api/ai", aiRouter);
     /** Health check: verificación rápida de que el servidor está activo */
     app.get("/api/health", (_req, res) => {
         res.json({ status: "ok", timestamp: new Date().toISOString() });

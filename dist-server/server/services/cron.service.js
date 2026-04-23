@@ -191,13 +191,20 @@ async function handleSinglePickResolution(pick) {
     // Actualizamos estado final en la BD.
     await pool.query("UPDATE picks SET status = ? WHERE id = ?", [newStatus, pick.id]);
     console.log(`[CRON] Pick #${pick.id} (${pick.match_name}) -> ${newStatus} (${result.goalsHome}-${result.goalsAway})`);
-    // Notificamos a Telegram.
-    await notificarResultado({
-        ...pick,
-        status: newStatus,
-        score_home: result.goalsHome,
-        score_away: result.goalsAway,
-    });
+    // Volvemos a consultar para asegurarnos de que no fue notificado por otro proceso (ej: manual resolution)
+    const [freshPick] = await pool.query("SELECT result_notified, status FROM picks WHERE id = ?", [pick.id]);
+    const isAlreadyNotified = freshPick.length > 0 && freshPick[0].result_notified;
+    // Notificamos a Telegram si no ha sido notificado aún.
+    if (!isAlreadyNotified) {
+        await notificarResultado({
+            ...pick,
+            status: newStatus,
+            score_home: result.goalsHome,
+            score_away: result.goalsAway,
+        });
+        // Marcamos como notificado para evitar duplicados.
+        await pool.query("UPDATE picks SET result_notified = 1 WHERE id = ?", [pick.id]);
+    }
 }
 /**
  * Resuelve un Parlay procesando cada selección individualmente.
@@ -281,7 +288,15 @@ async function handleParlayResolution(pick) {
             pick.id,
         ]);
         console.log(`[CRON] ✅ Parlay #${pick.id} → ${finalStatus}`);
-        await notificarResultado({ ...pick, status: finalStatus, selections });
+        // Volvemos a consultar para asegurarnos de que no fue notificado por otro proceso
+        const [freshPick] = await pool.query("SELECT result_notified, status FROM picks WHERE id = ?", [pick.id]);
+        const isAlreadyNotified = freshPick.length > 0 && freshPick[0].result_notified;
+        // Notificamos a Telegram si no ha sido notificado aún.
+        if (!isAlreadyNotified) {
+            await notificarResultado({ ...pick, status: finalStatus, selections });
+            // Marcamos como notificado para evitar duplicados.
+            await pool.query("UPDATE picks SET result_notified = 1 WHERE id = ?", [pick.id]);
+        }
     }
     else {
         console.log(`[CRON] Parlay #${pick.id} — Aún hay selecciones pendientes, se reintentará.`);
