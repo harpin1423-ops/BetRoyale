@@ -2917,13 +2917,15 @@ export function AdminDashboard() {
                                       <span className="px-2 py-1 bg-primary/10 border border-primary/20 rounded font-black text-primary min-w-[3rem] text-center">
                                         {pick.score_home} - {pick.score_away}
                                       </span>
-                                      {pick.api_fixture_id && (
-                                        <div className="w-2 h-2 rounded-full bg-primary animate-pulse" title="Actualización automática activa" />
+                                      {/* Mostrar indicador de pulso si el evento está vinculado a cualquier API */}
+                                      {(pick.api_fixture_id || pick.thesportsdb_event_id) && (
+                                        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" title="Actualización automática activa" />
                                       )}
                                     </div>
                                   ) : (
                                     <span className="text-muted-foreground italic text-xs">
-                                      {pick.api_fixture_id ? 'Pendiente API' : '-'}
+                                      {/* Mostrar texto de pendiente si hay vinculación activa */}
+                                      {(pick.api_fixture_id || pick.thesportsdb_event_id) ? 'Pendiente API' : '-'}
                                     </span>
                                   )}
                                 </td>

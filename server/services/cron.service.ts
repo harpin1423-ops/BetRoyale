@@ -74,9 +74,11 @@ async function processPendingPicks(minMinutes: number = 105): Promise<{ processe
     LEFT JOIN pick_types pt ON p.pick_type_id = pt.id
     LEFT JOIN countries  c  ON l.country_id   = c.id
     LEFT JOIN markets    m  ON p.pick         = m.id
-    WHERE p.status = 'pending'
+    /* Seleccionamos picks pendientes O picks que no tengan marcador (para autocompletar) */
+    WHERE (p.status = 'pending' OR (p.score_home IS NULL AND p.score_away IS NULL))
       AND p.match_name IS NOT NULL
       AND p.match_name != ''
+      /* Filtro de tiempo: el partido debe haber comenzado hace al menos N minutos */
       AND p.match_date < DATE_SUB(NOW(), INTERVAL ? MINUTE)
     ORDER BY p.match_date ASC
     LIMIT 50
