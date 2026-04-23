@@ -266,6 +266,39 @@ async function searchProviderTeams(teamName) {
 }
 /**
  * <summary>
+ * Expone candidatos de alias API-Football para el panel de equipos sin alterar el nombre visible local.
+ * </summary>
+ * @param teamName - Nombre visible del equipo en BetRoyale usado para buscar coincidencias en el proveedor.
+ * @returns Lista corta de candidatos con nombre técnico y metadatos básicos.
+ */
+export async function searchProviderTeamCandidates(teamName) {
+    // Consultamos el proveedor con el nombre visible o alias parcial digitado por el admin.
+    const candidates = await searchProviderTeams(teamName);
+    // Convertimos la respuesta cruda del proveedor en un formato compacto para el panel.
+    const normalizedCandidates = candidates
+        .map((candidate) => {
+        // Leemos el nombre oficial del equipo que usa API-Football.
+        const providerName = String(candidate?.team?.name || "").trim();
+        // Calculamos una prioridad alta cuando el alias coincide de forma razonable.
+        const similarityScore = teamNameMatches(teamName, providerName) ? 1 : 0;
+        // Devolvemos únicamente los campos útiles para la UI administrativa.
+        return {
+            provider_name: providerName,
+            country_name: String(candidate?.team?.country || "").trim(),
+            code: String(candidate?.team?.code || "").trim(),
+            logo: String(candidate?.team?.logo || "").trim(),
+            similarity_score: similarityScore,
+        };
+    })
+        // Descartamos respuestas vacías o incompletas del proveedor.
+        .filter((candidate) => Boolean(candidate.provider_name))
+        // Priorizamos coincidencias más cercanas antes de mostrar al admin.
+        .sort((left, right) => right.similarity_score - left.similarity_score || left.provider_name.localeCompare(right.provider_name));
+    // Quitamos el campo interno de ordenamiento antes de responder.
+    return normalizedCandidates.slice(0, 8).map(({ similarity_score, ...candidate }) => candidate);
+}
+/**
+ * <summary>
  * Valida si un fixture contiene al visitante buscado.
  * </summary>
  * @param fixture - Fixture candidato de API-Football.

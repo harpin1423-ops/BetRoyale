@@ -455,6 +455,10 @@ export function AdminDashboard() {
   const [teams, setTeams] = useState<any[]>([]);
   const [teamForm, setTeamForm] = useState({ id: null as number | null, name: "", api_name: "", league_id: "", country_id: "" });
   const [isSubmittingTeam, setIsSubmittingTeam] = useState(false);
+  // Guardamos el loading de sugerencias de alias API-Football para equipos.
+  const [isSuggestingTeamAlias, setIsSuggestingTeamAlias] = useState(false);
+  // Guardamos la lista de candidatos sugeridos para el alias técnico.
+  const [teamAliasSuggestions, setTeamAliasSuggestions] = useState<any[]>([]);
   const [newPromoCode, setNewPromoCode] = useState({ code: '', discount_percentage: '', max_uses: '', valid_until: '' });
   const [editingPromoCodeId, setEditingPromoCodeId] = useState<number | null>(null);
   const [isSubmittingPromoCode, setIsSubmittingPromoCode] = useState(false);
@@ -575,6 +579,13 @@ export function AdminDashboard() {
   const [isSearchingFixtures, setIsSearchingFixtures] = useState(false);
   const [fixtureSearchQuery, setFixtureSearchQuery] = useState("");
   const [activeSelectionFixtureIndex, setActiveSelectionFixtureIndex] = useState<number | null>(null);
+
+  useEffect(() => {
+    // Si el formulario ya no es parlay, limpiamos el contexto de selección vinculado al buscador.
+    if (!formData.is_parlay && activeSelectionFixtureIndex !== null) {
+      setActiveSelectionFixtureIndex(null);
+    }
+  }, [formData.is_parlay, activeSelectionFixtureIndex]);
 
   // Market form state
   const [marketForm, setMarketForm] = useState({ id: null as number | null, label: "", acronym: "" });
@@ -1004,6 +1015,7 @@ export function AdminDashboard() {
 
       toast.success("Equipo guardado exitosamente");
       setTeamForm({ id: null, name: "", api_name: "", league_id: "", country_id: "" });
+      setTeamAliasSuggestions([]);
       fetchTeams();
     } catch (error: any) {
       toast.error(error.message);
@@ -1013,12 +1025,94 @@ export function AdminDashboard() {
   };
 
   /**
+   * @summary Consulta candidatos de alias en API-Football para el equipo del formulario o uno elegido desde la tabla.
+   * @param teamOverride - Equipo opcional que permite sugerir alias sin depender del formulario actual.
+   */
+  const handleSuggestTeamAlias = async (teamOverride?: { id?: number | null; name: string; league_id?: string; country_id?: string; api_name?: string }) => {
+    // Resolvemos el equipo objetivo desde override o desde el formulario activo.
+    const targetTeam = teamOverride || teamForm;
+
+    // Validamos que exista nombre visible suficiente para consultar el proveedor.
+    if (!targetTeam.name.trim()) {
+      toast.error("Primero define el nombre visible del equipo para sugerir el alias API.");
+      return;
+    }
+
+    // Reflejamos en el formulario el equipo objetivo para que el admin vea qué está revisando.
+    if (teamOverride) {
+      setTeamForm({
+        id: teamOverride.id ?? null,
+        name: targetTeam.name,
+        api_name: targetTeam.api_name || "",
+        league_id: targetTeam.league_id || "",
+        country_id: targetTeam.country_id || "",
+      });
+      setTeamCountryFilter(targetTeam.country_id || "");
+      setTeamLeagueFilter(targetTeam.league_id || "");
+    }
+
+    // Activamos el loading del botón para evitar dobles consultas.
+    setIsSuggestingTeamAlias(true);
+
+    try {
+      // Consultamos candidatos técnicos al backend administrativo.
+      const res = await fetch(`/api/teams/provider-alias-suggestions?q=${encodeURIComponent(targetTeam.name.trim())}`, {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+
+      // Leemos la respuesta como JSON para extraer error o candidatos.
+      const data = await res.json();
+
+      // Cortamos si el backend devolvió una validación o error operativo.
+      if (!res.ok) throw new Error(data.error || "No se pudieron obtener sugerencias de alias");
+
+      // Normalizamos candidatos como arreglo seguro para la UI.
+      const candidates = Array.isArray(data.candidates) ? data.candidates : [];
+
+      // Guardamos los candidatos para que el admin elija o confirme.
+      setTeamAliasSuggestions(candidates);
+
+      // Si no hubo coincidencias, informamos de forma clara.
+      if (candidates.length === 0) {
+        toast.info("No encontré coincidencias de alias en API-Football para ese equipo.");
+        return;
+      }
+
+      // Aplicamos automáticamente la primera coincidencia como propuesta inicial.
+      setTeamForm((prev) => ({ ...prev, api_name: candidates[0].provider_name || prev.api_name }));
+
+      // Confirmamos que el alias técnico se sugirió sin tocar el nombre visible.
+      toast.success(`Alias sugerido: ${candidates[0].provider_name}`);
+    } catch (error: any) {
+      toast.error(error.message || "No se pudo sugerir el alias API-Football");
+    } finally {
+      // Cerramos el loading del botón de sugerencias.
+      setIsSuggestingTeamAlias(false);
+    }
+  };
+
+  /**
+   * @summary Aplica una sugerencia puntual de alias API-Football sobre el formulario de equipos.
+   * @param providerName - Nombre técnico elegido por el administrador desde la lista de sugerencias.
+   */
+  const handleApplySuggestedTeamAlias = (providerName: string) => {
+    // Aplicamos el alias técnico sin alterar el nombre visible del equipo.
+    setTeamForm((prev) => ({ ...prev, api_name: providerName }));
+
+    // Confirmamos la selección para que el admin sepa que ya quedó cargada.
+    toast.success(`Alias aplicado: ${providerName}`);
+  };
+
+  /**
    * @summary Actualiza el país del formulario de equipos y limpia la liga dependiente.
    * @param value - ID del país seleccionado desde el panel de administración.
    */
   const handleTeamFormCountryChange = (value: string) => {
     // Al cambiar país, la liga previa deja de ser confiable.
     setTeamForm(prev => ({ ...prev, country_id: value, league_id: "" }));
+
+    // Limpiamos sugerencias previas porque el contexto del equipo cambió.
+    setTeamAliasSuggestions([]);
   };
 
   /**
@@ -1052,6 +1146,9 @@ export function AdminDashboard() {
       league_id: team.league_id?.toString() || "",
       country_id: countryId
     });
+
+    // Limpiamos sugerencias antiguas para cargar recomendaciones frescas bajo demanda.
+    setTeamAliasSuggestions([]);
 
     // Sincronizamos filtros para que el equipo editado quede visible.
     setTeamCountryFilter(countryId);
@@ -1425,7 +1522,7 @@ export function AdminDashboard() {
     const finalQuery = (queryOverride || fixtureSearchQuery).trim();
 
     // Definimos la fecha final desde parametro o desde el formulario activo.
-    const finalDate = getFixtureSearchDate(dateOverride || (activeSelectionFixtureIndex !== null ? formData.selections[activeSelectionFixtureIndex]?.match_time : formData.match_date));
+    const finalDate = getFixtureSearchDate(dateOverride || (formData.is_parlay && activeSelectionFixtureIndex !== null ? formData.selections[activeSelectionFixtureIndex]?.match_time : formData.match_date));
 
     // Evitamos consultas vacías o duplicadas.
     if (!finalQuery || isSearchingFixtures) return;
@@ -1472,7 +1569,7 @@ export function AdminDashboard() {
    */
   const handleSearchCurrentFixture = () => {
     // Detectamos si la busqueda pertenece a una seleccion de parlay.
-    const activeSelection = activeSelectionFixtureIndex !== null ? formData.selections[activeSelectionFixtureIndex] : null;
+    const activeSelection = formData.is_parlay && activeSelectionFixtureIndex !== null ? formData.selections[activeSelectionFixtureIndex] : null;
 
     // Construimos la consulta por alias para parlay o pick individual.
     const providerQuery = activeSelection
@@ -1490,6 +1587,259 @@ export function AdminDashboard() {
 
     // Ejecutamos busqueda con fecha de la seleccion o del pick simple.
     handleSearchFixtures(finalQuery, activeSelection ? activeSelection.match_time : formData.match_date);
+  };
+
+  /**
+   * @summary Limpia el contexto actual de vinculación con API-Football para pick simple o parlay.
+   */
+  const resetFixtureSearchState = () => {
+    // Limpiamos el índice activo para salir del modo vinculación por selección.
+    setActiveSelectionFixtureIndex(null);
+
+    // Limpiamos resultados anteriores para no confundir al admin.
+    setFixtureSearchResults([]);
+
+    // Limpiamos el texto de búsqueda visible en el panel.
+    setFixtureSearchQuery("");
+  };
+
+  /**
+   * @summary Aplica un fixture encontrado al pick simple o a la selección activa del parlay.
+   * @param fixture - Resultado elegido desde el panel de búsqueda de API-Football.
+   */
+  const handleApplyFixtureResult = (fixture: any) => {
+    // Si existe una selección activa, vinculamos ese fixture dentro del parlay.
+    if (formData.is_parlay && activeSelectionFixtureIndex !== null) {
+      // Copiamos las selecciones actuales para evitar mutación directa.
+      const newSelections = [...formData.selections];
+
+      // Leemos la selección objetivo del parlay.
+      const currentSelection = newSelections[activeSelectionFixtureIndex];
+
+      // Protegemos el flujo si la selección ya no existe por un cambio reciente.
+      if (!currentSelection) {
+        toast.error("La selección que ibas a vincular ya no está disponible.");
+        resetFixtureSearchState();
+        return;
+      }
+
+      // Guardamos el fixture oficial y mantenemos la fecha existente o la de la API como respaldo.
+      newSelections[activeSelectionFixtureIndex] = {
+        ...currentSelection,
+        api_fixture_id: fixture.id,
+        thesportsdb_event_id: "",
+        match_time: currentSelection.match_time || getFixtureDateTimeValue(fixture)
+      };
+
+      // Persistimos la selección vinculada en el formulario.
+      setFormData((prev) => ({ ...prev, selections: newSelections }));
+
+      // Confirmamos visualmente el vínculo aplicado.
+      toast.success(`Selección vinculada con API-Football: ${fixture.name}`);
+
+      // Cerramos el modo de búsqueda para esa selección.
+      resetFixtureSearchState();
+      return;
+    }
+
+    // Si es pick simple, guardamos el fixture en el formulario principal.
+    setFormData((prev) => ({
+      ...prev,
+      api_fixture_id: fixture.id,
+      thesportsdb_event_id: "",
+      match_date: prev.match_date || getFixtureDateTimeValue(fixture)
+    }));
+
+    // Confirmamos visualmente el vínculo del pick simple.
+    toast.success(`Pick vinculado con API-Football: ${fixture.name}`);
+  };
+
+  /**
+   * @summary Activa la vinculación de una selección del parlay y abre la búsqueda compartida.
+   * @param selectionIndex - Posición de la selección que debe vincularse con el proveedor.
+   */
+  const handleStartSelectionFixtureLink = (selectionIndex: number) => {
+    // Leemos la selección objetivo desde el formulario actual.
+    const selection = formData.selections[selectionIndex];
+
+    // Cortamos si la selección ya no existe por cambios simultáneos del admin.
+    if (!selection) {
+      toast.error("No encontré la selección que intentas vincular.");
+      return;
+    }
+
+    // Construimos la búsqueda técnica usando alias API cuando existan.
+    const providerQuery = buildProviderFixtureQuery(selection.home_team, selection.away_team, selection.match_name, teams);
+
+    // Activamos el índice de la selección para que el panel sepa dónde aplicar el fixture.
+    setActiveSelectionFixtureIndex(selectionIndex);
+
+    // Reflejamos la consulta en el input del buscador compartido.
+    setFixtureSearchQuery(providerQuery || selection.match_name || "");
+
+    // Disparamos la búsqueda automática cuando ya tenemos datos suficientes.
+    if (providerQuery || selection.match_name) {
+      handleSearchFixtures(providerQuery || selection.match_name, selection.match_time);
+    }
+
+    // Llevamos al admin hasta el panel de búsqueda compartido.
+    const searchElement = document.getElementById("fixture-search-area");
+
+    // Hacemos scroll suave si el panel ya está montado en pantalla.
+    if (searchElement) searchElement.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  /**
+   * @summary Renderiza el panel compartido de vinculación con API-Football para picks simples y parleys.
+   * @returns Bloque visual de búsqueda, selección y confirmación de fixtures.
+   */
+  const renderFixtureSearchPanel = () => {
+    // Resolvemos la selección activa cuando la vinculación viene desde un parlay.
+    const activeSelection = formData.is_parlay && activeSelectionFixtureIndex !== null ? formData.selections[activeSelectionFixtureIndex] : null;
+
+    // Detectamos si el panel está en modo vinculación de selección.
+    const isSelectionMode = Boolean(activeSelection);
+
+    // Calculamos el ID actualmente vinculado según el contexto activo del panel.
+    const linkedFixtureId = String(isSelectionMode
+      ? (activeSelection?.api_fixture_id || activeSelection?.thesportsdb_event_id || "")
+      : (formData.api_fixture_id || formData.thesportsdb_event_id || ""));
+
+    // Construimos una etiqueta legible del vínculo actual para mostrar confirmación.
+    const linkedFixtureLabel = isSelectionMode
+      ? (activeSelection?.api_fixture_id || activeSelection?.thesportsdb_event_id || "")
+      : (formData.api_fixture_id || formData.thesportsdb_event_id || "");
+
+    // Detectamos si el fixture ya vinculado aparece en los resultados mostrados.
+    const linkedFixtureVisible = fixtureSearchResults.some((fixture: any) => String(fixture.id || fixture.fixture?.id || "") === linkedFixtureId);
+
+    // Renderizamos un único panel reutilizable para los dos flujos.
+    return (
+      <div id="fixture-search-area" className="p-6 bg-primary/5 border border-primary/20 rounded-3xl space-y-4">
+        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="p-2 bg-primary/10 rounded-xl">
+              <Search className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <h3 className="text-sm font-black text-primary uppercase tracking-widest">Vinculación Automática</h3>
+              <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Busca el partido en API-Football para marcadores automáticos</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 self-end lg:self-auto">
+            <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground mr-1">Auto-Update</span>
+            <button
+              type="button"
+              onClick={() => setFormData((prev) => ({ ...prev, auto_update: !prev.auto_update }))}
+              className={`w-12 h-6 rounded-full transition-all relative ${formData.auto_update ? "bg-primary" : "bg-white/10"}`}
+            >
+              <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${formData.auto_update ? "left-7" : "left-1"}`} />
+            </button>
+          </div>
+        </div>
+
+        {isSelectionMode && activeSelection && (
+          <div className="flex flex-col md:flex-row md:items-center gap-3 rounded-2xl border border-primary/25 bg-primary/10 px-4 py-3">
+            <div className="flex-1 min-w-0">
+              <div className="text-[10px] font-black uppercase tracking-[0.24em] text-primary/70">Selección activa del parlay</div>
+              <div className="text-sm font-black text-foreground truncate">{activeSelection.match_name || "Selección sin nombre final"}</div>
+              <div className="text-[11px] text-muted-foreground truncate">{buildProviderFixtureQuery(activeSelection.home_team, activeSelection.away_team, activeSelection.match_name, teams) || "Completa local y visitante para una búsqueda más precisa"}</div>
+            </div>
+            <button
+              type="button"
+              onClick={resetFixtureSearchState}
+              className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-[11px] font-black uppercase tracking-widest text-muted-foreground hover:border-primary hover:text-primary transition-all"
+            >
+              Cancelar vínculo
+            </button>
+          </div>
+        )}
+
+        <div className="flex flex-col md:flex-row gap-3">
+          <input
+            type="text"
+            placeholder={isSelectionMode ? "Buscar esta selección en API-Football..." : "Buscar equipos (ej: Real Madrid)..."}
+            value={fixtureSearchQuery}
+            onChange={(e) => setFixtureSearchQuery(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleSearchCurrentFixture())}
+            className="flex-1 bg-background border border-white/10 rounded-2xl px-5 py-3 text-sm text-foreground focus:outline-none focus:border-primary transition-all"
+          />
+          <button
+            type="button"
+            onClick={handleSearchCurrentFixture}
+            disabled={isSearchingFixtures}
+            className="bg-primary/20 text-primary border border-primary/30 px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-primary hover:text-primary-foreground transition-all flex items-center gap-2 min-w-[140px] justify-center disabled:opacity-50"
+          >
+            {isSearchingFixtures ? <Loader2 className="w-4 h-4 animate-spin" /> : "Buscar"}
+          </button>
+        </div>
+
+        {fixtureSearchResults.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[240px] overflow-y-auto pr-2 custom-scrollbar">
+            {fixtureSearchResults.map((fixture: any) => (
+              <div
+                key={fixture.id}
+                className={`p-4 rounded-2xl border transition-all cursor-pointer flex justify-between items-center gap-4 ${String(fixture.id || fixture.fixture?.id || "") === linkedFixtureId ? "bg-primary/20 border-primary shadow-lg shadow-primary/10" : "bg-black/40 border-white/5 hover:border-white/20"}`}
+                onClick={() => handleApplyFixtureResult(fixture)}
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-[9px] font-black bg-white/10 text-muted-foreground px-1.5 py-0.5 rounded uppercase tracking-tighter">
+                      {fixture.league}
+                    </span>
+                    <span className="text-[9px] font-black text-primary/60 uppercase tracking-widest">
+                      {fixture.date} {fixture.time}
+                    </span>
+                  </div>
+                  <div className="text-xs font-black text-foreground truncate">
+                    {fixture.name}
+                  </div>
+                  {fixture.homeScore !== null && (
+                    <div className="text-[10px] font-bold text-primary mt-1">
+                      Resultado: {fixture.homeScore} - {fixture.awayScore} ({fixture.status})
+                    </div>
+                  )}
+                </div>
+                {String(fixture.id || fixture.fixture?.id || "") === linkedFixtureId ? (
+                  <CheckCircle2 className="w-5 h-5 text-primary shrink-0" />
+                ) : (
+                  <div className="w-5 h-5 rounded-full border border-white/20 shrink-0" />
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {linkedFixtureId && !linkedFixtureVisible && (
+          <div className="flex items-center gap-3 p-3 bg-primary/10 border border-primary/20 rounded-2xl">
+            <CheckCircle2 className="w-4 h-4 text-primary" />
+            <span className="text-xs font-bold text-primary">
+              Evento vinculado ({linkedFixtureLabel})
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                if (activeSelectionFixtureIndex !== null) {
+                  const newSelections = [...formData.selections];
+                  newSelections[activeSelectionFixtureIndex] = {
+                    ...newSelections[activeSelectionFixtureIndex],
+                    api_fixture_id: "",
+                    thesportsdb_event_id: "",
+                  };
+                  setFormData((prev) => ({ ...prev, selections: newSelections }));
+                  resetFixtureSearchState();
+                  return;
+                }
+                setFormData((prev) => ({ ...prev, api_fixture_id: "", thesportsdb_event_id: "" }));
+              }}
+              className="ml-auto text-[10px] font-black text-muted-foreground hover:text-destructive transition-colors uppercase tracking-widest"
+            >
+              Desvincular
+            </button>
+          </div>
+        )}
+      </div>
+    );
   };
 
   const handleSelectChange = (name: string, value: string) => {
@@ -1541,6 +1891,16 @@ export function AdminDashboard() {
   };
 
   const removeSelection = (index: number) => {
+    // Si eliminamos la selección activa del panel de búsqueda, reseteamos el contexto.
+    if (activeSelectionFixtureIndex === index) {
+      resetFixtureSearchState();
+    }
+
+    // Si quitamos una fila previa a la activa, ajustamos el índice para mantener coherencia.
+    if (activeSelectionFixtureIndex !== null && activeSelectionFixtureIndex > index) {
+      setActiveSelectionFixtureIndex(activeSelectionFixtureIndex - 1);
+    }
+
     setFormData(prev => {
       const newSelections = [...prev.selections];
       newSelections.splice(index, 1);
@@ -2870,129 +3230,9 @@ export function AdminDashboard() {
                         />
                       </div>
 
-                      {/* ─── Buscador de Partidos API-Football ─── */}
-                      <div id="fixture-search-area" className="md:col-span-12 p-6 bg-primary/5 border border-primary/20 rounded-3xl space-y-4">
-                        <div className="flex justify-between items-center">
-                          <div className="flex items-center gap-3">
-                            <div className="p-2 bg-primary/10 rounded-xl">
-                              <Search className="w-5 h-5 text-primary" />
-                            </div>
-                            <div>
-                              <h3 className="text-sm font-black text-primary uppercase tracking-widest">Vinculación Automática</h3>
-                              <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Busca el partido en API-Football para marcadores automáticos</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                             <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground mr-1">Auto-Update</span>
-                             <button
-                                type="button"
-                                onClick={() => setFormData(prev => ({ ...prev, auto_update: !prev.auto_update }))}
-                                className={`w-12 h-6 rounded-full transition-all relative ${formData.auto_update ? 'bg-primary' : 'bg-white/10'}`}
-                             >
-                               <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${formData.auto_update ? 'left-7' : 'left-1'}`} />
-                             </button>
-                          </div>
-                        </div>
-
-                        <div className="flex gap-3">
-                          <input
-                            type="text"
-                            placeholder="Buscar equipos (ej: Real Madrid)..."
-                            value={fixtureSearchQuery}
-                            onChange={(e) => setFixtureSearchQuery(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleSearchCurrentFixture())}
-                            className="flex-1 bg-background border border-white/10 rounded-2xl px-5 py-3 text-sm text-foreground focus:outline-none focus:border-primary transition-all"
-                          />
-                          <button
-                            type="button"
-                            onClick={handleSearchCurrentFixture}
-                            disabled={isSearchingFixtures}
-                            className="bg-primary/20 text-primary border border-primary/30 px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-primary hover:text-primary-foreground transition-all flex items-center gap-2 min-w-[140px] justify-center"
-                          >
-                            {isSearchingFixtures ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Buscar'}
-                          </button>
-                        </div>
-
-                        {fixtureSearchResults.length > 0 && (
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[240px] overflow-y-auto pr-2 custom-scrollbar">
-                             {fixtureSearchResults.map((fix: any) => (
-                               <div 
-                                 key={fix.id} 
-                                 className={`p-4 rounded-2xl border transition-all cursor-pointer flex justify-between items-center gap-4 ${
-                                   (activeSelectionFixtureIndex !== null 
-                                     ? String(formData.selections[activeSelectionFixtureIndex]?.api_fixture_id || "") === String(fix.id)
-                                     : String(formData.api_fixture_id || "") === String(fix.id)
-                                   ) ? 'bg-primary/20 border-primary shadow-lg shadow-primary/10' : 'bg-black/40 border-white/5 hover:border-white/20'}`}
-                                 onClick={() => {
-                                   if (activeSelectionFixtureIndex !== null) {
-                                     const newSelections = [...formData.selections];
-                                     newSelections[activeSelectionFixtureIndex] = {
-                                       ...newSelections[activeSelectionFixtureIndex],
-                                       api_fixture_id: fix.id,
-                                       thesportsdb_event_id: "",
-                                       match_time: newSelections[activeSelectionFixtureIndex]?.match_time || getFixtureDateTimeValue(fix)
-                                     };
-                                     setFormData(prev => ({ ...prev, selections: newSelections }));
-                                     setActiveSelectionFixtureIndex(null);
-                                     setFixtureSearchResults([]);
-                                     setFixtureSearchQuery("");
-                                   } else {
-                                     setFormData(prev => ({ 
-                                       ...prev, 
-                                       api_fixture_id: fix.id,
-                                       thesportsdb_event_id: "",
-                                       // Si no hay fecha cargada, usamos la de la API
-                                       match_date: prev.match_date || getFixtureDateTimeValue(fix)
-                                     }));
-                                   }
-                                 }}
-                               >
-                                 <div className="flex-1 min-w-0">
-                                   <div className="flex items-center gap-2 mb-1">
-                                     <span className="text-[9px] font-black bg-white/10 text-muted-foreground px-1.5 py-0.5 rounded uppercase tracking-tighter">
-                                       {fix.league}
-                                     </span>
-                                     <span className="text-[9px] font-black text-primary/60 uppercase tracking-widest">
-                                       {fix.date} {fix.time}
-                                     </span>
-                                   </div>
-                                   <div className="text-xs font-black text-foreground truncate">
-                                     {fix.name}
-                                   </div>
-                                   {fix.homeScore !== null && (
-                                     <div className="text-[10px] font-bold text-primary mt-1">
-                                       Resultado: {fix.homeScore} - {fix.awayScore} ({fix.status})
-                                     </div>
-                                   )}
-                                 </div>
-                                 {(activeSelectionFixtureIndex !== null 
-                                     ? String(formData.selections[activeSelectionFixtureIndex]?.api_fixture_id || "") === String(fix.id)
-                                     : String(formData.api_fixture_id || "") === String(fix.id)
-                                 ) ? (
-                                   <CheckCircle2 className="w-5 h-5 text-primary shrink-0" />
-                                 ) : (
-                                   <div className="w-5 h-5 rounded-full border border-white/20 shrink-0" />
-                                 )}
-                               </div>
-                             ))}
-                          </div>
-                        )}
-
-                        {(formData.thesportsdb_event_id || formData.api_fixture_id) && !fixtureSearchResults.some(f => String(f.id) === String(formData.api_fixture_id || formData.thesportsdb_event_id) || String(f.fixture?.id || "") === String(formData.api_fixture_id)) && (
-                           <div className="flex items-center gap-3 p-3 bg-primary/10 border border-primary/20 rounded-2xl">
-                             <CheckCircle2 className="w-4 h-4 text-primary" />
-                             <span className="text-xs font-bold text-primary">
-                               Evento vinculado ({formData.api_fixture_id ? `API-Football: ${formData.api_fixture_id}` : `Legacy: ${formData.thesportsdb_event_id}`})
-                             </span>
-                             <button 
-                               type="button" 
-                               onClick={() => setFormData(prev => ({ ...prev, api_fixture_id: "", thesportsdb_event_id: "" }))}
-                               className="ml-auto text-[10px] font-black text-muted-foreground hover:text-destructive transition-colors uppercase tracking-widest"
-                             >
-                               Desvincular
-                             </button>
-                           </div>
-                        )}
+                      {/* Reutilizamos el buscador compartido para pick simple y parlay. */}
+                      <div className="md:col-span-12">
+                        {renderFixtureSearchPanel()}
                       </div>
 
                       <div className="md:col-span-12 space-y-3">
@@ -3067,6 +3307,9 @@ export function AdminDashboard() {
                         Añadir Selección
                       </button>
                     </div>
+
+                    {/* Reutilizamos el panel compartido de búsqueda también dentro del flujo parlay. */}
+                    {renderFixtureSearchPanel()}
 
                     {formData.selections.length === 0 ? (
                       <div className="text-center py-12 text-muted-foreground text-sm border-2 border-dashed border-white/10 rounded-2xl bg-black/20">
@@ -3171,16 +3414,7 @@ export function AdminDashboard() {
                                       />
                                       <button
                                         type="button"
-                                        onClick={() => {
-                                          const providerQuery = buildProviderFixtureQuery(sel.home_team, sel.away_team, sel.match_name, teams);
-                                          setActiveSelectionFixtureIndex(index);
-                                          setFixtureSearchQuery(providerQuery || sel.match_name || "");
-                                          if (providerQuery || sel.match_name) {
-                                            handleSearchFixtures(providerQuery || sel.match_name, sel.match_time);
-                                          }
-                                          const searchEl = document.getElementById('fixture-search-area');
-                                          if (searchEl) searchEl.scrollIntoView({ behavior: 'smooth' });
-                                        }}
+                                        onClick={() => handleStartSelectionFixtureLink(index)}
                                         className={`shrink-0 flex items-center justify-center w-10 h-10 rounded-xl border transition-all ${hasResultProviderLink(sel) ? 'bg-primary/20 border-primary text-primary' : 'bg-white/5 border-white/10 text-muted-foreground hover:border-primary hover:text-primary'}`}
                                         title="Vincular con API de Resultados"
                                       >
@@ -3200,6 +3434,7 @@ export function AdminDashboard() {
                                             newSels[index].api_fixture_id = "";
                                             newSels[index].thesportsdb_event_id = "";
                                             setFormData(p => ({ ...p, selections: newSels }));
+                                            if (activeSelectionFixtureIndex === index) resetFixtureSearchState();
                                           }}
                                           className="text-[9px] font-black text-muted-foreground hover:text-destructive underline ml-1"
                                         >
@@ -4745,6 +4980,9 @@ export function AdminDashboard() {
               return matchesCountry && matchesLeague && matchesSearch;
             });
 
+            // Contamos cuántos equipos visibles aún no tienen alias técnico configurado.
+            const filteredTeamsWithoutAliasCount = filteredTeams.filter((team) => !String(team.api_name || "").trim()).length;
+
             // Renderizamos el módulo completo de equipos.
             return (
               <div className="w-full">
@@ -4753,8 +4991,13 @@ export function AdminDashboard() {
                     <h2 className="text-2xl font-bold mb-2">Gestionar Equipos</h2>
                     <p className="text-sm text-muted-foreground">Asocia cada equipo a su país y liga correcta para picks simples y parlays.</p>
                   </div>
-                  <div className="text-xs text-muted-foreground bg-card border border-white/10 rounded-xl px-4 py-3">
-                    <span className="font-bold text-primary">{filteredTeams.length}</span> equipos visibles
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    <div className="bg-card border border-white/10 rounded-xl px-4 py-3">
+                      <span className="font-bold text-primary">{filteredTeams.length}</span> equipos visibles
+                    </div>
+                    <div className="bg-card border border-amber-500/20 rounded-xl px-4 py-3 text-amber-200">
+                      <span className="font-bold text-amber-300">{filteredTeamsWithoutAliasCount}</span> sin alias API
+                    </div>
                   </div>
                 </div>
 
@@ -4797,7 +5040,10 @@ export function AdminDashboard() {
                           <input
                             type="text"
                             value={teamForm.name}
-                            onChange={(e) => setTeamForm(prev => ({ ...prev, name: e.target.value }))}
+                            onChange={(e) => {
+                              setTeamForm(prev => ({ ...prev, name: e.target.value }));
+                              setTeamAliasSuggestions([]);
+                            }}
                             required
                             placeholder="Ej: Atlético Nacional"
                             className="w-full bg-background border border-white/10 rounded-xl px-5 py-4 text-sm text-foreground focus:outline-none focus:border-primary transition-all"
@@ -4814,6 +5060,38 @@ export function AdminDashboard() {
                             className="w-full bg-background border border-white/10 rounded-xl px-5 py-4 text-sm text-foreground focus:outline-none focus:border-primary transition-all"
                           />
                           <p className="text-[11px] text-muted-foreground">Este alias solo se usa para consultar resultados. En la web se mantiene el nombre visible.</p>
+                          <button
+                            type="button"
+                            onClick={() => handleSuggestTeamAlias()}
+                            disabled={isSuggestingTeamAlias}
+                            className="w-full rounded-xl border border-primary/20 bg-primary/10 px-4 py-3 text-xs font-black uppercase tracking-widest text-primary hover:bg-primary hover:text-primary-foreground transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                          >
+                            {isSuggestingTeamAlias ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                            {isSuggestingTeamAlias ? "Buscando alias..." : "Sugerir alias API-Football"}
+                          </button>
+                          {teamAliasSuggestions.length > 0 && (
+                            <div className="rounded-xl border border-white/10 bg-black/20 p-3 space-y-2">
+                              <div className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/70">Sugerencias detectadas</div>
+                              <div className="flex flex-col gap-2">
+                                {teamAliasSuggestions.map((candidate, suggestionIndex) => (
+                                  <button
+                                    key={`${candidate.provider_name}-${suggestionIndex}`}
+                                    type="button"
+                                    onClick={() => handleApplySuggestedTeamAlias(candidate.provider_name)}
+                                    className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-left hover:border-primary hover:bg-primary/10 transition-all"
+                                  >
+                                    <div className="min-w-0">
+                                      <div className="text-sm font-bold text-white truncate">{candidate.provider_name}</div>
+                                      <div className="text-[11px] text-muted-foreground truncate">{candidate.country_name || "Sin país"} {candidate.code ? `· ${candidate.code}` : ""}</div>
+                                    </div>
+                                    <span className="rounded-lg border border-primary/20 bg-primary/10 px-2 py-1 text-[10px] font-black uppercase tracking-widest text-primary">
+                                      Usar
+                                    </span>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </div>
 
                         <div className="flex gap-2 pt-2">
@@ -4835,7 +5113,10 @@ export function AdminDashboard() {
                           {teamForm.id && (
                             <button
                               type="button"
-                              onClick={() => setTeamForm({ id: null, name: "", api_name: "", league_id: "", country_id: "" })}
+                              onClick={() => {
+                                setTeamForm({ id: null, name: "", api_name: "", league_id: "", country_id: "" });
+                                setTeamAliasSuggestions([]);
+                              }}
                               className="px-4 py-3 rounded-xl bg-white/10 text-white font-bold text-sm hover:bg-white/20 transition-all"
                             >
                               Cancelar
@@ -4929,12 +5210,31 @@ export function AdminDashboard() {
                                     <td className="p-4 text-muted-foreground">{teamLeague?.name || "-"}</td>
                                     <td className="p-4 font-bold text-white">{team.name}</td>
                                     <td className="p-4">
-                                      <span className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-2 py-1 text-xs font-bold text-emerald-300">
-                                        {team.api_name || team.name}
-                                      </span>
+                                      {String(team.api_name || "").trim() ? (
+                                        <span className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-2 py-1 text-xs font-bold text-emerald-300">
+                                          {team.api_name}
+                                        </span>
+                                      ) : (
+                                        <span className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-2 py-1 text-xs font-bold text-amber-300">
+                                          Sin alias API
+                                        </span>
+                                      )}
                                     </td>
                                     <td className="p-4">
                                       <div className="flex items-center justify-end gap-2">
+                                        <button
+                                          onClick={() => handleSuggestTeamAlias({
+                                            id: team.id,
+                                            name: team.name || "",
+                                            api_name: team.api_name || "",
+                                            league_id: team.league_id?.toString() || "",
+                                            country_id: team.country_id?.toString() || teamLeague?.country_id?.toString() || ""
+                                          })}
+                                          className="p-1.5 rounded hover:bg-primary/20 text-primary transition-colors"
+                                          title="Sugerir alias API-Football"
+                                        >
+                                          <Sparkles className="w-4 h-4" />
+                                        </button>
                                         <button
                                           onClick={() => editTeam(team)}
                                           className="p-1.5 rounded hover:bg-blue-500/20 text-blue-400 transition-colors"

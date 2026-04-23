@@ -5,6 +5,7 @@
 import { Router } from "express";
 import { pool } from "../config/database.js";
 import { authenticateToken, requireAdmin } from "../middleware/auth.js";
+import { searchProviderTeamCandidates } from "../services/scores.service.js";
 export const teamsRouter = Router();
 /**
  * <summary>
@@ -96,6 +97,32 @@ teamsRouter.get("/", async (req, res) => {
     catch (error) {
         console.error("[TEAMS] Error obteniendo equipos:", error);
         return res.status(500).json({ error: "Error al obtener equipos" });
+    }
+});
+// ─── GET /api/teams/provider-alias-suggestions ───────────────────────────────
+/**
+ * <summary>
+ * Sugiere aliases de API-Football para un equipo local sin modificar su nombre visible.
+ * </summary>
+ * @param q - Nombre visible del equipo usado como consulta en API-Football.
+ * @returns Lista corta de candidatos sugeridos para el alias técnico.
+ */
+teamsRouter.get("/provider-alias-suggestions", authenticateToken, requireAdmin, async (req, res) => {
+    // Leemos el texto de búsqueda desde query params.
+    const { q } = req.query;
+    // Validamos que el admin haya enviado un nombre suficiente para buscar.
+    if (!q || typeof q !== "string" || q.trim().length < 2) {
+        return res.status(400).json({ error: "Debes enviar un nombre de equipo válido en q" });
+    }
+    try {
+        // Buscamos candidatos de alias en API-Football sin tocar la base local.
+        const candidates = await searchProviderTeamCandidates(q);
+        // Respondemos la lista para que el panel decida qué alias aplicar.
+        return res.json({ candidates });
+    }
+    catch (error) {
+        console.error("[TEAMS] Error sugiriendo alias API-Football:", error);
+        return res.status(500).json({ error: "Error al buscar alias en API-Football" });
     }
 });
 // ─── POST /api/teams ─────────────────────────────────────────────────────────
