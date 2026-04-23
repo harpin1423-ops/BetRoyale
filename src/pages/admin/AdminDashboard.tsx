@@ -518,12 +518,12 @@ export function AdminDashboard() {
    */
   const handleGenerateAnalysis = async () => {
     // Verificamos que haya datos suficientes para el análisis
-    if (!formData.is_parlay \u0026\u0026 !formData.match_name) {
+    if (!formData.is_parlay && !formData.match_name) {
       toast.error("Por favor selecciona los equipos o ingresa el nombre del partido.");
       return;
     }
 
-    if (formData.is_parlay \u0026\u0026 formData.selections.length === 0) {
+    if (formData.is_parlay && formData.selections.length === 0) {
       toast.error("Por favor agrega al menos una selección al parlay.");
       return;
     }
@@ -531,13 +531,13 @@ export function AdminDashboard() {
     setIsGeneratingAnalysis(true);
     try {
       // Obtenemos los nombres legibles de liga y mercado para un mejor análisis
-      const leagueName = leagues.find(l =\u003e l.id.toString() === formData.league_id)?.name || "";
-      const marketLabel = markets.find(m =\u003e m.id.toString() === formData.pick)?.label || formData.pick;
+      const leagueName = leagues.find(l => l.id.toString() === formData.league_id)?.name || "";
+      const marketLabel = markets.find(m => m.id.toString() === formData.pick)?.label || formData.pick;
 
       // Enriquecemos selecciones de parlay con etiquetas legibles
-      const enrichedSelections = formData.is_parlay ? formData.selections.map(sel =\u003e ({
+      const enrichedSelections = formData.is_parlay ? formData.selections.map(sel => ({
         ...sel,
-        pick_label: markets.find(m =\u003e m.id.toString() === sel.pick)?.label || sel.pick
+        pick_label: markets.find(m => m.id.toString() === sel.pick)?.label || sel.pick
       })) : [];
 
       const res = await fetch("/api/ai/analyze-pick", {
@@ -559,7 +559,7 @@ export function AdminDashboard() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Error al generar análisis");
 
-      setFormData(prev =\u003e ({ ...prev, analysis: data.analysis }));
+      setFormData(prev => ({ ...prev, analysis: data.analysis }));
       toast.success("Análisis generado correctamente");
     } catch (error: any) {
       toast.error(error.message || "Error al conectar con el servicio de IA");
