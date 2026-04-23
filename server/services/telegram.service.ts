@@ -71,6 +71,8 @@ interface SeleccionTelegram {
   pick?: string;
   /** Cuota de la selección */
   odds?: number | string;
+  /** Estado de la selección (won, lost, void, etc.) */
+  status?: string;
 }
 
 /**
@@ -649,7 +651,14 @@ export function formatPickParaTelegram(
         mensaje += `   📅 ${selectionDateTime.fecha}\n`;
         mensaje += `   🕒 ${selectionDateTime.hora}\n`;
       }
-      mensaje += `   🎯 ${selectionMarket}${selectionOdds ? ` @ ⭐ <b>${selectionOdds}</b>` : ""}\n`;
+      mensaje += `   🎯 ${selectionMarket}${selectionOdds ? ` @ ⭐ <b>${selectionOdds}</b>` : ""}`;
+      
+      // Si es una actualización de resultado, mostramos el estado de la selección.
+      if (esActualizacion && selection.status && selection.status !== "pending") {
+        const selEmoji = emojiEstado[selection.status] || "📌";
+        mensaje += ` ${selEmoji}`;
+      }
+      mensaje += `\n`;
     });
   }
 
