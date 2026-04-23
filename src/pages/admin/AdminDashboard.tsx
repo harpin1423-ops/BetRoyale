@@ -3282,15 +3282,15 @@ export function AdminDashboard() {
                       className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-[11px] font-black text-primary hover:bg-primary/20 transition-all disabled:opacity-50"
                     >
                       {isGeneratingAnalysis ? (
-                        \u003c\u003e
-                          \u003cLoader2 size={12} className="animate-spin" /\u003e
+                        <>
+                          <Loader2 size={12} className="animate-spin" />
                           Generando...
-                        \u003c/\u003e
+                        </>
                       ) : (
-                        \u003c\u003e
-                          \u003cSparkles size={12} /\u003e
+                        <>
+                          <Sparkles size={12} />
                           Generar Análisis con IA
-                        \u003c/\u003e
+                        </>
                       )}
                     </button>
                   </div>
