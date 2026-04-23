@@ -257,13 +257,18 @@ async function handleSinglePickResolution(pick: any): Promise<void> {
     `[CRON] Pick #${pick.id} (${pick.match_name}) -> ${newStatus} (${result.goalsHome}-${result.goalsAway})`
   );
 
-  // Notificamos a Telegram.
-  await notificarResultado({
-    ...pick,
-    status: newStatus,
-    score_home: result.goalsHome,
-    score_away: result.goalsAway,
-  });
+  // Notificamos a Telegram si no ha sido notificado aún.
+  if (!pick.result_notified) {
+    await notificarResultado({
+      ...pick,
+      status: newStatus,
+      score_home: result.goalsHome,
+      score_away: result.goalsAway,
+    });
+    
+    // Marcamos como notificado para evitar duplicados.
+    await pool.query("UPDATE picks SET result_notified = 1 WHERE id = ?", [pick.id]);
+  }
 }
 
 /**
@@ -372,7 +377,14 @@ async function handleParlayResolution(pick: any): Promise<void> {
       pick.id,
     ]);
     console.log(`[CRON] ✅ Parlay #${pick.id} → ${finalStatus}`);
-    await notificarResultado({ ...pick, status: finalStatus, selections });
+    
+    // Notificamos a Telegram si no ha sido notificado aún.
+    if (!pick.result_notified) {
+      await notificarResultado({ ...pick, status: finalStatus, selections });
+      
+      // Marcamos como notificado para evitar duplicados.
+      await pool.query("UPDATE picks SET result_notified = 1 WHERE id = ?", [pick.id]);
+    }
   } else {
     console.log(
       `[CRON] Parlay #${pick.id} — Aún hay selecciones pendientes, se reintentará.`

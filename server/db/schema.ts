@@ -910,6 +910,7 @@ export async function initDB(): Promise<void> {
         yellow_cards_home INT DEFAULT NULL,
         yellow_cards_away INT DEFAULT NULL,
         auto_update  BOOLEAN DEFAULT TRUE,
+        result_notified BOOLEAN DEFAULT FALSE,
         created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (pick_type_id) REFERENCES pick_types(id),
         FOREIGN KEY (league_id)    REFERENCES leagues(id),
@@ -931,6 +932,7 @@ export async function initDB(): Promise<void> {
     await conexion.query(`ALTER TABLE picks ADD COLUMN IF NOT EXISTS yellow_cards_home INT DEFAULT NULL`).catch(() => {});
     await conexion.query(`ALTER TABLE picks ADD COLUMN IF NOT EXISTS yellow_cards_away INT DEFAULT NULL`).catch(() => {});
     await conexion.query(`ALTER TABLE picks ADD COLUMN IF NOT EXISTS auto_update BOOLEAN DEFAULT TRUE`).catch(() => {});
+    await conexion.query(`ALTER TABLE picks ADD COLUMN IF NOT EXISTS result_notified BOOLEAN DEFAULT FALSE`).catch(() => {});
     await conexion.query(`ALTER TABLE picks ADD COLUMN IF NOT EXISTS thesportsdb_event_id VARCHAR(64) DEFAULT NULL`).catch(() => {});
 
     // ── 7. Tabla: pick_tracking ──────────────────────────────────────────────

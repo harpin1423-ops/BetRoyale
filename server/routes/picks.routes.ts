@@ -761,8 +761,8 @@ async function notificarResultadoPickPorTelegram(pickId: string | number): Promi
   // Cargamos el pick actualizado con nombres legibles para Telegram.
   const pick = await obtenerPickParaTelegram(pickId);
 
-  // Si el pick no existe, no hay nada que notificar.
-  if (!pick) {
+  // Si el pick no existe o ya fue notificado, no hacemos nada.
+  if (!pick || pick.result_notified) {
     return;
   }
 
@@ -786,6 +786,9 @@ async function notificarResultadoPickPorTelegram(pickId: string | number): Promi
   for (const channelId of channelIds) {
     await sendTelegramMessage(channelId, mensaje);
   }
+
+  // Marcamos como notificado para evitar duplicados en ejecuciones futuras o crons.
+  await pool.query("UPDATE picks SET result_notified = 1 WHERE id = ?", [pickId]);
 }
 
 
