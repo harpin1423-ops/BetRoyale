@@ -1535,7 +1535,7 @@ export function AdminDashboard() {
       ...prev,
       selections: [
         ...prev.selections,
-        { country_id: "", league_id: "", home_team: "", away_team: "", match_name: "", match_time: "", pick: "", odds: "", api_fixture_id: "", thesportsdb_event_id: "" }
+        { country_id: "", league_id: "", home_team: "", away_team: "", match_name: "", match_time: "", pick: "", odds: "", api_fixture_id: "", thesportsdb_event_id: "", score_home: null, score_away: null }
       ]
     }));
   };

@@ -647,7 +647,7 @@ export function PickTicket({ pick }: { pick: PickData }) {
   const selectionLabel = isParlay ? `${selectionCount || 0} SELECCIONES` : "PICK SIMPLE";
 
   // Ajustamos tamaño de tarjetas para parlays largos.
-  const compactParlay = isParlay && selectionCount >= 5;
+  const compactParlay = isParlay && selectionCount >= 4;
 
   // Cargamos las estadísticas mensuales del grupo cuando el pick está ganado.
   // Usamos el mes de la fecha del pick para que las estadísticas sean del mes correcto.
@@ -743,6 +743,40 @@ export function PickTicket({ pick }: { pick: PickData }) {
           boxShadow: `0 30px 120px ${theme.glow}`,
         }}
       >
+        {/* Listón de Estado (Ribbon) - Sobresale más para Ganados/Perdidos */}
+        {isResolved && (
+          <div
+            style={{
+              position: "absolute",
+              top: 25,
+              right: -55,
+              width: 220,
+              height: 42,
+              background: status.background.replace("0.14", "0.95").replace("0.16", "0.95"), // Forzamos fondo más opaco para el ribbon
+              borderTop: `2px solid ${status.border}`,
+              borderBottom: `2px solid ${status.border}`,
+              boxShadow: `0 10px 40px ${status.color}55`,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              transform: "rotate(35deg)",
+              zIndex: 100,
+              backdropFilter: "blur(4px)",
+            }}
+          >
+            <span
+              style={{
+                color: status.color,
+                fontSize: status.label.length > 8 ? 14 : 18,
+                fontWeight: 950,
+                letterSpacing: "0.25em",
+                textShadow: "0 2px 10px rgba(0,0,0,0.5)",
+              }}
+            >
+              {status.label}
+            </span>
+          </div>
+        )}
         <div
           style={{
             position: "absolute",
@@ -1031,7 +1065,7 @@ export function PickTicket({ pick }: { pick: PickData }) {
             </div>
           </aside>
 
-          <section style={{ minWidth: 0, display: "flex", flexDirection: "column", padding: "18px 24px 18px" }}>
+          <section style={{ minWidth: 0, display: "flex", flexDirection: "column", padding: "18px 24px 12px", height: "100%", boxSizing: "border-box" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-start", gap: 14, marginBottom: 12 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
                 <span style={{ width: 9, height: 9, borderRadius: "50%", background: theme.accent, boxShadow: `0 0 18px ${theme.accent}`, flexShrink: 0 }} />
@@ -1091,8 +1125,8 @@ export function PickTicket({ pick }: { pick: PickData }) {
                       key={`${selection.match_name}-${index}`}
                       style={{
                         position: "relative",
-                        flex: "none",
-                        minHeight: compactParlay ? 82 : 100,
+                        flex: 1,
+                        minHeight: 0,
                         overflow: "hidden",
                         display: "flex",
                         alignItems: "stretch",
