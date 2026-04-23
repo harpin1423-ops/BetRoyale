@@ -490,7 +490,9 @@ export function AdminDashboard() {
     selections: [] as any[],
     api_fixture_id: "" as string | number,
     thesportsdb_event_id: "",
-    auto_update: true
+    auto_update: true,
+    score_home: "" as string | number,
+    score_away: "" as string | number
   });
 
   const [isRunningCron, setIsRunningCron] = useState(false);
@@ -1634,7 +1636,9 @@ export function AdminDashboard() {
         ...formData,
         api_fixture_id: formData.api_fixture_id ? Number(formData.api_fixture_id) : null,
         thesportsdb_event_id: formData.thesportsdb_event_id || null,
-        auto_update: formData.auto_update ? 1 : 0
+        auto_update: formData.auto_update ? 1 : 0,
+        score_home: (formData as any).score_home !== "" && (formData as any).score_home !== null ? Number((formData as any).score_home) : null,
+        score_away: (formData as any).score_away !== "" && (formData as any).score_away !== null ? Number((formData as any).score_away) : null
       };
 
       if (submissionData.is_parlay && submissionData.selections.length > 0) {
@@ -1801,8 +1805,18 @@ export function AdminDashboard() {
       selections: parsedSelections,
       api_fixture_id: pick.api_fixture_id || "",
       thesportsdb_event_id: pick.thesportsdb_event_id || "",
-      auto_update: pick.auto_update === 1 || pick.auto_update === true
+      auto_update: pick.auto_update === 1 || pick.auto_update === true,
+      score_home: pick.score_home !== null ? pick.score_home : "",
+      score_away: pick.score_away !== null ? pick.score_away : ""
     });
+
+
+
+
+
+
+
+
     setEditingPickId(pick.id);
     setActiveTab("new-pick");
   };

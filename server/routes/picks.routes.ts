@@ -950,8 +950,8 @@ router.post("/", authenticateToken, requireAdmin, async (req, res) => {
       `INSERT INTO picks 
        (match_date, league_id, match_name, pick, odds, stake, pick_type_id, 
         analysis, is_parlay, selections, league, pick_type, home_team_id, away_team_id,
-        api_fixture_id, thesportsdb_event_id, auto_update)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        api_fixture_id, thesportsdb_event_id, auto_update, score_home, score_away)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         fechaFormateada,
         is_parlay ? null : league_id,
@@ -969,7 +969,9 @@ router.post("/", authenticateToken, requireAdmin, async (req, res) => {
         is_parlay ? null : (req.body.away_team || null),
         req.body.api_fixture_id ? Number(req.body.api_fixture_id) : null,
         req.body.thesportsdb_event_id || null,
-        req.body.auto_update !== undefined ? (req.body.auto_update ? 1 : 0) : 1
+        req.body.auto_update !== undefined ? (req.body.auto_update ? 1 : 0) : 1,
+        req.body.score_home !== undefined ? req.body.score_home : null,
+        req.body.score_away !== undefined ? req.body.score_away : null
       ]
     );
 
@@ -1074,7 +1076,8 @@ router.put("/:id", authenticateToken, requireAdmin, async (req, res) => {
        match_date = ?, league_id = ?, match_name = ?, pick = ?, odds = ?, 
        stake = ?, pick_type_id = ?, analysis = ?, is_parlay = ?, 
        selections = ?, league = ?, pick_type = ?, home_team_id = ?, away_team_id = ?,
-       api_fixture_id = ?, thesportsdb_event_id = ?, auto_update = ?
+       api_fixture_id = ?, thesportsdb_event_id = ?, auto_update = ?,
+       score_home = ?, score_away = ?
        WHERE id = ?`,
       [
         fechaFormateada,
@@ -1092,6 +1095,8 @@ router.put("/:id", authenticateToken, requireAdmin, async (req, res) => {
         req.body.api_fixture_id ? Number(req.body.api_fixture_id) : null,
         req.body.thesportsdb_event_id || null,
         req.body.auto_update !== undefined ? (req.body.auto_update ? 1 : 0) : 1,
+        req.body.score_home !== undefined ? req.body.score_home : null,
+        req.body.score_away !== undefined ? req.body.score_away : null,
         id,
       ]
     );

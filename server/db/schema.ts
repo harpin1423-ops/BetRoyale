@@ -934,6 +934,10 @@ export async function initDB(): Promise<void> {
     await conexion.query(`ALTER TABLE picks ADD COLUMN IF NOT EXISTS auto_update BOOLEAN DEFAULT TRUE`).catch(() => {});
     await conexion.query(`ALTER TABLE picks ADD COLUMN IF NOT EXISTS result_notified BOOLEAN DEFAULT FALSE`).catch(() => {});
     await conexion.query(`ALTER TABLE picks ADD COLUMN IF NOT EXISTS thesportsdb_event_id VARCHAR(64) DEFAULT NULL`).catch(() => {});
+    
+    // ── 6.2. Marcar picks antiguos como notificados para evitar spam tras la migración ──
+    // Solo si la columna acaba de ser creada o si queremos asegurar estado.
+    await conexion.query(`UPDATE picks SET result_notified = 1 WHERE status != 'pending' AND result_notified = 0`).catch(() => {});
 
     // ── 7. Tabla: pick_tracking ──────────────────────────────────────────────
     // Mensajes de seguimiento opcionales para un pick (ej: "Partido suspendido")

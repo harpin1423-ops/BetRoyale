@@ -257,8 +257,12 @@ async function handleSinglePickResolution(pick: any): Promise<void> {
     `[CRON] Pick #${pick.id} (${pick.match_name}) -> ${newStatus} (${result.goalsHome}-${result.goalsAway})`
   );
 
+  // Volvemos a consultar para asegurarnos de que no fue notificado por otro proceso (ej: manual resolution)
+  const [freshPick]: any = await pool.query("SELECT result_notified, status FROM picks WHERE id = ?", [pick.id]);
+  const isAlreadyNotified = freshPick.length > 0 && freshPick[0].result_notified;
+
   // Notificamos a Telegram si no ha sido notificado aún.
-  if (!pick.result_notified) {
+  if (!isAlreadyNotified) {
     await notificarResultado({
       ...pick,
       status: newStatus,
@@ -378,8 +382,12 @@ async function handleParlayResolution(pick: any): Promise<void> {
     ]);
     console.log(`[CRON] ✅ Parlay #${pick.id} → ${finalStatus}`);
     
+    // Volvemos a consultar para asegurarnos de que no fue notificado por otro proceso
+    const [freshPick]: any = await pool.query("SELECT result_notified, status FROM picks WHERE id = ?", [pick.id]);
+    const isAlreadyNotified = freshPick.length > 0 && freshPick[0].result_notified;
+
     // Notificamos a Telegram si no ha sido notificado aún.
-    if (!pick.result_notified) {
+    if (!isAlreadyNotified) {
       await notificarResultado({ ...pick, status: finalStatus, selections });
       
       // Marcamos como notificado para evitar duplicados.
