@@ -651,14 +651,14 @@ export function PickTicket({ pick }: { pick: PickData }) {
   const compactParlay = isParlay && selectionCount >= 4;
 
   // Cargamos las estadísticas mensuales del grupo cuando el pick está ganado.
-  // Usamos el mes de la fecha del pick para que las estadísticas sean del mes correcto.
+  // Usamos SIEMPRE el mes actual (new Date()) para que las stats reflejen el mes corriente.
   useMemo(() => {
     if (!isWon) { setMonthlyStats(null); return; }
     const slug = pick.pick_type_slug || pick.pick_type || "";
-    // Usamos match_date siempre para el mes, ya que primaryDate puede ser solo una hora en parlays
-    const dateRef = new Date(pick.match_date || new Date());
-    const m = dateRef.getMonth() + 1;
-    const y = dateRef.getFullYear();
+    // Usamos la fecha actual para que el mes de las stats sea siempre el mes corriente
+    const now = new Date();
+    const m = now.getMonth() + 1;
+    const y = now.getFullYear();
     fetch(`/api/stats/monthly-group?slug=${encodeURIComponent(slug)}&month=${m}&year=${y}`)
       .then((r) => r.json())
       .then((data) => {
@@ -749,9 +749,9 @@ export function PickTicket({ pick }: { pick: PickData }) {
           <div
             style={{
               position: "absolute",
-              top: 10,
-              right: -88,
-              width: 240,
+              top: 14,
+              right: -50,
+              width: 220,
               height: 36,
               background: status.background.replace("0.14", "0.95").replace("0.16", "0.95"),
               borderTop: `2px solid ${status.border}`,
@@ -768,9 +768,9 @@ export function PickTicket({ pick }: { pick: PickData }) {
             <span
               style={{
                 color: status.color,
-                fontSize: status.label.length > 8 ? 12 : 16,
+                fontSize: status.label.length > 8 ? 11 : 15,
                 fontWeight: 950,
-                letterSpacing: "0.20em",
+                letterSpacing: "0.18em",
                 textShadow: "0 2px 10px rgba(0,0,0,0.5)",
               }}
             >
