@@ -810,7 +810,8 @@ router.get("/", async (_req, res) => {
              m.label  AS market_label, 
              m.acronym AS market_acronym,
              COALESCE(l.name, p.league) AS league_name,
-             c.flag   AS country_flag
+             c.flag   AS country_flag,
+             c.name   AS country_name
       FROM picks p 
       LEFT JOIN pick_types pt ON p.pick_type_id = pt.id 
       LEFT JOIN markets    m  ON p.pick = m.id
