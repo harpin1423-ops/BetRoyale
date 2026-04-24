@@ -127,10 +127,10 @@ const TICKET_WIDTH = 960;
 const TICKET_HEIGHT = 720;
 
 // Alto del header del ticket.
-const TICKET_HEADER_HEIGHT = 110;
+const TICKET_HEADER_HEIGHT = 105;
 
 // Alto del footer del ticket.
-const TICKET_FOOTER_HEIGHT = 45;
+const TICKET_FOOTER_HEIGHT = 40;
 
 // Alto disponible para el cuerpo (main) del ticket.
 const TICKET_MAIN_HEIGHT = TICKET_HEIGHT - TICKET_HEADER_HEIGHT - TICKET_FOOTER_HEIGHT;
@@ -749,10 +749,10 @@ export function PickTicket({ pick }: { pick: PickData }) {
           <div
             style={{
               position: "absolute",
-              top: 22,
+              top: 18,
               right: -65,
               width: 230,
-              height: 40,
+              height: 38,
               background: status.background.replace("0.14", "0.95").replace("0.16", "0.95"), // Forzamos fondo más opaco para el ribbon
               borderTop: `2px solid ${status.border}`,
               borderBottom: `2px solid ${status.border}`,
@@ -768,9 +768,9 @@ export function PickTicket({ pick }: { pick: PickData }) {
             <span
               style={{
                 color: status.color,
-                fontSize: status.label.length > 8 ? 13 : 17,
+                fontSize: status.label.length > 8 ? 12 : 16,
                 fontWeight: 950,
-                letterSpacing: "0.22em",
+                letterSpacing: "0.20em",
                 textShadow: "0 2px 10px rgba(0,0,0,0.5)",
               }}
             >
@@ -855,7 +855,7 @@ export function PickTicket({ pick }: { pick: PickData }) {
             </div>
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6, marginTop: 4 }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6, marginTop: 4, marginRight: isResolved ? 45 : 0 }}>
             <div
               style={{
                 padding: "7px 21px",
@@ -999,20 +999,20 @@ export function PickTicket({ pick }: { pick: PickData }) {
                   >
                     {formatUnits(profitUnits)}
                   </div>
-                  <div style={{ marginTop: 10, display: "flex", gap: 13 }}>
-                    <div>
-                      <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: "0.18em", color: "#64748b", textTransform: "uppercase" }}>
+                  <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: "0.12em", color: "#64748b", textTransform: "uppercase" }}>
                         Yield
                       </div>
-                      <div style={{ marginTop: 4, fontSize: 16, fontWeight: 950, color: theme.secondary }}>
-                        {yieldValue > 0 ? "+" : ""}{yieldValue.toFixed(2)}%
+                      <div style={{ marginTop: 2, fontSize: 15, fontWeight: 950, color: theme.secondary, whiteSpace: "nowrap" }}>
+                        {yieldValue > 0 ? "+" : ""}{yieldValue.toFixed(1)}%
                       </div>
                     </div>
-                    <div>
-                      <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: "0.18em", color: "#64748b", textTransform: "uppercase" }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: "0.12em", color: "#64748b", textTransform: "uppercase" }}>
                         Estado
                       </div>
-                      <div style={{ marginTop: 4, fontSize: 16, fontWeight: 950, color: status.color }}>
+                      <div style={{ marginTop: 2, fontSize: 15, fontWeight: 950, color: status.color, whiteSpace: "nowrap" }}>
                         {status.label}
                       </div>
                     </div>
@@ -1069,7 +1069,7 @@ export function PickTicket({ pick }: { pick: PickData }) {
             </div>
           </aside>
 
-          <section style={{ minWidth: 0, display: "flex", flexDirection: "column", padding: "12px 22px 14px", height: "100%", boxSizing: "border-box" }}>
+          <section style={{ minWidth: 0, display: "flex", flexDirection: "column", padding: "10px 22px", height: "100%", boxSizing: "border-box" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-start", gap: 14, marginBottom: 12 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
                 <span style={{ width: 9, height: 9, borderRadius: "50%", background: theme.accent, boxShadow: `0 0 18px ${theme.accent}`, flexShrink: 0 }} />
@@ -1127,7 +1127,7 @@ export function PickTicket({ pick }: { pick: PickData }) {
                 )}
               </article>
             ) : (
-              <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", gap: compactParlay ? 4 : 8, paddingBottom: 4 }}>
+              <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", justifyContent: "center", gap: compactParlay ? 4 : 7, paddingBottom: 2 }}>
                 {selections.map((selection, index) => {
                   // Calculamos si hay marcador completo para mostrarlo solo en resueltos.
                   const hasScore = selection.score_home !== null && selection.score_home !== undefined && selection.score_away !== null && selection.score_away !== undefined;
@@ -1147,7 +1147,7 @@ export function PickTicket({ pick }: { pick: PickData }) {
                         alignItems: "stretch",
                         justifyContent: "space-between",
                         gap: 15,
-                        padding: compactParlay ? "8px 16px" : "11px 17px",
+                        padding: compactParlay ? "6px 15px" : "10px 18px",
                         borderRadius: 14,
                         border: `1px solid ${theme.line}`,
                         borderLeft: `6px solid ${theme.accent}`,
