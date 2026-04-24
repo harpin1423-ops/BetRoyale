@@ -26,8 +26,8 @@ export async function generatePickAnalysis(pickData: {
   }
 
   const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY);
-  // Usamos gemini-1.5-flash por su velocidad y disponibilidad en el plan gratuito
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+  // Usamos gemini-2.0-flash — modelo disponible en SDK @google/generative-ai v0.21
+  const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
   // Construimos el contexto detallado según el tipo de pick
   let context = "";

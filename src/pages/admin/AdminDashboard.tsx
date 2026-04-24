@@ -2663,7 +2663,7 @@ export function AdminDashboard() {
       const ai = new GoogleGenerativeAI(geminiApiKey);
 
       // Construimos el modelo una sola vez para reutilizarlo en todo el lote.
-      const model = ai.getGenerativeModel({ model: "gemini-1.5-pro" });
+      const model = ai.getGenerativeModel({ model: "gemini-2.0-flash" });
 
       for (const pick of picksToVerify) {
         try {
