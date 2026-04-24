@@ -15,7 +15,7 @@ export async function generatePickAnalysis(pickData) {
         throw new Error("GEMINI_API_KEY no configurada en el servidor.");
     }
     const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" }); // Usamos flash para velocidad y costo
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
     let context = "";
     if (pickData.is_parlay && pickData.selections) {
         context = `Este es un Parlay (combinada) con las siguientes selecciones:\n`;
@@ -48,6 +48,7 @@ export async function generatePickAnalysis(pickData) {
     }
     catch (error) {
         console.error("Error en generatePickAnalysis:", error);
-        throw new Error("No se pudo generar el análisis con IA.");
+        // Propagamos el mensaje original de error de Google para diagnóstico
+        throw new Error(error.message || "Error al conectar con Gemini AI");
     }
 }

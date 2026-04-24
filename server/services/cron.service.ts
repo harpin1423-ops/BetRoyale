@@ -127,6 +127,35 @@ async function getProviderSelectionContext(selection: any): Promise<{ providerMa
 }
 
 /**
+ * <summary>
+ * Calcula el estado final de un parlay solo cuando todas sus selecciones ya tienen un estado resuelto.
+ * </summary>
+ * @param selections - Selecciones actuales del parlay con sus estados individuales ya actualizados.
+ * @returns lost o won cuando todo terminó; null mientras exista al menos una selección pendiente.
+ */
+function getResolvedParlayFinalStatus(selections: any[]): string | null {
+  // Recorremos cada selección para detectar si todavía queda alguna pendiente.
+  for (const selection of selections) {
+    // Normalizamos el estado para comparar sin depender de null o espacios.
+    const normalizedStatus = String(selection?.status || "").trim();
+
+    // Si una selección aún no tiene cierre definitivo, el parlay sigue pendiente.
+    if (!normalizedStatus || normalizedStatus === "pending") {
+      return null;
+    }
+  }
+
+  // Detectamos si al menos una selección terminó perdida.
+  const hasLostSelection = selections.some(
+    // Marcamos el parlay como perdido solo cuando alguna selección cerró en lost.
+    (selection) => String(selection?.status || "").trim() === "lost"
+  );
+
+  // Si existe una selección perdida, el parlay completo pierde; si no, gana.
+  return hasLostSelection ? "lost" : "won";
+}
+
+/**
  * Obtiene y procesa todos los picks pendientes cuya fecha ya pasó.
  * Un pick es candidato si:
  *  - status = 'pending'
@@ -161,8 +190,17 @@ async function processPendingPicks(minMinutes: number = 105): Promise<{ processe
     LEFT JOIN markets    m  ON p.pick         = m.id
     LEFT JOIN teams      ht ON p.home_team_id = ht.id
     LEFT JOIN teams      at ON p.away_team_id = at.id
-    /* Seleccionamos picks pendientes O picks que no tengan marcador (para autocompletar) */
-    WHERE (p.status = 'pending' OR (p.score_home IS NULL AND p.score_away IS NULL))
+    /* Seleccionamos picks pendientes, picks sin marcador o parleys que aún conservan selecciones pendientes */
+    WHERE (
+      p.status = 'pending'
+      OR (p.score_home IS NULL AND p.score_away IS NULL)
+      OR (
+        p.is_parlay = 1
+        AND p.selections IS NOT NULL
+        AND p.selections != ''
+        AND p.selections LIKE '%"status":"pending"%'
+      )
+    )
       AND p.match_name IS NOT NULL
       AND p.match_name != ''
       /* Filtro de tiempo: el partido debe haber comenzado hace al menos N minutos */
@@ -322,14 +360,15 @@ async function handleParlayResolution(pick: any): Promise<void> {
     return;
   }
 
+  // Marcamos si alguna selección recibió un update durante este ciclo.
   let anyUpdated = false;
-  let allFinished = true;
-  let anyLost = false;
 
   for (const sel of selections) {
-    // Si la selección ya tiene resultado, la saltamos
-    if (sel.status === "won" || sel.status === "lost" || sel.status === "void") {
-      if (sel.status === "lost") anyLost = true;
+    // Normalizamos el estado actual para decidir si la selección ya quedó resuelta.
+    const currentSelectionStatus = String(sel?.status || "").trim();
+
+    // Si la selección ya cerró, no volvemos a recalcularla en este ciclo.
+    if (currentSelectionStatus && currentSelectionStatus !== "pending") {
       continue;
     }
 
@@ -365,12 +404,10 @@ async function handleParlayResolution(pick: any): Promise<void> {
     }
 
     if (!result || !isFinished(result.status)) {
-      allFinished = false;
       continue;
     }
 
     if (result.goalsHome === null || result.goalsAway === null) {
-      allFinished = false;
       continue;
     }
 
@@ -393,13 +430,10 @@ async function handleParlayResolution(pick: any): Promise<void> {
     sel.status = selStatus;
     anyUpdated = true;
 
-    // Si el mercado no se puede evaluar automaticamente, el parlay sigue pendiente.
+    // Si el mercado no se puede evaluar automáticamente, dejamos la selección pendiente.
     if (selStatus === "pending") {
-      allFinished = false;
       continue;
     }
-
-    if (selStatus === "lost") anyLost = true;
   }
 
   // Guardar selecciones actualizadas en la BD
@@ -410,36 +444,59 @@ async function handleParlayResolution(pick: any): Promise<void> {
     );
   }
 
-  // Determinar estado final del parlay
-  let finalStatus: string | null = null;
-  if (anyLost) {
-    finalStatus = "lost";
-  } else if (allFinished) {
-    finalStatus = "won";
-  }
+  // Calculamos el cierre global solo cuando todas las selecciones ya están resueltas.
+  const finalStatus = getResolvedParlayFinalStatus(selections);
 
-  if (finalStatus) {
-    await pool.query("UPDATE picks SET status = ? WHERE id = ?", [
-      finalStatus,
-      pick.id,
-    ]);
-    console.log(`[CRON] ✅ Parlay #${pick.id} → ${finalStatus}`);
-    
-    // Volvemos a consultar para asegurarnos de que no fue notificado por otro proceso
-    const [freshPick]: any = await pool.query("SELECT result_notified, status FROM picks WHERE id = ?", [pick.id]);
-    const isAlreadyNotified = freshPick.length > 0 && freshPick[0].result_notified;
+  // Si todavía no se resolvió el ticket completo, lo devolvemos a pending y quitamos notificación previa.
+  if (!finalStatus) {
+    // Detectamos si el parlay quedó marcado erróneamente como final en una ejecución anterior.
+    const shouldResetPickToPending = String(pick.status || "").trim() !== "pending" || Boolean(Number(pick.result_notified));
 
-    // Notificamos a Telegram si no ha sido notificado aún.
-    if (!isAlreadyNotified) {
-      await notificarResultado({ ...pick, status: finalStatus, selections });
-      
-      // Marcamos como notificado para evitar duplicados.
-      await pool.query("UPDATE picks SET result_notified = 1 WHERE id = ?", [pick.id]);
+    // Reabrimos el pick para que siga entrando al cron hasta que termine la última selección.
+    if (shouldResetPickToPending) {
+      // Restauramos estado pendiente y limpiamos la bandera de notificación para el cierre real.
+      await pool.query(
+        "UPDATE picks SET status = 'pending', result_notified = 0 WHERE id = ?",
+        [pick.id]
+      );
+
+      // Dejamos traza explícita para diagnosticar parleys reabiertos.
+      console.log(
+        `[CRON] ♻️ Parlay #${pick.id} reabierto a pending porque aún tiene selecciones sin terminar.`
+      );
     }
-  } else {
+
+    // Informamos que todavía faltan partidos por cerrar sin mandar Telegram.
     console.log(
       `[CRON] Parlay #${pick.id} — Aún hay selecciones pendientes, se reintentará.`
     );
+
+    // Salimos sin cerrar ni notificar el parlay todavía.
+    return;
+  }
+
+  // Persistimos el estado final solo cuando el ticket completo ya terminó.
+  await pool.query("UPDATE picks SET status = ? WHERE id = ?", [
+    finalStatus,
+    pick.id,
+  ]);
+
+  // Dejamos una traza clara del cierre definitivo del parlay.
+  console.log(`[CRON] ✅ Parlay #${pick.id} → ${finalStatus}`);
+  
+  // Volvemos a consultar para asegurarnos de que no fue notificado por otro proceso.
+  const [freshPick]: any = await pool.query("SELECT result_notified, status FROM picks WHERE id = ?", [pick.id]);
+
+  // Calculamos si ya existe una notificación final previa para evitar duplicados.
+  const isAlreadyNotified = freshPick.length > 0 && freshPick[0].result_notified;
+
+  // Notificamos a Telegram únicamente cuando el parlay ya cerró y aún no fue notificado.
+  if (!isAlreadyNotified) {
+    // Enviamos el mensaje final del ticket completo a los canales configurados.
+    await notificarResultado({ ...pick, status: finalStatus, selections });
+    
+    // Marcamos como notificado para evitar duplicados posteriores.
+    await pool.query("UPDATE picks SET result_notified = 1 WHERE id = ?", [pick.id]);
   }
 }
 

@@ -79,8 +79,41 @@ export async function startServer() {
     app.use("/api/users", usersRouter);
     /** Gestión de tipos de pick y configuración de Telegram */
     app.use("/api/pick-types", pickTypesRouter);
-    /** Picks deportivos: CRUD + tracking + estado */
+    // ─── Rutas de Picks y Marcadores ───────────────────────────────────────────
     app.use("/api/picks", picksRouter);
+    app.use("/api/markets", marketsRouter);
+    app.use("/api/scores", scoresRouter);
+    app.use("/api/ai", aiRouter);
+    // ─── Ruta de Diagnóstico (Solo para desarrollo o admin) ─────────────────────
+    app.get("/api/debug/status", async (_req, res) => {
+        try {
+            const [c] = await pool.query("SELECT COUNT(*) as total FROM countries");
+            const [l] = await pool.query("SELECT COUNT(*) as total FROM leagues");
+            const [t] = await pool.query("SELECT COUNT(*) as count FROM teams");
+            const [u] = await pool.query("SELECT COUNT(*) as total FROM users");
+            const [p] = await pool.query("SELECT COUNT(*) as total FROM picks");
+            return res.json({
+                status: "ok",
+                database: env.DB_NAME,
+                host: env.DB_HOST,
+                counts: {
+                    countries: c[0].total,
+                    leagues: l[0].total,
+                    teams: t[0].count,
+                    users: u[0].total,
+                    picks: p[0].total
+                },
+                node_env: env.NODE_ENV
+            });
+        }
+        catch (error) {
+            return res.status(500).json({
+                status: "error",
+                message: error.message,
+                code: error.code
+            });
+        }
+    });
     /** Ligas deportivas */
     app.use("/api/leagues", leaguesRouter);
     /** Países (flags y nombres) */
