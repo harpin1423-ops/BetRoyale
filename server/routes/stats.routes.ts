@@ -11,6 +11,8 @@ import jwt from "jsonwebtoken";
 import { pool } from "../config/database.js";
 // Importamos variables de entorno para validar tokens opcionales.
 import { env } from "../config/env.js";
+// Importamos el evaluador central para recalcular estados individuales en stats.
+import { evaluatePickStatus, type MatchResult } from "../services/scores.service.js";
 import { authenticateToken, requireAdmin } from "../middleware/auth.js";
 
 // Creamos el router para las rutas de estadísticas
@@ -133,6 +135,110 @@ function parseSeleccionesStats(rawSelections: any): any[] {
 
 /**
  * <summary>
+ * Convierte un valor opcional a número o null para reutilizar estadísticas manuales.
+ * </summary>
+ * @param value - Valor recibido desde MySQL o desde el JSON de una selección.
+ * @returns Número válido o null cuando el dato no existe.
+ */
+function normalizarNumeroOpcional(value: any): number | null {
+  // Cortamos rápido cuando el dato viene vacío.
+  if (value === null || value === undefined || value === "") {
+    // Devolvemos null para mantener el contrato opcional.
+    return null;
+  }
+
+  // Convertimos el dato a número para soportar strings guardados en JSON.
+  const parsedValue = Number(value);
+
+  // Si la conversión falla, devolvemos null en vez de propagar NaN.
+  if (Number.isNaN(parsedValue)) {
+    // Indicamos ausencia de dato usable.
+    return null;
+  }
+
+  // Devolvemos el número listo para evaluar el pick.
+  return parsedValue;
+}
+
+/**
+ * <summary>
+ * Recalcula el estado visible de una selección cuando el JSON antiguo quedó en pending.
+ * </summary>
+ * @param selection - Selección original del parlay con marcador y estadísticas opcionales.
+ * @param marketLabel - Etiqueta legible del mercado asociada a la selección.
+ * @param marketAcronym - Acrónimo corto del mercado asociado a la selección.
+ * @returns Estado final para mostrar en estadísticas.
+ */
+function resolverEstadoSeleccionStats(selection: any, marketLabel: string, marketAcronym: string): string {
+  // Normalizamos el estado persistido para no depender del casing del JSON.
+  const storedStatus = String(selection?.status || "pending");
+
+  // Si la selección ya quedó resuelta manual o automáticamente, respetamos ese valor.
+  if (ESTADOS_RESUELTOS.has(storedStatus)) {
+    // Conservamos estados terminales ya auditados.
+    return storedStatus;
+  }
+
+  // Leemos el marcador local si ya existe en la selección.
+  const scoreHome = normalizarNumeroOpcional(selection?.score_home ?? selection?.scoreHome);
+
+  // Leemos el marcador visitante si ya existe en la selección.
+  const scoreAway = normalizarNumeroOpcional(selection?.score_away ?? selection?.scoreAway);
+
+  // Si todavía no hay marcador completo, no podemos recalcular con seguridad.
+  if (scoreHome === null || scoreAway === null) {
+    // Dejamos el estado tal como estaba en el JSON.
+    return storedStatus;
+  }
+
+  // Construimos una referencia legible del mercado antes de evaluar el resultado.
+  const marketReference = String(
+    marketLabel ||
+      marketAcronym ||
+      selection?.market_label ||
+      selection?.market_acronym ||
+      selection?.pick_label ||
+      selection?.pick ||
+      ""
+  );
+
+  // Armamos el resultado auxiliar con estadísticas opcionales para corners y amarillas.
+  const resultReference: MatchResult = {
+    // Reutilizamos el fixture cuando existe para mantener trazabilidad.
+    eventId: String(selection?.api_fixture_id || selection?.eventId || ""),
+    // Marcamos el evento como finalizado porque ya existe marcador persistido.
+    status: "FT",
+    // Reenviamos los goles del local al evaluador central.
+    goalsHome: scoreHome,
+    // Reenviamos los goles del visitante al evaluador central.
+    goalsAway: scoreAway,
+    // Reutilizamos córners del local si vienen desde la API o la resolución manual.
+    cornersHome: normalizarNumeroOpcional(selection?.corners_home ?? selection?.cornersHome),
+    // Reutilizamos córners del visitante si vienen desde la API o la resolución manual.
+    cornersAway: normalizarNumeroOpcional(selection?.corners_away ?? selection?.cornersAway),
+    // Reutilizamos amarillas del local si vienen desde la API o la resolución manual.
+    yellowCardsHome: normalizarNumeroOpcional(selection?.yellow_cards_home ?? selection?.yellowCardsHome),
+    // Reutilizamos amarillas del visitante si vienen desde la API o la resolución manual.
+    yellowCardsAway: normalizarNumeroOpcional(selection?.yellow_cards_away ?? selection?.yellowCardsAway),
+    // Indicamos el proveedor para mantener compatibilidad con la interfaz compartida.
+    provider: "API-Football",
+  };
+
+  // Recalculamos el estado con la misma lógica central usada por cron y admin.
+  const calculatedStatus = evaluatePickStatus(marketReference, scoreHome, scoreAway, resultReference);
+
+  // Si la evaluación resolvió el mercado, devolvemos el resultado corregido.
+  if (calculatedStatus !== "pending") {
+    // Mostramos el estado real según marcador y estadísticas del partido.
+    return calculatedStatus;
+  }
+
+  // Si el mercado sigue ambiguo, respetamos el estado almacenado para no inventar resultados.
+  return storedStatus;
+}
+
+/**
+ * <summary>
  * Enriquece selecciones de parlay con liga, país y mercado legible.
  * </summary>
  * @param rawSelections - Selecciones originales del pick.
@@ -152,14 +258,21 @@ function enriquecerSeleccionesStats(rawSelections: any, leagueMap: Map<string, a
     // Buscamos el mercado relacionado con la selección.
     const market = marketMap.get(String(selection.pick));
 
+    // Normalizamos la etiqueta del mercado para reutilizarla en frontend y evaluación.
+    const marketLabel = market?.label || selection.market_label || selection.pick;
+
+    // Normalizamos el acrónimo del mercado para mostrar formatos cortos cuando existan.
+    const marketAcronym = market?.acronym || selection.market_acronym || "";
+
     // Devolvemos la selección enriquecida sin perder campos originales.
     return {
       ...selection,
       league_name: league?.name || selection.league_name || selection.league_id,
       country_name: league?.country_name || selection.country_name || "",
       country_flag: league?.country_flag || selection.country_flag || "",
-      market_label: market?.label || selection.market_label || selection.pick,
-      market_acronym: market?.acronym || selection.market_acronym || "",
+      market_label: marketLabel,
+      market_acronym: marketAcronym,
+      status: resolverEstadoSeleccionStats(selection, String(marketLabel || ""), String(marketAcronym || "")),
     };
   });
 }
