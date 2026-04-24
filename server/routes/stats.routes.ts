@@ -791,9 +791,13 @@ router.get("/monthly-group", async (req, res) => {
     // SIEMPRE usamos el mes actual del servidor para garantizar stats del mes en curso.
     const { slug } = req.query;
 
-    const now = new Date();
-    const targetYear = now.getFullYear();
-    const targetMonth = now.getMonth() + 1;
+    // Obtenemos la fecha actual en la zona horaria de Colombia para evitar
+    // desfases (ej. servidor en UTC 03:00 AM del 1 de mayo, pero en Colombia aún es 30 de abril).
+    const nowStr = new Date().toLocaleString("en-US", { timeZone: "America/Bogota" });
+    const bogotaDate = new Date(nowStr);
+    
+    const targetYear = bogotaDate.getFullYear();
+    const targetMonth = bogotaDate.getMonth() + 1;
 
     // Construimos el string de mes en formato YYYY-MM para el filtro SQL.
     const mesStr = `${targetYear}-${String(targetMonth).padStart(2, "0")}`;
@@ -857,7 +861,9 @@ router.get("/monthly-group", async (req, res) => {
       : 0;
 
     // Construimos la etiqueta legible del mes en español.
-    const fecha = new Date(targetYear, targetMonth - 1, 1);
+    // Usamos el día 15 para evitar que el desfase de zona horaria (UTC vs America/Bogota)
+    // desplace la fecha al mes anterior si el servidor evalúa esto cerca de la medianoche.
+    const fecha = new Date(targetYear, targetMonth - 1, 15);
     const mesLabel = fecha.toLocaleDateString("es-CO", {
       month: "long",
       year: "numeric",
