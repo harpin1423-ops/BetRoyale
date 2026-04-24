@@ -491,6 +491,7 @@ function getRegionLabel(item: PickData | PickSelection): string {
   const league = item.league_name || item.league || "";
 
   // Unimos país y liga solo con datos disponibles.
+  // Aseguramos que si hay país, se muestre siempre.
   return [country, league].filter(Boolean).join(" · ");
 }
 
@@ -862,7 +863,7 @@ export function PickTicket({ pick }: { pick: PickData }) {
                 border: `1.5px solid ${theme.accent}`,
                 color: theme.accent,
                 background: "rgba(0, 0, 0, 0.18)",
-                fontSize: 13,
+                fontSize: 18,
                 fontWeight: 950,
                 letterSpacing: "0.22em",
                 textTransform: "uppercase",
@@ -951,21 +952,21 @@ export function PickTicket({ pick }: { pick: PickData }) {
                 }}
               />
               <div style={{ marginTop: 18 }}>
-                <div style={{ fontSize: 13, fontWeight: 950, letterSpacing: "0.24em", color: "#64748b", textTransform: "uppercase" }}>
+                <div style={{ fontSize: 15, fontWeight: 950, letterSpacing: "0.24em", color: "#64748b", textTransform: "uppercase" }}>
                   Stake
                 </div>
-                <div style={{ marginTop: 6, fontSize: 26, fontWeight: 950, color: "#f8fafc" }}>
+                <div style={{ marginTop: 6, fontSize: 32, fontWeight: 950, color: "#f8fafc" }}>
                   {parseNumber(pick.stake).toFixed(parseNumber(pick.stake) % 1 === 0 ? 0 : 1)}u
                 </div>
               </div>
               <div style={{ marginTop: 16 }}>
-                <div style={{ fontSize: 13, fontWeight: 950, letterSpacing: "0.24em", color: "#64748b", textTransform: "uppercase" }}>
+                <div style={{ fontSize: 15, fontWeight: 950, letterSpacing: "0.24em", color: "#64748b", textTransform: "uppercase" }}>
                   Cuota Total
                 </div>
                 <div
                   style={{
                     marginTop: 8,
-                    fontSize: 50,
+                    fontSize: 60,
                     fontWeight: 950,
                     lineHeight: 0.95,
                     color: theme.accent,
@@ -985,13 +986,13 @@ export function PickTicket({ pick }: { pick: PickData }) {
                     background: "rgba(255, 255, 255, 0.045)",
                   }}
                 >
-                  <div style={{ fontSize: 12, fontWeight: 950, letterSpacing: "0.24em", color: "#64748b", textTransform: "uppercase" }}>
+                  <div style={{ fontSize: 14, fontWeight: 950, letterSpacing: "0.24em", color: "#64748b", textTransform: "uppercase" }}>
                     Profit
                   </div>
                   <div
                     style={{
                       marginTop: 4,
-                      fontSize: 24,
+                      fontSize: 30,
                       fontWeight: 950,
                       color: profitUnits >= 0 ? "#34d399" : "#fb7185",
                     }}
@@ -1000,18 +1001,18 @@ export function PickTicket({ pick }: { pick: PickData }) {
                   </div>
                   <div style={{ marginTop: 10, display: "flex", gap: 13 }}>
                     <div>
-                      <div style={{ fontSize: 10, fontWeight: 900, letterSpacing: "0.18em", color: "#64748b", textTransform: "uppercase" }}>
+                      <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: "0.18em", color: "#64748b", textTransform: "uppercase" }}>
                         Yield
                       </div>
-                      <div style={{ marginTop: 4, fontSize: 13, fontWeight: 950, color: theme.secondary }}>
+                      <div style={{ marginTop: 4, fontSize: 16, fontWeight: 950, color: theme.secondary }}>
                         {yieldValue > 0 ? "+" : ""}{yieldValue.toFixed(2)}%
                       </div>
                     </div>
                     <div>
-                      <div style={{ fontSize: 10, fontWeight: 900, letterSpacing: "0.18em", color: "#64748b", textTransform: "uppercase" }}>
+                      <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: "0.18em", color: "#64748b", textTransform: "uppercase" }}>
                         Estado
                       </div>
-                      <div style={{ marginTop: 4, fontSize: 13, fontWeight: 950, color: status.color }}>
+                      <div style={{ marginTop: 4, fontSize: 16, fontWeight: 950, color: status.color }}>
                         {status.label}
                       </div>
                     </div>
@@ -1153,19 +1154,22 @@ export function PickTicket({ pick }: { pick: PickData }) {
                         background: "rgba(2, 6, 23, 0.70)",
                       }}
                     >
-                      <div style={{ minWidth: 0, flex: 1 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: compactParlay ? 10 : 11, fontWeight: 950, letterSpacing: "0.16em", color: theme.accent, textTransform: "uppercase" }}>
-                          <TicketFlag code={selection.country_flag} size={compactParlay ? 13 : 15} />
+                      <div style={{ minWidth: 0, flex: 1, display: "flex", flexDirection: "column" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: compactParlay ? 11 : 12, fontWeight: 950, letterSpacing: "0.16em", color: theme.accent, textTransform: "uppercase" }}>
+                          <TicketFlag code={selection.country_flag} size={compactParlay ? 15 : 17} />
                           <span>{regionLabel || "Liga"}</span>
                         </div>
-                        <div style={{ marginTop: compactParlay ? 5 : 7, fontSize: compactParlay ? 18 : 20, lineHeight: 1.08, fontWeight: 950, color: "#f8fafc" }}>
+                        <div style={{ marginTop: compactParlay ? 5 : 7, fontSize: compactParlay ? 20 : 22, lineHeight: 1.08, fontWeight: 950, color: "#f8fafc" }}>
                           {selection.match_name}
                         </div>
-                        <div style={{ marginTop: compactParlay ? 8 : 10, fontSize: compactParlay ? 8 : 9, fontWeight: 950, letterSpacing: "0.20em", color: "#64748b", textTransform: "uppercase" }}>
-                          Pronóstico
-                        </div>
-                        <div style={{ marginTop: 3, fontSize: compactParlay ? 17 : 20, lineHeight: 1.05, fontWeight: 950, color: "#f8fafc" }}>
-                          {getPredictionLabel(selection)}{getMarketAcronym(selection)}
+                        
+                        <div style={{ marginTop: "auto", paddingTop: 10, display: "grid", gridTemplateColumns: "100px 1fr", alignItems: "baseline" }}>
+                          <div style={{ fontSize: compactParlay ? 9 : 10, fontWeight: 950, letterSpacing: "0.20em", color: "#64748b", textTransform: "uppercase" }}>
+                            Pronóstico
+                          </div>
+                          <div style={{ fontSize: compactParlay ? 18 : 21, lineHeight: 1.05, fontWeight: 950, color: "#f8fafc" }}>
+                            {getPredictionLabel(selection)}{getMarketAcronym(selection)}
+                          </div>
                         </div>
                       </div>
 
