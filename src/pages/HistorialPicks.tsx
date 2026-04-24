@@ -23,7 +23,7 @@ import {
   Calendar,
   Search,
 } from "lucide-react";
-import CountryFlag from "../components/CountryFlag";
+import { CountryFlag } from "../components/CountryFlag";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
