@@ -1051,7 +1051,7 @@ export function PickTicket({ pick }: { pick: PickData }) {
                     </div>
                     <div>
                       <div style={{ fontSize: 8, fontWeight: 900, letterSpacing: "0.05em", color: "#64748b", textTransform: "uppercase" }}>YIELD</div>
-                      <div style={{ marginTop: 3, fontSize: 14, fontWeight: 950, color: theme.secondary, whiteSpace: "nowrap" }}>
+                      <div style={{ marginTop: 3, fontSize: 14, fontWeight: 950, color: monthlyStats.yield >= 0 ? theme.secondary : "#fb7185", whiteSpace: "nowrap" }}>
                         {monthlyStats.yield >= 0 ? "+" : ""}{monthlyStats.yield.toFixed(1)}%
                       </div>
                     </div>
