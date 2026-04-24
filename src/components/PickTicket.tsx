@@ -610,6 +610,9 @@ export function PickTicket({ pick }: { pick: PickData }) {
     profit: number;
     yield: number;
     totalPicks: number;
+    ganados: number;
+    perdidos: number;
+    nulos: number;
     mesLabel: string;
     totalStaked: number;
   } | null>(null);
@@ -680,6 +683,9 @@ export function PickTicket({ pick }: { pick: PickData }) {
             profit: data.profit,
             yield: data.yield,
             totalPicks: data.totalPicks,
+            ganados: data.ganados || 0,
+            perdidos: data.perdidos || 0,
+            nulos: data.nulos || 0,
             mesLabel: data.mesLabel,
             totalStaked: data.totalStaked,
           });
@@ -1044,8 +1050,8 @@ export function PickTicket({ pick }: { pick: PickData }) {
                     background: `linear-gradient(135deg, ${theme.glow}, rgba(0,0,0,0.25))`,
                   }}
                 >
-                  <div style={{ fontSize: 9, fontWeight: 900, letterSpacing: "0.20em", color: theme.accent, textTransform: "uppercase", marginBottom: 2 }}>
-                    Stats {theme.label}
+                  <div style={{ fontSize: 9, fontWeight: 900, letterSpacing: "0.10em", color: theme.accent, textTransform: "uppercase", marginBottom: 2 }}>
+                    Estadísticas Acumuladas {theme.label}
                   </div>
                   <div style={{ fontSize: 9, fontWeight: 700, color: "#94a3b8", marginBottom: 6 }}>
                     {monthlyStats.mesLabel}
@@ -1064,9 +1070,17 @@ export function PickTicket({ pick }: { pick: PickData }) {
                       </div>
                     </div>
                     <div>
-                      <div style={{ fontSize: 8, fontWeight: 900, letterSpacing: "0.05em", color: "#64748b", textTransform: "uppercase" }}>PICKS</div>
+                      <div style={{ fontSize: 8, fontWeight: 900, letterSpacing: "0.05em", color: "#64748b", textTransform: "uppercase" }}>PICKS ({monthlyStats.totalPicks})</div>
                       <div style={{ marginTop: 3, fontSize: 14, fontWeight: 950, color: "#f8fafc", whiteSpace: "nowrap" }}>
-                        {monthlyStats.totalPicks}
+                        <span style={{color: "#34d399"}}>{monthlyStats.ganados}G</span>
+                        <span style={{color: "#64748b", margin: "0 3px"}}>-</span>
+                        <span style={{color: "#fb7185"}}>{monthlyStats.perdidos}P</span>
+                        {monthlyStats.nulos > 0 && (
+                          <>
+                            <span style={{color: "#64748b", margin: "0 3px"}}>-</span>
+                            <span style={{color: "#fbbf24"}}>{monthlyStats.nulos}N</span>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
