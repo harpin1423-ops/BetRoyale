@@ -777,6 +777,8 @@ export function Stats() {
                                       const selectionStatusKey = String(selection.status || 'pending');
                                       // Reutilizamos la configuración visual de estados ya usada en la página.
                                       const selectionStatusConfig = statusConfig[selectionStatusKey] || statusConfig.pending;
+                                      // Detectamos si la selección ya trae un marcador final visible.
+                                      const selectionHasScore = selection.score_home !== undefined && selection.score_home !== null && selection.score_away !== undefined && selection.score_away !== null;
 
                                       return (
                                         <div key={`${pick.id}-selection-${index}`} className="rounded-xl border border-white/10 bg-background/40 px-3 py-2 text-xs">
@@ -788,9 +790,13 @@ export function Stats() {
                                             {selection.country_flag && <CountryFlag code={selection.country_flag} />}
                                             {/* Nombre del partido. */}
                                             <span className="break-words">{selection.match_name || `Selección ${index + 1}`}</span>
-                                            {selection.score_home !== undefined && selection.score_home !== null && (
-                                              <span className="ml-auto text-primary font-black">
-                                                {selection.score_home} - {selection.score_away}
+                                            {/* Mostramos el marcador final con el icono de estado en una sola cápsula, igual que en los picks simples. */}
+                                            {selectionHasScore && (
+                                              <span className={`ml-auto inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-black border ${selectionStatusConfig.bg} ${selectionStatusConfig.border} ${selectionStatusConfig.color}`}>
+                                                {/* Reutilizamos el icono del estado resuelto sin repetir la etiqueta textual. */}
+                                                {selectionStatusConfig.icon}
+                                                {/* Imprimimos el marcador final de la selección. */}
+                                                <span>{selection.score_home} - {selection.score_away}</span>
                                               </span>
                                             )}
                                           </div>
@@ -809,13 +815,6 @@ export function Stats() {
                                             )}
                                             {/* Mercado y cuota de la selección. */}
                                             <span className="font-semibold text-white">{selectionMarket} <span className="text-yellow-400">{selectionOddsLabel}</span></span>
-                                            {/* Estado individual de la selección para que el usuario vea si ese pick puntual ganó o perdió. */}
-                                            <span className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-black uppercase tracking-wider ${selectionStatusConfig.bg} ${selectionStatusConfig.border} ${selectionStatusConfig.color}`}>
-                                              {/* Reutilizamos el icono del estado para mantener consistencia visual con la tarjeta principal. */}
-                                              {selectionStatusConfig.icon}
-                                              {/* Mostramos la etiqueta textual del estado resuelto de la selección. */}
-                                              <span>{selectionStatusConfig.label}</span>
-                                            </span>
                                           </div>
                                         </div>
                                       );

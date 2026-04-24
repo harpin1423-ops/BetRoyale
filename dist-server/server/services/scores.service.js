@@ -953,6 +953,23 @@ export function evaluatePickStatus(marketId, goalsHome, goalsAway, result) {
         // Evaluamos la línea de tarjetas o dejamos pendiente manual.
         return evaluateTotalLine(scopedYellows, normalizedMarket);
     }
+    // Detectamos mercados donde el local solo necesita anotar al menos un gol.
+    if (/(gol|goles|goal|goals|anota|marca|marcara|marcará|score)/i.test(normalizedMarket) && /(local|home|casa)/i.test(normalizedMarket) && !/(visitante|away|fuera)/i.test(normalizedMarket) && !/[+-]\s*\d/.test(normalizedMarket) && !/(mas|más|menos|over|under)/i.test(normalizedMarket)) {
+        // Si el local hizo al menos un gol, el pick se considera ganado.
+        return goalsHome > 0 ? "won" : "lost";
+    }
+    // Detectamos mercados donde el visitante solo necesita anotar al menos un gol.
+    if (/(gol|goles|goal|goals|anota|marca|marcara|marcará|score)/i.test(normalizedMarket) && /(visitante|away|fuera)/i.test(normalizedMarket) && !/(local|home|casa)/i.test(normalizedMarket) && !/[+-]\s*\d/.test(normalizedMarket) && !/(mas|más|menos|over|under)/i.test(normalizedMarket)) {
+        // Si el visitante hizo al menos un gol, el pick se considera ganado.
+        return goalsAway > 0 ? "won" : "lost";
+    }
+    // Detectamos líneas de goles del partido o de un solo equipo aunque lleguen como etiquetas largas.
+    if (/(gol|goles|goal|goals|total\s+home|total\s+away)/i.test(normalizedMarket) && (/[+-]\s*\d/.test(normalizedMarket) || /(mas|más|menos|over|under)/i.test(normalizedMarket))) {
+        // Elegimos total, local o visitante según el texto del mercado.
+        const scopedGoals = resolveScopedStatisticValue(normalizedMarket, totalGoals, goalsHome, goalsAway);
+        // Evaluamos la línea detectada con el mismo motor de over/under.
+        return evaluateTotalLine(scopedGoals, normalizedMarket);
+    }
     switch (normalizedMarket) {
         // Resultado final local.
         case "1":
