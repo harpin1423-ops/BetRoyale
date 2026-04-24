@@ -651,15 +651,16 @@ export function PickTicket({ pick }: { pick: PickData }) {
   const compactParlay = isParlay && selectionCount >= 4;
 
   // Cargamos las estadísticas mensuales del grupo cuando el pick está ganado.
-  // Usamos SIEMPRE el mes actual (new Date()) para que las stats reflejen el mes corriente.
+  // Ahora pasamos la fecha exacta del partido (o del parlay) para que el backend
+  // calcule las estadísticas acumuladas desde el día 1 del mes HASTA este día en particular.
   useMemo(() => {
     if (!isWon) { setMonthlyStats(null); return; }
     const slug = pick.pick_type_slug || pick.pick_type || "";
-    // Usamos la fecha actual para que el mes de las stats sea siempre el mes corriente
-    const now = new Date();
-    const m = now.getMonth() + 1;
-    const y = now.getFullYear();
-    fetch(`/api/stats/monthly-group?slug=${encodeURIComponent(slug)}&month=${m}&year=${y}`)
+    
+    // Si no tenemos match_date, el backend usará el mes/día actual por defecto
+    const dateQuery = pick.match_date ? `&date=${encodeURIComponent(pick.match_date)}` : "";
+    
+    fetch(`/api/stats/monthly-group?slug=${encodeURIComponent(slug)}${dateQuery}`)
       .then((r) => r.json())
       .then((data) => {
         if (!data.error) {

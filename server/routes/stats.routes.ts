@@ -787,17 +787,26 @@ router.get("/historical-picks", async (req, res) => {
  */
 router.get("/monthly-group", async (req, res) => {
   try {
-    // Solo leemos el slug del plan; month/year del cliente se ignoran intencionalmente.
-    // SIEMPRE usamos el mes actual del servidor para garantizar stats del mes en curso.
-    const { slug } = req.query;
+    // Leemos el slug del plan y la fecha de referencia (match_date del pick).
+    const { slug, date } = req.query;
 
-    // Obtenemos la fecha actual en la zona horaria de Colombia para evitar
-    // desfases (ej. servidor en UTC 03:00 AM del 1 de mayo, pero en Colombia aún es 30 de abril).
-    const nowStr = new Date().toLocaleString("en-US", { timeZone: "America/Bogota" });
-    const bogotaDate = new Date(nowStr);
+    let targetDate = new Date(); // Por defecto hoy
     
-    const targetYear = bogotaDate.getFullYear();
-    const targetMonth = bogotaDate.getMonth() + 1;
+    if (date && typeof date === "string") {
+      // Si nos envían una fecha, tratamos de parsearla y usar su mes/año exacto.
+      // Así garantizamos que un pick de febrero muestre las stats de febrero.
+      const parsed = new Date(date);
+      if (!isNaN(parsed.getTime())) {
+        targetDate = parsed;
+      }
+    } else {
+      // Si no hay fecha, usamos hoy en la zona horaria de Colombia
+      const nowStr = new Date().toLocaleString("en-US", { timeZone: "America/Bogota" });
+      targetDate = new Date(nowStr);
+    }
+    
+    const targetYear = targetDate.getFullYear();
+    const targetMonth = targetDate.getMonth() + 1;
 
     // Construimos el string de mes en formato YYYY-MM para el filtro SQL.
     const mesStr = `${targetYear}-${String(targetMonth).padStart(2, "0")}`;
@@ -806,9 +815,18 @@ router.get("/monthly-group", async (req, res) => {
     const condicionSlug = slug && slug !== "all"
       ? "AND pt.slug = ?"
       : "";
-    const parametros: any[] = slug && slug !== "all" ? [mesStr, slug] : [mesStr];
+      
+    // Construimos el filtro para limitar hasta la fecha dada (solo cuenta picks ganados ANTES O DURANTE el día del pick).
+    // Extraemos YYYY-MM-DD para la comparación.
+    const fechaTopeStr = targetDate.toISOString().slice(0, 10);
+    // Agregamos tiempo '23:59:59' para incluir todos los picks del mismo día.
+    const limiteFecha = `${fechaTopeStr} 23:59:59`;
 
-    // Consultamos picks resueltos del mes filtrado por grupo.
+    const parametros: any[] = slug && slug !== "all" 
+      ? [mesStr, limiteFecha, slug] 
+      : [mesStr, limiteFecha];
+
+    // Consultamos picks resueltos del mes filtrado por grupo, SOLO hasta la fecha de referencia.
     const [filas]: any = await pool.query(
       `SELECT
          p.status,
@@ -820,6 +838,7 @@ router.get("/monthly-group", async (req, res) => {
        LEFT JOIN pick_types pt ON p.pick_type_id = pt.id
        WHERE p.status IN ('won', 'lost', 'void', 'half-won', 'half-lost')
          AND DATE_FORMAT(p.match_date, '%Y-%m') = ?
+         AND p.match_date <= ?
          ${condicionSlug}`,
       parametros
     );
