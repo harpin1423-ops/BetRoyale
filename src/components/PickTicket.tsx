@@ -628,9 +628,10 @@ export function PickTicket({ pick }: { pick: PickData }) {
   // Cantidad visible de selecciones.
   const selectionCount = selections.length;
 
-  // Determinamos si el pick ya está resuelto con resultado positivo.
+  // Determinamos si el pick ya está resuelto con resultado positivo o negativo.
   const isResolved = pick.status !== "pending";
   const isWon = pick.status === "won" || pick.status === "half-won";
+  const isLost = pick.status === "lost" || pick.status === "half-lost";
 
   // Profit calculado para el estado actual.
   const profitUnits = calculateProfit(pick.stake, pick.odds, pick.status);
@@ -650,11 +651,11 @@ export function PickTicket({ pick }: { pick: PickData }) {
   // Ajustamos tamaño de tarjetas para parlays largos.
   const compactParlay = isParlay && selectionCount >= 4;
 
-  // Cargamos las estadísticas mensuales del grupo cuando el pick está ganado.
+  // Cargamos las estadísticas mensuales del grupo cuando el pick está ganado o perdido.
   // Ahora pasamos la fecha exacta del partido (o del parlay) para que el backend
   // calcule las estadísticas acumuladas desde el día 1 del mes HASTA este día en particular.
   useMemo(() => {
-    if (!isWon) { setMonthlyStats(null); return; }
+    if (!isWon && !isLost) { setMonthlyStats(null); return; }
     const slug = pick.pick_type_slug || pick.pick_type || "";
     
     // Si no tenemos match_date, el backend usará el mes/día actual por defecto
@@ -1024,8 +1025,8 @@ export function PickTicket({ pick }: { pick: PickData }) {
                   </div>
                 </div>
               )}
-              {/* Bloque de stats mensuales acumuladas del grupo — solo cuando el pick está ganado */}
-              {isWon && monthlyStats && (
+              {/* Bloque de stats mensuales acumuladas del grupo — cuando el pick está resuelto y hay stats */}
+              {(isWon || isLost) && monthlyStats && (
                 <div
                   style={{
                     marginTop: 8,
