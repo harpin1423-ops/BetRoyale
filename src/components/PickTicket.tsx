@@ -127,7 +127,7 @@ const TICKET_WIDTH = 960;
 const TICKET_HEIGHT = 720;
 
 // Alto del header del ticket.
-const TICKET_HEADER_HEIGHT = 120;
+const TICKET_HEADER_HEIGHT = 110;
 
 // Alto del footer del ticket.
 const TICKET_FOOTER_HEIGHT = 45;
@@ -749,10 +749,10 @@ export function PickTicket({ pick }: { pick: PickData }) {
           <div
             style={{
               position: "absolute",
-              top: 25,
-              right: -55,
-              width: 220,
-              height: 42,
+              top: 22,
+              right: -65,
+              width: 230,
+              height: 40,
               background: status.background.replace("0.14", "0.95").replace("0.16", "0.95"), // Forzamos fondo más opaco para el ribbon
               borderTop: `2px solid ${status.border}`,
               borderBottom: `2px solid ${status.border}`,
@@ -760,7 +760,7 @@ export function PickTicket({ pick }: { pick: PickData }) {
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              transform: "rotate(35deg)",
+              transform: "rotate(32deg)",
               zIndex: 100,
               backdropFilter: "blur(4px)",
             }}
@@ -768,9 +768,9 @@ export function PickTicket({ pick }: { pick: PickData }) {
             <span
               style={{
                 color: status.color,
-                fontSize: status.label.length > 8 ? 14 : 18,
+                fontSize: status.label.length > 8 ? 13 : 17,
                 fontWeight: 950,
-                letterSpacing: "0.25em",
+                letterSpacing: "0.22em",
                 textShadow: "0 2px 10px rgba(0,0,0,0.5)",
               }}
             >
@@ -1069,7 +1069,7 @@ export function PickTicket({ pick }: { pick: PickData }) {
             </div>
           </aside>
 
-          <section style={{ minWidth: 0, display: "flex", flexDirection: "column", padding: "18px 24px 22px", height: "100%", boxSizing: "border-box" }}>
+          <section style={{ minWidth: 0, display: "flex", flexDirection: "column", padding: "12px 22px 14px", height: "100%", boxSizing: "border-box" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-start", gap: 14, marginBottom: 12 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
                 <span style={{ width: 9, height: 9, borderRadius: "50%", background: theme.accent, boxShadow: `0 0 18px ${theme.accent}`, flexShrink: 0 }} />
@@ -1127,7 +1127,7 @@ export function PickTicket({ pick }: { pick: PickData }) {
                 )}
               </article>
             ) : (
-              <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", gap: compactParlay ? 7 : 9, paddingBottom: 10 }}>
+              <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", gap: compactParlay ? 4 : 8, paddingBottom: 4 }}>
                 {selections.map((selection, index) => {
                   // Calculamos si hay marcador completo para mostrarlo solo en resueltos.
                   const hasScore = selection.score_home !== null && selection.score_home !== undefined && selection.score_away !== null && selection.score_away !== undefined;
@@ -1147,8 +1147,8 @@ export function PickTicket({ pick }: { pick: PickData }) {
                         alignItems: "stretch",
                         justifyContent: "space-between",
                         gap: 15,
-                        padding: compactParlay ? "10px 18px" : "13px 19px",
-                        borderRadius: 15,
+                        padding: compactParlay ? "8px 16px" : "11px 17px",
+                        borderRadius: 14,
                         border: `1px solid ${theme.line}`,
                         borderLeft: `6px solid ${theme.accent}`,
                         background: "rgba(2, 6, 23, 0.70)",
@@ -1159,15 +1159,15 @@ export function PickTicket({ pick }: { pick: PickData }) {
                           <TicketFlag code={selection.country_flag} size={compactParlay ? 15 : 17} />
                           <span>{regionLabel || "Liga"}</span>
                         </div>
-                        <div style={{ marginTop: compactParlay ? 5 : 7, fontSize: compactParlay ? 20 : 22, lineHeight: 1.08, fontWeight: 950, color: "#f8fafc" }}>
+                        <div style={{ marginTop: compactParlay ? 3 : 6, fontSize: compactParlay ? 18 : 21, lineHeight: 1.08, fontWeight: 950, color: "#f8fafc" }}>
                           {selection.match_name}
                         </div>
                         
-                        <div style={{ marginTop: "auto", paddingTop: 10, display: "grid", gridTemplateColumns: "100px 1fr", alignItems: "baseline" }}>
+                        <div style={{ marginTop: "auto", paddingTop: compactParlay ? 6 : 9, display: "grid", gridTemplateColumns: "90px 1fr", alignItems: "baseline" }}>
                           <div style={{ fontSize: compactParlay ? 9 : 10, fontWeight: 950, letterSpacing: "0.20em", color: "#64748b", textTransform: "uppercase" }}>
                             Pronóstico
                           </div>
-                          <div style={{ fontSize: compactParlay ? 18 : 21, lineHeight: 1.05, fontWeight: 950, color: "#f8fafc" }}>
+                          <div style={{ fontSize: compactParlay ? 17 : 20, lineHeight: 1.05, fontWeight: 950, color: "#f8fafc" }}>
                             {getPredictionLabel(selection)}{getMarketAcronym(selection)}
                           </div>
                         </div>
