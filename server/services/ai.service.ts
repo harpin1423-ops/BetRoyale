@@ -16,25 +16,37 @@ export async function generatePickAnalysis(pickData: {
   match_name: string;
   league_name?: string;
   pick: string;
-  odds: string;
+  odds: string | number;
   is_parlay?: boolean;
   selections?: any[];
 }): Promise<string> {
+  // Validamos que exista la API Key configurada en el servidor
   if (!env.GEMINI_API_KEY) {
-    throw new Error("GEMINI_API_KEY no configurada en el servidor.");
+    throw new Error("GEMINI_API_KEY no está configurada en las variables de entorno del servidor. Agrega GEMINI_API_KEY=tu_clave en el archivo .env.");
   }
 
   const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY);
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); 
+  // Usamos gemini-1.5-flash por su velocidad y disponibilidad en el plan gratuito
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
+  // Construimos el contexto detallado según el tipo de pick
   let context = "";
-  if (pickData.is_parlay && pickData.selections) {
-    context = `Este es un Parlay (combinada) con las siguientes selecciones:\n`;
+  if (pickData.is_parlay && pickData.selections && pickData.selections.length > 0) {
+    // Parlay: listamos cada selección con su mercado y cuota
+    context = `Este es un PARLAY (combinada) con cuota total @${pickData.odds}.\nSelecciones:\n`;
     pickData.selections.forEach((sel, i) => {
-      context += `${i + 1}. ${sel.match_name} - Pronóstico: ${sel.pick_label || sel.pick}\n`;
+      const odds = sel.odds ? ` @${Number(sel.odds).toFixed(2)}` : "";
+      const market = sel.pick_label || sel.market_label || sel.pick || "";
+      context += `${i + 1}. ${sel.match_name} — ${market}${odds}\n`;
     });
   } else {
-    context = `Partido: ${pickData.match_name}\nLiga: ${pickData.league_name || 'Desconocida'}\nPronóstico: ${pickData.pick}\nCuota: ${pickData.odds}`;
+    // Pick simple: contexto completo con liga, pronóstico y cuota
+    context = [
+      `Partido: ${pickData.match_name}`,
+      pickData.league_name ? `Liga: ${pickData.league_name}` : null,
+      `Pronóstico: ${pickData.pick}`,
+      `Cuota: @${pickData.odds}`,
+    ].filter(Boolean).join("\n");
   }
 
   const prompt = `
@@ -45,20 +57,35 @@ export async function generatePickAnalysis(pickData: {
     
     Instrucciones:
     1. Sé profesional pero entusiasta.
-    2. Menciona brevemente por qué el pronóstico tiene sentido (justificación técnica).
+    2. Menciona brevemente por qué el pronóstico tiene sentido (justificación técnica o estadística).
     3. Usa un lenguaje que incite a la confianza pero sin garantizar el éxito (juego responsable).
-    4. Si es un parlay, resalta la combinación de eventos.
-    5. No uses hashtags.
-    6. Responde SOLO con el texto del análisis.
+    4. Si es un parlay, resalta la combinación de eventos y la cuota total atractiva.
+    5. No uses hashtags ni emojis.
+    6. Responde SOLO con el texto del análisis, sin introducciones ni comillas.
     7. Idioma: Español.
   `;
 
   try {
     const result = await model.generateContent(prompt);
     const response = await result.response;
-    return response.text().trim();
+    const text = response.text().trim();
+
+    if (!text) {
+      throw new Error("La IA no generó contenido. Intenta de nuevo.");
+    }
+
+    return text;
   } catch (error: any) {
-    console.error("Error en generatePickAnalysis:", error);
+    console.error("[AI Service] Error en generatePickAnalysis:", error);
+
+    // Mensajes de error más descriptivos para facilitar diagnóstico
+    if (error.message?.includes("API_KEY_INVALID") || error.message?.includes("invalid")) {
+      throw new Error("La GEMINI_API_KEY configurada no es válida. Verifica tu clave en Google AI Studio.");
+    }
+    if (error.message?.includes("quota") || error.message?.includes("RESOURCE_EXHAUSTED")) {
+      throw new Error("Límite de uso de Gemini alcanzado. Espera unos minutos e intenta de nuevo.");
+    }
+
     // Propagamos el mensaje original de error de Google para diagnóstico
     throw new Error(error.message || "Error al conectar con Gemini AI");
   }

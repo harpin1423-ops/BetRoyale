@@ -3704,28 +3704,41 @@ export function AdminDashboard() {
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
                     <label className="text-sm font-medium text-muted-foreground">Comentario / Análisis (Opcional)</label>
-                    {/* 
+                    {/* Botón de análisis automático con Gemini AI */}
                     <button
                       type="button"
                       onClick={handleGenerateAnalysis}
                       disabled={isGeneratingAnalysis}
-                      className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-[11px] font-black text-primary hover:bg-primary/20 transition-all disabled:opacity-50"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-violet-600/20 to-primary/20 border border-violet-500/30 text-[11px] font-black text-violet-300 hover:from-violet-600/35 hover:to-primary/35 hover:border-violet-400/50 hover:text-violet-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
                     >
                       {isGeneratingAnalysis ? (
                         <>
                           <Loader2 size={12} className="animate-spin" />
-                          Generando...
+                          <span>Generando con Gemini...</span>
                         </>
                       ) : (
                         <>
-                          <Sparkles size={12} />
-                          Generar Análisis con IA
+                          <BrainCircuit size={13} />
+                          <span>Generar con IA</span>
                         </>
                       )}
                     </button>
-                    */}
                   </div>
-                  <textarea name="analysis" value={formData.analysis} onChange={handleInputChange} rows={3} placeholder="Breve justificación del pick..." className="w-full bg-background border border-white/10 rounded-lg px-4 py-2.5 text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"></textarea>
+                  {/* Indicador visual cuando el análisis fue generado por IA */}
+                  {formData.analysis && !isGeneratingAnalysis && (
+                    <div className="flex items-center gap-1.5 text-[10px] text-violet-400/70 font-medium">
+                      <Sparkles size={10} />
+                      <span>Análisis listo — puedes editarlo antes de publicar</span>
+                    </div>
+                  )}
+                  <textarea
+                    name="analysis"
+                    value={formData.analysis}
+                    onChange={handleInputChange}
+                    rows={3}
+                    placeholder="Breve justificación del pick... (o usa IA para generarlo automáticamente)"
+                    className={`w-full bg-background border rounded-lg px-4 py-2.5 text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all ${formData.analysis ? 'border-violet-500/30' : 'border-white/10'}`}
+                  />
                 </div>
 
                 <button
