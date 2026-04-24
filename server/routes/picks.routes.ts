@@ -1185,10 +1185,36 @@ router.patch("/bulk/status", authenticateToken, requireAdmin, async (req, res) =
   try {
     // Construimos los placeholders dinámicamente para el IN clause
     const placeholders = pickIds.map(() => "?").join(",");
-    await pool.query(
-      `UPDATE picks SET status = ? WHERE id IN (${placeholders})`,
-      [status, ...pickIds]
+    
+    // Consultamos los picks para ver cuáles son parleys
+    const [rows]: any = await pool.query(
+      `SELECT id, is_parlay, selections FROM picks WHERE id IN (${placeholders})`,
+      pickIds
     );
+
+    // Actualizamos los picks, aplicando el nuevo estado a las selecciones si es un parlay
+    for (const row of rows) {
+      if (row.is_parlay) {
+        let selections = [];
+        try {
+          selections = typeof row.selections === "string" ? JSON.parse(row.selections) : row.selections;
+        } catch (e) {
+          selections = [];
+        }
+        
+        if (status !== "pending" && Array.isArray(selections)) {
+          selections = selections.map((sel: any) => {
+            if (!sel.status || sel.status === "pending") {
+              return { ...sel, status: status };
+            }
+            return sel;
+          });
+        }
+        await pool.query("UPDATE picks SET status = ?, selections = ? WHERE id = ?", [status, JSON.stringify(selections), row.id]);
+      } else {
+        await pool.query("UPDATE picks SET status = ? WHERE id = ?", [status, row.id]);
+      }
+    }
 
     // Notificamos cada pick actualizado sin bloquear la respuesta si Telegram falla.
     for (const pickId of pickIds) {
@@ -1223,8 +1249,33 @@ router.patch("/:id/status", authenticateToken, requireAdmin, async (req, res) =>
   }
 
   try {
-    // Actualizamos únicamente el estado del pick
-    await pool.query("UPDATE picks SET status = ? WHERE id = ?", [status, id]);
+    // Leemos el pick actual para saber si es un parlay y actualizar sus selecciones si es necesario.
+    const [rows]: any = await pool.query("SELECT is_parlay, selections FROM picks WHERE id = ?", [id]);
+    
+    if (rows && rows.length > 0 && rows[0].is_parlay) {
+      let selections = [];
+      try {
+        selections = typeof rows[0].selections === "string" ? JSON.parse(rows[0].selections) : rows[0].selections;
+      } catch (e) {
+        selections = [];
+      }
+      
+      // Si el estado forzado no es 'pending', forzamos las selecciones pendientes al mismo estado 
+      // para que el cron no siga reabriendo el parlay.
+      if (status !== "pending" && Array.isArray(selections)) {
+        selections = selections.map((sel: any) => {
+          if (!sel.status || sel.status === "pending") {
+            return { ...sel, status: status };
+          }
+          return sel;
+        });
+      }
+      
+      await pool.query("UPDATE picks SET status = ?, selections = ? WHERE id = ?", [status, JSON.stringify(selections), id]);
+    } else {
+      // Pick simple
+      await pool.query("UPDATE picks SET status = ? WHERE id = ?", [status, id]);
+    }
 
     // Notificamos el cambio de resultado por Telegram
     try {
