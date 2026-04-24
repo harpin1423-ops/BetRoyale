@@ -1005,15 +1005,17 @@ export function PickTicket({ pick }: { pick: PickData }) {
                   >
                     {formatUnits(profitUnits)}
                   </div>
-                  <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: "0.12em", color: "#64748b", textTransform: "uppercase" }}>
-                        Yield
+                  <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: isWon ? "1fr 1fr" : "1fr", gap: 10 }}>
+                    {isWon && (
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: "0.12em", color: "#64748b", textTransform: "uppercase" }}>
+                          Yield
+                        </div>
+                        <div style={{ marginTop: 2, fontSize: 15, fontWeight: 950, color: yieldValue >= 0 ? theme.secondary : "#fb7185", whiteSpace: "nowrap" }}>
+                          {yieldValue > 0 ? "+" : ""}{yieldValue.toFixed(1)}%
+                        </div>
                       </div>
-                      <div style={{ marginTop: 2, fontSize: 15, fontWeight: 950, color: theme.secondary, whiteSpace: "nowrap" }}>
-                        {yieldValue > 0 ? "+" : ""}{yieldValue.toFixed(1)}%
-                      </div>
-                    </div>
+                    )}
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: "0.12em", color: "#64748b", textTransform: "uppercase" }}>
                         Estado
