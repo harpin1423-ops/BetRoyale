@@ -97,6 +97,14 @@ export const env = {
   // ─── Google Gemini AI ────────────────────────────────────────────────────────
   /** API Key para Google Gemini AI */
   GEMINI_API_KEY: process.env.GEMINI_API_KEY || "",
+
+  // ─── Groq AI (fallback gratuito) ──────────────────────────────────────
+  /** API Key para Groq AI (llama-3, mixtral). Plan gratuito generoso */
+  GROQ_API_KEY: process.env.GROQ_API_KEY || "",
+
+  // ─── OpenAI (fallback premium) ─────────────────────────────────────────
+  /** API Key para OpenAI (GPT-4o-mini). Solo si se configura */
+  OPENAI_API_KEY: process.env.OPENAI_API_KEY || "",
 } as const;
 
 // ─── Validación de variables críticas ───────────────────────────────────────

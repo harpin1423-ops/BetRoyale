@@ -503,6 +503,10 @@ export function AdminDashboard() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmittingPick, setIsSubmittingPick] = useState(false);
   const [isGeneratingAnalysis, setIsGeneratingAnalysis] = useState(false);
+  // Proveedor de IA seleccionado por el admin (auto = mejor disponible automáticamente)
+  const [aiProvider, setAiProvider] = useState<"auto" | "gemini" | "groq" | "openai">("auto");
+  // Proveedor que respondió en la última generación, para mostrarlo al usuario
+  const [lastUsedProvider, setLastUsedProvider] = useState<string>("");
   const [isSubmittingTracking, setIsSubmittingTracking] = useState(false);
   const [activeTrackingPickId, setActiveTrackingPickId] = useState<number | null>(null);
   // Guardamos el mensaje de seguimiento temporal que se publica en Telegram.
@@ -573,12 +577,13 @@ export function AdminDashboard() {
     }
 
     setIsGeneratingAnalysis(true);
+    setLastUsedProvider("");
     try {
       // Obtenemos los nombres legibles de liga y mercado para un mejor análisis
       const leagueName = leagues.find(l => l.id.toString() === formData.league_id)?.name || "";
       const marketLabel = markets.find(m => m.id.toString() === formData.pick)?.label || formData.pick;
 
-      // Enriquecemos selecciones de parlay con etiquetas legibles
+      // Enriquecemos selecciones de parlay con etiquetas legibles y cuotas
       const enrichedSelections = formData.is_parlay ? formData.selections.map(sel => ({
         ...sel,
         pick_label: markets.find(m => m.id.toString() === sel.pick)?.label || sel.pick
@@ -596,7 +601,9 @@ export function AdminDashboard() {
           pick: marketLabel,
           odds: formData.odds,
           is_parlay: formData.is_parlay,
-          selections: enrichedSelections
+          selections: enrichedSelections,
+          // Enviamos el proveedor seleccionado por el admin
+          provider: aiProvider,
         })
       });
 
@@ -604,7 +611,10 @@ export function AdminDashboard() {
       if (!res.ok) throw new Error(data.message || "Error al generar análisis");
 
       setFormData(prev => ({ ...prev, analysis: data.analysis }));
-      toast.success("Análisis generado correctamente");
+      // Guardamos y mostramos el proveedor que respondió
+      const providerLabel = data.usedProviderLabel || "IA";
+      setLastUsedProvider(providerLabel);
+      toast.success(`Análisis generado con ${providerLabel}`);
     } catch (error: any) {
       toast.error(error.message || "Error al conectar con el servicio de IA");
     } finally {
@@ -3702,33 +3712,48 @@ export function AdminDashboard() {
                 </div>
 
                 <div className="space-y-2">
-                  <div className="flex justify-between items-center">
+                  <div className="flex justify-between items-center gap-2 flex-wrap">
                     <label className="text-sm font-medium text-muted-foreground">Comentario / Análisis (Opcional)</label>
-                    {/* Botón de análisis automático con Gemini AI */}
-                    <button
-                      type="button"
-                      onClick={handleGenerateAnalysis}
-                      disabled={isGeneratingAnalysis}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-violet-600/20 to-primary/20 border border-violet-500/30 text-[11px] font-black text-violet-300 hover:from-violet-600/35 hover:to-primary/35 hover:border-violet-400/50 hover:text-violet-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
-                    >
-                      {isGeneratingAnalysis ? (
-                        <>
-                          <Loader2 size={12} className="animate-spin" />
-                          <span>Generando con Gemini...</span>
-                        </>
-                      ) : (
-                        <>
-                          <BrainCircuit size={13} />
-                          <span>Generar con IA</span>
-                        </>
-                      )}
-                    </button>
+                    <div className="flex items-center gap-2">
+                      {/* Selector de proveedor de IA */}
+                      <select
+                        value={aiProvider}
+                        onChange={e => setAiProvider(e.target.value as typeof aiProvider)}
+                        disabled={isGeneratingAnalysis}
+                        className="text-[10px] font-bold bg-background border border-violet-500/25 text-violet-300 rounded-full px-2 py-1 focus:outline-none focus:border-violet-400/60 disabled:opacity-50 cursor-pointer"
+                        title="Selecciona el proveedor de IA"
+                      >
+                        <option value="auto">🤖 Auto (mejor disponible)</option>
+                        <option value="gemini">✦ Google Gemini</option>
+                        <option value="groq">⚡ Groq (Llama 3) — Gratis</option>
+                        <option value="openai">◆ OpenAI GPT-4o-mini</option>
+                      </select>
+                      {/* Botón de generación */}
+                      <button
+                        type="button"
+                        onClick={handleGenerateAnalysis}
+                        disabled={isGeneratingAnalysis}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-violet-600/20 to-primary/20 border border-violet-500/30 text-[11px] font-black text-violet-300 hover:from-violet-600/35 hover:to-primary/35 hover:border-violet-400/50 hover:text-violet-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                      >
+                        {isGeneratingAnalysis ? (
+                          <>
+                            <Loader2 size={12} className="animate-spin" />
+                            <span>Generando...</span>
+                          </>
+                        ) : (
+                          <>
+                            <BrainCircuit size={13} />
+                            <span>Generar con IA</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
                   </div>
-                  {/* Indicador visual cuando el análisis fue generado por IA */}
-                  {formData.analysis && !isGeneratingAnalysis && (
+                  {/* Indicador visual con el proveedor que respondió */}
+                  {lastUsedProvider && !isGeneratingAnalysis && (
                     <div className="flex items-center gap-1.5 text-[10px] text-violet-400/70 font-medium">
                       <Sparkles size={10} />
-                      <span>Análisis listo — puedes editarlo antes de publicar</span>
+                      <span>Generado con <strong className="text-violet-300">{lastUsedProvider}</strong> — puedes editarlo antes de publicar</span>
                     </div>
                   )}
                   <textarea
