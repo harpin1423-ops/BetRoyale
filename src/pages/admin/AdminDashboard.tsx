@@ -1704,6 +1704,24 @@ export function AdminDashboard() {
    * @param fixture - Resultado elegido desde el panel de búsqueda de API-Football.
    */
   const handleApplyFixtureResult = (fixture: any) => {
+    // Resolvemos el nombre del partido con los equipos reales de la API.
+    const resolvedMatchName = fixture.homeTeamName && fixture.awayTeamName
+      ? `${fixture.homeTeamName} vs ${fixture.awayTeamName}`
+      : fixture.name || "";
+
+    // Buscamos el country_id en BD local usando el nombre de país que viene de la API.
+    const matchedCountry = countries.find(
+      (c: any) => c.name.toLowerCase() === (fixture.country || "").toLowerCase()
+    );
+    const resolvedCountryId = matchedCountry?.id?.toString() || "";
+
+    // Buscamos el league_id en BD local usando el nombre de liga que viene de la API.
+    const matchedLeague = leagues.find(
+      (l: any) => l.name.toLowerCase() === (fixture.league || "").toLowerCase()
+        && (!resolvedCountryId || l.country_id?.toString() === resolvedCountryId)
+    );
+    const resolvedLeagueId = matchedLeague?.id?.toString() || "";
+
     // Si existe una selección activa, vinculamos ese fixture dentro del parlay.
     if (formData.is_parlay && activeSelectionFixtureIndex !== null) {
       // Copiamos las selecciones actuales para evitar mutación directa.
@@ -1719,11 +1737,16 @@ export function AdminDashboard() {
         return;
       }
 
-      // Guardamos el fixture oficial y mantenemos la fecha existente o la de la API como respaldo.
+      // Guardamos el fixture oficial enriquecido con datos de país, liga y nombre del partido.
       newSelections[activeSelectionFixtureIndex] = {
         ...currentSelection,
         api_fixture_id: fixture.id,
         thesportsdb_event_id: "",
+        // Auto-rellenamos el nombre del partido con los equipos reales de la API.
+        match_name: resolvedMatchName || currentSelection.match_name,
+        // Auto-rellenamos país y liga si los encontramos en la BD local.
+        ...(resolvedCountryId && { country_id: resolvedCountryId }),
+        ...(resolvedLeagueId && { league_id: resolvedLeagueId }),
         match_time: currentSelection.match_time || getFixtureDateTimeValue(fixture)
       };
 
@@ -1731,23 +1754,31 @@ export function AdminDashboard() {
       setFormData((prev) => ({ ...prev, selections: newSelections }));
 
       // Confirmamos visualmente el vínculo aplicado.
-      toast.success(`Selección vinculada con API-Football: ${fixture.name}`);
+      const extraInfo = matchedLeague ? ` (• ${fixture.country} • ${fixture.league})` : "";
+      toast.success(`Selección vinculada: ${resolvedMatchName}${extraInfo}`);
 
       // Cerramos el modo de búsqueda para esa selección.
       resetFixtureSearchState();
       return;
     }
 
-    // Si es pick simple, guardamos el fixture en el formulario principal.
+    // Si es pick simple, guardamos el fixture en el formulario principal con todos sus datos.
     setFormData((prev) => ({
       ...prev,
       api_fixture_id: fixture.id,
       thesportsdb_event_id: "",
+      // Auto-rellenamos el nombre del partido con los equipos reales de la API.
+      match_name: resolvedMatchName || prev.match_name,
+      // Auto-rellenamos país si lo encontramos en la BD local.
+      ...(resolvedCountryId && { country_id: resolvedCountryId }),
+      // Auto-rellenamos liga si la encontramos en la BD local.
+      ...(resolvedLeagueId && { league_id: resolvedLeagueId }),
       match_date: prev.match_date || getFixtureDateTimeValue(fixture)
     }));
 
-    // Confirmamos visualmente el vínculo del pick simple.
-    toast.success(`Pick vinculado con API-Football: ${fixture.name}`);
+    // Confirmamos visualmente el vínculo del pick simple con datos auto-rellenados.
+    const extraInfo = matchedLeague ? ` (• ${fixture.country} • ${fixture.league})` : "";
+    toast.success(`Pick vinculado: ${resolvedMatchName}${extraInfo}`);
   };
 
   /**
