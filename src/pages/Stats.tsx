@@ -773,6 +773,10 @@ export function Stats() {
                                       const selectionOddsLabel = Number.isNaN(selectionOdds) ? '' : `@${selectionOdds.toFixed(2)}`;
                                       // Armamos el mercado legible de cada selección.
                                       const selectionMarket = selection.market_label || selection.market_acronym || selection.pick || 'Pronóstico';
+                                      // Normalizamos el estado individual de la selección para mostrar su badge propio.
+                                      const selectionStatusKey = String(selection.status || 'pending');
+                                      // Reutilizamos la configuración visual de estados ya usada en la página.
+                                      const selectionStatusConfig = statusConfig[selectionStatusKey] || statusConfig.pending;
 
                                       return (
                                         <div key={`${pick.id}-selection-${index}`} className="rounded-xl border border-white/10 bg-background/40 px-3 py-2 text-xs">
@@ -805,6 +809,13 @@ export function Stats() {
                                             )}
                                             {/* Mercado y cuota de la selección. */}
                                             <span className="font-semibold text-white">{selectionMarket} <span className="text-yellow-400">{selectionOddsLabel}</span></span>
+                                            {/* Estado individual de la selección para que el usuario vea si ese pick puntual ganó o perdió. */}
+                                            <span className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-black uppercase tracking-wider ${selectionStatusConfig.bg} ${selectionStatusConfig.border} ${selectionStatusConfig.color}`}>
+                                              {/* Reutilizamos el icono del estado para mantener consistencia visual con la tarjeta principal. */}
+                                              {selectionStatusConfig.icon}
+                                              {/* Mostramos la etiqueta textual del estado resuelto de la selección. */}
+                                              <span>{selectionStatusConfig.label}</span>
+                                            </span>
                                           </div>
                                         </div>
                                       );
