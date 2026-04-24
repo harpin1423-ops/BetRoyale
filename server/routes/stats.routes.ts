@@ -787,13 +787,13 @@ router.get("/historical-picks", async (req, res) => {
  */
 router.get("/monthly-group", async (req, res) => {
   try {
-    // Leemos el slug del plan y el mes/año opcionales desde query params.
-    const { slug, month, year } = req.query;
+    // Solo leemos el slug del plan; month/year del cliente se ignoran intencionalmente.
+    // SIEMPRE usamos el mes actual del servidor para garantizar stats del mes en curso.
+    const { slug } = req.query;
 
-    // Usamos el mes y año actuales si no se envían.
     const now = new Date();
-    const targetYear = year ? parseInt(String(year), 10) : now.getFullYear();
-    const targetMonth = month ? parseInt(String(month), 10) : now.getMonth() + 1;
+    const targetYear = now.getFullYear();
+    const targetMonth = now.getMonth() + 1;
 
     // Construimos el string de mes en formato YYYY-MM para el filtro SQL.
     const mesStr = `${targetYear}-${String(targetMonth).padStart(2, "0")}`;
@@ -882,3 +882,4 @@ router.get("/monthly-group", async (req, res) => {
 
 // Exportamos el router
 export default router;
+
