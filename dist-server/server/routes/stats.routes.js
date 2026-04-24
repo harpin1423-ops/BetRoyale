@@ -666,20 +666,44 @@ router.get("/historical-picks", async (req, res) => {
  */
 router.get("/monthly-group", async (req, res) => {
     try {
-        // Leemos el slug del plan y el mes/año opcionales desde query params.
-        const { slug, month, year } = req.query;
-        // Usamos el mes y año actuales si no se envían.
-        const now = new Date();
-        const targetYear = year ? parseInt(String(year), 10) : now.getFullYear();
-        const targetMonth = month ? parseInt(String(month), 10) : now.getMonth() + 1;
-        // Construimos el string de mes en formato YYYY-MM para el filtro SQL.
+        // Leemos el slug del plan, la fecha de referencia y el ID del pick para desempates cronológicos.
+        const { slug, date, pickId } = req.query;
+        let targetDate = new Date(); // Por defecto hoy
+        if (date && typeof date === "string") {
+            const parsed = new Date(date);
+            if (!isNaN(parsed.getTime())) {
+                targetDate = parsed;
+            }
+        }
+        else {
+            const nowStr = new Date().toLocaleString("en-US", { timeZone: "America/Bogota" });
+            targetDate = new Date(nowStr);
+        }
+        const targetYear = targetDate.getFullYear();
+        const targetMonth = targetDate.getMonth() + 1;
         const mesStr = `${targetYear}-${String(targetMonth).padStart(2, "0")}`;
-        // Construimos filtro de tipo de pick según el slug recibido.
-        const condicionSlug = slug && slug !== "all"
-            ? "AND pt.slug = ?"
-            : "";
-        const parametros = slug && slug !== "all" ? [mesStr, slug] : [mesStr];
-        // Consultamos picks resueltos del mes filtrado por grupo.
+        const condicionSlug = slug && slug !== "all" ? "AND pt.slug = ?" : "";
+        // Construimos la condición de límite de tiempo.
+        // Si nos pasan el ID del pick y tenemos una fecha exacta, hacemos un ordenamiento estricto 
+        // en el tiempo (fecha menor, o misma fecha pero ID menor o igual).
+        let limiteSql = "";
+        let parametros = [mesStr];
+        if (date && pickId && !isNaN(Number(pickId))) {
+            // Usamos la fecha exacta que llega en formato ISO o SQL (sin recortar a día).
+            const matchDateStr = targetDate.toISOString().replace("T", " ").slice(0, 19);
+            limiteSql = `AND (p.match_date < ? OR (p.match_date = ? AND p.id <= ?))`;
+            parametros.push(matchDateStr, matchDateStr, Number(pickId));
+        }
+        else {
+            // Fallback: Si no hay pickId, sumamos todo hasta el final del día de la fecha objetivo.
+            const fechaTopeStr = targetDate.toISOString().slice(0, 10);
+            limiteSql = `AND p.match_date <= ?`;
+            parametros.push(`${fechaTopeStr} 23:59:59`);
+        }
+        if (slug && slug !== "all") {
+            parametros.push(slug);
+        }
+        // Consultamos picks resueltos del mes filtrado por grupo, con estricto orden cronológico.
         const [filas] = await pool.query(`SELECT
          p.status,
          p.stake,
@@ -690,6 +714,7 @@ router.get("/monthly-group", async (req, res) => {
        LEFT JOIN pick_types pt ON p.pick_type_id = pt.id
        WHERE p.status IN ('won', 'lost', 'void', 'half-won', 'half-lost')
          AND DATE_FORMAT(p.match_date, '%Y-%m') = ?
+         ${limiteSql}
          ${condicionSlug}`, parametros);
         // Calculamos profit y stake total acumulados.
         let totalProfit = 0;
@@ -727,7 +752,9 @@ router.get("/monthly-group", async (req, res) => {
             ? Number(((totalProfit / totalStaked) * 100).toFixed(2))
             : 0;
         // Construimos la etiqueta legible del mes en español.
-        const fecha = new Date(targetYear, targetMonth - 1, 1);
+        // Usamos el día 15 para evitar que el desfase de zona horaria (UTC vs America/Bogota)
+        // desplace la fecha al mes anterior si el servidor evalúa esto cerca de la medianoche.
+        const fecha = new Date(targetYear, targetMonth - 1, 15);
         const mesLabel = fecha.toLocaleDateString("es-CO", {
             month: "long",
             year: "numeric",

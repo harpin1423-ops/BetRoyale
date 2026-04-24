@@ -662,7 +662,8 @@ router.get("/", async (_req, res) => {
              m.label  AS market_label, 
              m.acronym AS market_acronym,
              COALESCE(l.name, p.league) AS league_name,
-             c.flag   AS country_flag
+             c.flag   AS country_flag,
+             c.name   AS country_name
       FROM picks p 
       LEFT JOIN pick_types pt ON p.pick_type_id = pt.id 
       LEFT JOIN markets    m  ON p.pick = m.id
@@ -976,7 +977,32 @@ router.patch("/bulk/status", authenticateToken, requireAdmin, async (req, res) =
     try {
         // Construimos los placeholders dinámicamente para el IN clause
         const placeholders = pickIds.map(() => "?").join(",");
-        await pool.query(`UPDATE picks SET status = ? WHERE id IN (${placeholders})`, [status, ...pickIds]);
+        // Consultamos los picks para ver cuáles son parleys
+        const [rows] = await pool.query(`SELECT id, is_parlay, selections FROM picks WHERE id IN (${placeholders})`, pickIds);
+        // Actualizamos los picks, aplicando el nuevo estado a las selecciones si es un parlay
+        for (const row of rows) {
+            if (row.is_parlay) {
+                let selections = [];
+                try {
+                    selections = typeof row.selections === "string" ? JSON.parse(row.selections) : row.selections;
+                }
+                catch (e) {
+                    selections = [];
+                }
+                if (status !== "pending" && Array.isArray(selections)) {
+                    selections = selections.map((sel) => {
+                        if (!sel.status || sel.status === "pending") {
+                            return { ...sel, status: status };
+                        }
+                        return sel;
+                    });
+                }
+                await pool.query("UPDATE picks SET status = ?, selections = ? WHERE id = ?", [status, JSON.stringify(selections), row.id]);
+            }
+            else {
+                await pool.query("UPDATE picks SET status = ? WHERE id = ?", [status, row.id]);
+            }
+        }
         // Notificamos cada pick actualizado sin bloquear la respuesta si Telegram falla.
         for (const pickId of pickIds) {
             try {
@@ -1008,8 +1034,32 @@ router.patch("/:id/status", authenticateToken, requireAdmin, async (req, res) =>
         return res.status(400).json({ error: "Estado de pick no permitido" });
     }
     try {
-        // Actualizamos únicamente el estado del pick
-        await pool.query("UPDATE picks SET status = ? WHERE id = ?", [status, id]);
+        // Leemos el pick actual para saber si es un parlay y actualizar sus selecciones si es necesario.
+        const [rows] = await pool.query("SELECT is_parlay, selections FROM picks WHERE id = ?", [id]);
+        if (rows && rows.length > 0 && rows[0].is_parlay) {
+            let selections = [];
+            try {
+                selections = typeof rows[0].selections === "string" ? JSON.parse(rows[0].selections) : rows[0].selections;
+            }
+            catch (e) {
+                selections = [];
+            }
+            // Si el estado forzado no es 'pending', forzamos las selecciones pendientes al mismo estado 
+            // para que el cron no siga reabriendo el parlay.
+            if (status !== "pending" && Array.isArray(selections)) {
+                selections = selections.map((sel) => {
+                    if (!sel.status || sel.status === "pending") {
+                        return { ...sel, status: status };
+                    }
+                    return sel;
+                });
+            }
+            await pool.query("UPDATE picks SET status = ?, selections = ? WHERE id = ?", [status, JSON.stringify(selections), id]);
+        }
+        else {
+            // Pick simple
+            await pool.query("UPDATE picks SET status = ? WHERE id = ?", [status, id]);
+        }
         // Notificamos el cambio de resultado por Telegram
         try {
             // Enviamos el resultado con formato normal o parlay corto según corresponda.

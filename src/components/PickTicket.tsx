@@ -658,9 +658,13 @@ export function PickTicket({ pick }: { pick: PickData }) {
     const slug = pick.pick_type_slug || pick.pick_type || "";
     
     // Si no tenemos match_date, el backend usará el mes/día actual por defecto
-    const dateQuery = pick.match_date ? `&date=${encodeURIComponent(pick.match_date)}` : "";
+    const dateQuery = pick.match_date ? `date=${encodeURIComponent(pick.match_date)}` : "";
+    const idQuery = pick.id ? `pickId=${pick.id}` : "";
     
-    fetch(`/api/stats/monthly-group?slug=${encodeURIComponent(slug)}${dateQuery}`)
+    // Unimos los query params
+    const queryParams = [slug ? `slug=${encodeURIComponent(slug)}` : "", dateQuery, idQuery].filter(Boolean).join("&");
+    
+    fetch(`/api/stats/monthly-group?${queryParams}`)
       .then((r) => r.json())
       .then((data) => {
         if (!data.error) {

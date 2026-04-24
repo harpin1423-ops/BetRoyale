@@ -357,6 +357,19 @@ const EQUIPOS_INICIALES = [
         ]
     },
     {
+        // Eerste Divisie (Keuken Kampioen Divisie) - Segunda división de Países Bajos 2024/25
+        pais: "Países Bajos",
+        liga: "Eerste Divisie",
+        equipos: [
+            "ADO Den Haag", "Almere City", "De Graafschap", "Dordrecht", "Eindhoven",
+            "Emmen", "FC Den Bosch", "FC Eindhoven", "FC Groningen", "FC Oss",
+            "FC Volendam", "Helmond Sport", "Jong Ajax", "Jong AZ", "Jong Feyenoord",
+            "Jong PSV", "Jong Utrecht", "MVV Maastricht", "NAC Breda", "NEC Nijmegen",
+            "Roda JC", "Telstar", "TOP Oss", "VVV-Venlo", "Willem II",
+            "SC Cambuur", "Excelsior", "FC Dordrecht", "Sparta Rotterdam"
+        ]
+    },
+    {
         pais: "Portugal",
         liga: "Primeira Liga",
         equipos: [
