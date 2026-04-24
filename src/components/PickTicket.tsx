@@ -744,16 +744,16 @@ export function PickTicket({ pick }: { pick: PickData }) {
           boxShadow: `0 30px 120px ${theme.glow}`,
         }}
       >
-        {/* Listón de Estado (Ribbon) - Sobresale más para Ganados/Perdidos */}
+        {/* Listón de Estado (Ribbon) - Posicionado en la esquina superior derecha sin tapar el badge del plan */}
         {isResolved && (
           <div
             style={{
               position: "absolute",
-              top: 18,
-              right: -65,
-              width: 230,
-              height: 38,
-              background: status.background.replace("0.14", "0.95").replace("0.16", "0.95"), // Forzamos fondo más opaco para el ribbon
+              top: 10,
+              right: -88,
+              width: 240,
+              height: 36,
+              background: status.background.replace("0.14", "0.95").replace("0.16", "0.95"),
               borderTop: `2px solid ${status.border}`,
               borderBottom: `2px solid ${status.border}`,
               boxShadow: `0 10px 40px ${status.color}55`,
@@ -855,7 +855,7 @@ export function PickTicket({ pick }: { pick: PickData }) {
             </div>
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6, marginTop: 4, marginRight: isResolved ? 45 : 0 }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6, marginTop: 4, marginRight: isResolved ? 84 : 0 }}>
             <div
               style={{
                 padding: "7px 21px",
@@ -907,7 +907,7 @@ export function PickTicket({ pick }: { pick: PickData }) {
               display: "flex",
               flexDirection: "column",
               justifyContent: "space-between",
-              padding: "22px 24px 18px",
+              padding: "14px 20px 12px",
               background: `linear-gradient(180deg, ${theme.panel}, rgba(2, 6, 23, 0.82))`,
               borderRight: "1px solid rgba(255, 255, 255, 0.08)",
               overflow: "hidden",
@@ -945,28 +945,28 @@ export function PickTicket({ pick }: { pick: PickData }) {
               </div>
               <div
                 style={{
-                  marginTop: 16,
+                  marginTop: 10,
                   height: 1,
                   width: "100%",
                   background: `linear-gradient(90deg, ${theme.line}, transparent)`,
                 }}
               />
-              <div style={{ marginTop: 18 }}>
-                <div style={{ fontSize: 15, fontWeight: 950, letterSpacing: "0.24em", color: "#64748b", textTransform: "uppercase" }}>
+              <div style={{ marginTop: 12 }}>
+                <div style={{ fontSize: 13, fontWeight: 950, letterSpacing: "0.24em", color: "#64748b", textTransform: "uppercase" }}>
                   Stake
                 </div>
-                <div style={{ marginTop: 6, fontSize: 32, fontWeight: 950, color: "#f8fafc" }}>
+                <div style={{ marginTop: 4, fontSize: 28, fontWeight: 950, color: "#f8fafc" }}>
                   {parseNumber(pick.stake).toFixed(parseNumber(pick.stake) % 1 === 0 ? 0 : 1)}u
                 </div>
               </div>
-              <div style={{ marginTop: 16 }}>
-                <div style={{ fontSize: 15, fontWeight: 950, letterSpacing: "0.24em", color: "#64748b", textTransform: "uppercase" }}>
+              <div style={{ marginTop: 10 }}>
+                <div style={{ fontSize: 13, fontWeight: 950, letterSpacing: "0.24em", color: "#64748b", textTransform: "uppercase" }}>
                   Cuota Total
                 </div>
                 <div
                   style={{
-                    marginTop: 8,
-                    fontSize: 60,
+                    marginTop: 4,
+                    fontSize: 48,
                     fontWeight: 950,
                     lineHeight: 0.95,
                     color: theme.accent,
@@ -979,20 +979,20 @@ export function PickTicket({ pick }: { pick: PickData }) {
               {isResolved && (
                 <div
                   style={{
-                    marginTop: 12,
-                    padding: "10px 12px",
-                    borderRadius: 15,
+                    marginTop: 8,
+                    padding: "8px 10px",
+                    borderRadius: 12,
                     border: "1px solid rgba(255, 255, 255, 0.10)",
                     background: "rgba(255, 255, 255, 0.045)",
                   }}
                 >
-                  <div style={{ fontSize: 14, fontWeight: 950, letterSpacing: "0.24em", color: "#64748b", textTransform: "uppercase" }}>
+                  <div style={{ fontSize: 11, fontWeight: 950, letterSpacing: "0.20em", color: "#64748b", textTransform: "uppercase" }}>
                     Profit
                   </div>
                   <div
                     style={{
-                      marginTop: 4,
-                      fontSize: 30,
+                      marginTop: 2,
+                      fontSize: 26,
                       fontWeight: 950,
                       color: profitUnits >= 0 ? "#34d399" : "#fb7185",
                     }}
@@ -1060,10 +1060,10 @@ export function PickTicket({ pick }: { pick: PickData }) {
               )}
             </div>
 
-            <div style={{ borderTop: "1px solid rgba(255, 255, 255, 0.08)", paddingTop: 12 }}>
-              <div style={{ fontSize: 11, fontWeight: 800, color: "#94a3b8" }}>Únete a BetRoyale Club</div>
-              <div style={{ marginTop: 5, fontSize: 17, fontWeight: 950, color: theme.accent }}>betroyaleclub.com</div>
-              <div style={{ marginTop: 4, fontSize: 10, fontStyle: "italic", lineHeight: 1.35, color: "#64748b" }}>
+            <div style={{ borderTop: "1px solid rgba(255, 255, 255, 0.08)", paddingTop: 8 }}>
+              <div style={{ fontSize: 10, fontWeight: 800, color: "#94a3b8" }}>Únete a BetRoyale Club</div>
+              <div style={{ marginTop: 3, fontSize: 15, fontWeight: 950, color: theme.accent }}>betroyaleclub.com</div>
+              <div style={{ marginTop: 2, fontSize: 9, fontStyle: "italic", lineHeight: 1.3, color: "#64748b" }}>
                 Análisis, disciplina y gestión de banca.
               </div>
             </div>
@@ -1127,7 +1127,7 @@ export function PickTicket({ pick }: { pick: PickData }) {
                 )}
               </article>
             ) : (
-              <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", justifyContent: "center", gap: compactParlay ? 4 : 7, paddingBottom: 2 }}>
+              <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", gap: compactParlay ? 4 : 7, overflow: "hidden" }}>
                 {selections.map((selection, index) => {
                   // Calculamos si hay marcador completo para mostrarlo solo en resueltos.
                   const hasScore = selection.score_home !== null && selection.score_home !== undefined && selection.score_away !== null && selection.score_away !== undefined;
