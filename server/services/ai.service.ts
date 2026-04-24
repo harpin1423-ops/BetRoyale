@@ -11,7 +11,7 @@ import { env } from "../config/env.js";
 
 // ─── Tipos ──────────────────────────────────────────────────────────────────
 
-export type AIProvider = "gemini" | "groq" | "openai" | "auto";
+export type AIProvider = "gemini" | "groq" | "openai" | "deepseek" | "auto";
 
 export interface PickAnalysisInput {
   match_name: string;
@@ -32,14 +32,16 @@ export interface PickAnalysisResult {
 
 // ─── Lista de proveedores disponibles ────────────────────────────────────────
 // El orden define la prioridad de fallback automático
-const PROVIDER_ORDER: AIProvider[] = ["gemini", "groq", "openai"];
+// Gemini → Groq → DeepSeek → OpenAI
+const PROVIDER_ORDER: AIProvider[] = ["gemini", "groq", "deepseek", "openai"];
 
 /** Devuelve true si el proveedor tiene API key configurada */
 function isProviderAvailable(provider: AIProvider): boolean {
   switch (provider) {
-    case "gemini": return Boolean(env.GEMINI_API_KEY);
-    case "groq":   return Boolean(env.GROQ_API_KEY);
-    case "openai": return Boolean(env.OPENAI_API_KEY);
+    case "gemini":   return Boolean(env.GEMINI_API_KEY);
+    case "groq":     return Boolean(env.GROQ_API_KEY);
+    case "deepseek": return Boolean(env.DEEPSEEK_API_KEY);
+    case "openai":   return Boolean(env.OPENAI_API_KEY);
     default: return false;
   }
 }
@@ -47,9 +49,10 @@ function isProviderAvailable(provider: AIProvider): boolean {
 /** Devuelve el nombre legible del proveedor para toasts/logs */
 export function getProviderLabel(provider: AIProvider): string {
   switch (provider) {
-    case "gemini": return "Google Gemini";
-    case "groq":   return "Groq (Llama 3)";
-    case "openai": return "OpenAI (GPT-4o-mini)";
+    case "gemini":   return "Google Gemini";
+    case "groq":     return "Groq (Llama 3)";
+    case "deepseek": return "DeepSeek V3";
+    case "openai":   return "OpenAI (GPT-4o-mini)";
     default: return "IA";
   }
 }
@@ -119,6 +122,23 @@ async function generateWithGroq(prompt: string): Promise<string> {
   return response.choices[0]?.message?.content?.trim() || "";
 }
 
+/** Genera análisis usando DeepSeek (API compatible con OpenAI, calidad GPT-4) */
+async function generateWithDeepSeek(prompt: string): Promise<string> {
+  const deepseek = new OpenAI({
+    apiKey: env.DEEPSEEK_API_KEY,
+    baseURL: "https://api.deepseek.com/v1",
+  });
+
+  const response = await deepseek.chat.completions.create({
+    model: "deepseek-chat",
+    messages: [{ role: "user", content: prompt }],
+    max_tokens: 150,
+    temperature: 0.7,
+  });
+
+  return response.choices[0]?.message?.content?.trim() || "";
+}
+
 /** Genera análisis usando OpenAI GPT-4o-mini */
 async function generateWithOpenAI(prompt: string): Promise<string> {
   const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY });
@@ -136,9 +156,10 @@ async function generateWithOpenAI(prompt: string): Promise<string> {
 /** Ejecuta el generador del proveedor indicado */
 async function callProvider(provider: AIProvider, prompt: string): Promise<string> {
   switch (provider) {
-    case "gemini": return generateWithGemini(prompt);
-    case "groq":   return generateWithGroq(prompt);
-    case "openai": return generateWithOpenAI(prompt);
+    case "gemini":   return generateWithGemini(prompt);
+    case "groq":     return generateWithGroq(prompt);
+    case "deepseek": return generateWithDeepSeek(prompt);
+    case "openai":   return generateWithOpenAI(prompt);
     default: throw new Error(`Proveedor desconocido: ${provider}`);
   }
 }

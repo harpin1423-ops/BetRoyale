@@ -105,6 +105,10 @@ export const env = {
   // ─── OpenAI (fallback premium) ─────────────────────────────────────────
   /** API Key para OpenAI (GPT-4o-mini). Solo si se configura */
   OPENAI_API_KEY: process.env.OPENAI_API_KEY || "",
+
+  // ─── DeepSeek AI (China, calidad GPT-4) ──────────────────────────────
+  /** API Key para DeepSeek (deepseek-chat). $5 créditos gratis al registrarse */
+  DEEPSEEK_API_KEY: process.env.DEEPSEEK_API_KEY || "",
 } as const;
 
 // ─── Validación de variables críticas ───────────────────────────────────────

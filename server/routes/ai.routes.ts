@@ -17,10 +17,11 @@ const router = Router();
  */
 router.get("/providers", authenticateToken, requireAdmin, (_req, res) => {
   const providers = [
-    { id: "auto",   label: "Automático (mejor disponible)", available: true },
-    { id: "gemini", label: "Google Gemini",                 available: Boolean(env.GEMINI_API_KEY) },
-    { id: "groq",   label: "Groq (Llama 3) — Gratis",      available: Boolean(env.GROQ_API_KEY) },
-    { id: "openai", label: "OpenAI (GPT-4o-mini)",          available: Boolean(env.OPENAI_API_KEY) },
+    { id: "auto",     label: "Automático (mejor disponible)",       available: true },
+    { id: "gemini",   label: "Google Gemini",                         available: Boolean(env.GEMINI_API_KEY) },
+    { id: "groq",     label: "Groq (Llama 3) — Gratis",             available: Boolean(env.GROQ_API_KEY) },
+    { id: "deepseek", label: "DeepSeek V3 — Gratis ($5 créditos)",  available: Boolean(env.DEEPSEEK_API_KEY) },
+    { id: "openai",   label: "OpenAI (GPT-4o-mini)",                  available: Boolean(env.OPENAI_API_KEY) },
   ];
   res.json({ providers });
 });

@@ -504,7 +504,7 @@ export function AdminDashboard() {
   const [isSubmittingPick, setIsSubmittingPick] = useState(false);
   const [isGeneratingAnalysis, setIsGeneratingAnalysis] = useState(false);
   // Proveedor de IA seleccionado por el admin (auto = mejor disponible automáticamente)
-  const [aiProvider, setAiProvider] = useState<"auto" | "gemini" | "groq" | "openai">("auto");
+  const [aiProvider, setAiProvider] = useState<"auto" | "gemini" | "groq" | "deepseek" | "openai">("auto");
   // Proveedor que respondió en la última generación, para mostrarlo al usuario
   const [lastUsedProvider, setLastUsedProvider] = useState<string>("");
   const [isSubmittingTracking, setIsSubmittingTracking] = useState(false);
@@ -3726,6 +3726,7 @@ export function AdminDashboard() {
                         <option value="auto">🤖 Auto (mejor disponible)</option>
                         <option value="gemini">✦ Google Gemini</option>
                         <option value="groq">⚡ Groq (Llama 3) — Gratis</option>
+                        <option value="deepseek">🇨🇳 DeepSeek V3 — Gratis</option>
                         <option value="openai">◆ OpenAI GPT-4o-mini</option>
                       </select>
                       {/* Botón de generación */}
