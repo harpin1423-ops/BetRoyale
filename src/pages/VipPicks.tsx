@@ -698,7 +698,7 @@ export function VipPicks() {
                           
                           {Boolean(pick.is_parlay) && pick.selections && (
                             <div className="mb-4 space-y-2">
-                              {pick.selections.slice(0, 3).map((sel: any, idx: number) => (
+                              {pick.selections.slice(0, 4).map((sel: any, idx: number) => (
                                 <div key={idx} className="text-[10px] text-muted-foreground border-l border-white/10 pl-2">
                                   <span className="font-bold text-primary/70">{sel.match_name}</span> - {sel.market_label || sel.pick}
                                 </div>

@@ -3904,21 +3904,27 @@ export function AdminDashboard() {
                                     </div>
                                   )}
                                   {Boolean(pick.is_parlay) && pick.selections && (
-                                    <div className="mt-2 space-y-1">
+                                    <div className="mt-2 space-y-1.5">
                                       {pick.selections.map((sel: any, idx: number) => (
-                                        <div key={idx} className="text-[10px] text-muted-foreground border-l border-white/10 pl-2">
-                                          <div className="flex items-start justify-between gap-1">
-                                            <span className="font-bold text-primary/70 leading-tight">{sel.match_name}</span>
-                                            {hasResultProviderLink(sel) && (
-                                              <span className="ml-2 shrink-0 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-1.5 py-0.5 text-[8px] font-black text-emerald-400">
-                                                API
-                                              </span>
-                                            )}
+                                        <div key={idx} className="text-[10px] text-muted-foreground border-l border-white/10 pl-2 py-0.5">
+                                          <div className="grid grid-cols-[1fr_auto] gap-x-4 items-start">
+                                            <div className="flex flex-col">
+                                              <span className="font-bold text-primary/80 leading-tight break-words">{sel.match_name}</span>
+                                              <div className="flex items-center gap-1.5 mt-0.5 opacity-70">
+                                                {sel.country_flag && <CountryFlag code={sel.country_flag} />}
+                                                <span className="text-[9px] uppercase font-medium">
+                                                  {sel.country_name ? `${sel.country_name} · ` : ""}{sel.league_name || sel.league}
+                                                </span>
+                                              </div>
+                                            </div>
+                                            <div className="text-right whitespace-nowrap">
+                                              <div className="font-bold text-foreground">@{Number(sel.odds).toFixed(2)}</div>
+                                              <div className="text-[9px] opacity-50">{new Date(sel.match_time).toLocaleString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                                            </div>
                                           </div>
-                                          <div className="flex items-center gap-1 opacity-60">
-                                            <span className="text-[9px]">{new Date(sel.match_time).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
-                                            <span className="mx-1 opacity-50">|</span>
-                                            {sel.market_label || sel.pick} ({sel.odds})
+                                          <div className="mt-1 flex items-center gap-1.5 font-medium text-white/90">
+                                            <span className="px-1 py-0.5 rounded bg-white/5 text-[8px] uppercase tracking-wider">{sel.market_acronym || "PICK"}</span>
+                                            {sel.market_label || sel.pick}
                                           </div>
                                         </div>
                                       ))}
@@ -3974,7 +3980,7 @@ export function AdminDashboard() {
                                 <td className="p-3 align-top text-center font-black text-foreground">{pick.odds}</td>
                                 {/* Plan tiene ancho y badge nowrap para que VIP Cuota 4+ no salte de linea. */}
                                 <td className="p-3 align-top">
-                                  <span title={(pick.pick_type_name || pick.pick_type || 'FREE').toUpperCase()} className={`inline-flex max-w-full whitespace-nowrap overflow-hidden text-ellipsis px-2 py-1 rounded text-[10px] font-bold ${pick.pick_type_slug === 'free' ? 'bg-primary/20 text-primary' : 'bg-accent/20 text-accent'}`}>
+                                  <span title={(pick.pick_type_name || pick.pick_type || 'FREE').toUpperCase()} className={`inline-flex max-w-full whitespace-nowrap overflow-hidden text-ellipsis px-2.5 py-1.5 rounded text-xs font-black tracking-tight ${pick.pick_type_slug === 'free' ? 'bg-primary/20 text-primary' : 'bg-accent/20 text-accent'}`}>
                                     {(pick.pick_type_name || pick.pick_type || 'FREE').toUpperCase()}
                                   </span>
                                 </td>
