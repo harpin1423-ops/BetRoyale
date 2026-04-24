@@ -723,9 +723,14 @@ export function Stats() {
                                   <span className="font-semibold text-sm break-words min-w-0">
                                     {Boolean(pick.is_parlay) ? parlayTitle : pick.match_name}
                                   </span>
-                                  {!Boolean(pick.is_parlay) && pick.score_home !== undefined && pick.score_home !== null && (
-                                    <span className="bg-primary/20 text-primary px-1.5 py-0.5 rounded text-[10px] font-black">
-                                       {pick.score_home} - {pick.score_away}
+                                  {/* Mostramos marcador final en picks individuales cuando ya existe resultado persistido. */}
+                                  {!Boolean(pick.is_parlay) && pick.score_home !== undefined && pick.score_home !== null && pick.score_away !== undefined && pick.score_away !== null && (
+                                    /* Unimos icono de estado y marcador para que el resultado sea visible sin depender solo del badge lateral. */
+                                    <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-black border ${cfg.bg} ${cfg.border} ${cfg.color}`}>
+                                      {/* Reutilizamos el icono del estado resuelto para reforzar si ganó o perdió. */}
+                                      {cfg.icon}
+                                      {/* Imprimimos el marcador final completo del partido. */}
+                                      <span>{pick.score_home} - {pick.score_away}</span>
                                     </span>
                                   )}
                                   {/* Estado en móvil */}

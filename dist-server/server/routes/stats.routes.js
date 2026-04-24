@@ -519,7 +519,9 @@ router.get("/historical-picks", async (req, res) => {
         const whereSql = condiciones.join(" AND ");
         // Query principal con todos los datos necesarios para mostrar en la tabla
         const [picks] = await pool.query(`SELECT 
-         p.id, p.match_date, p.match_name, p.pick, p.odds, p.stake, 
+         /* Incluimos marcador para que el frontend pueda mostrar resultado final en stats. */
+         p.id, p.match_date, p.match_name, p.pick, p.odds, p.stake,
+         p.score_home, p.score_away,
          p.status, p.analysis, p.is_parlay, p.selections, p.pick_type_id,
          pt.name AS pick_type_name, pt.slug AS pick_type_slug,
          COALESCE(l.name, p.league) AS league_name,
