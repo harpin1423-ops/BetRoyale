@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import html2canvas from "html2canvas";
+import { CheckCircle2, XCircle, MinusCircle } from "lucide-react";
 
 // Tipamos cada selección interna de un parlay para generar tickets sociales claros.
 interface PickSelection {
@@ -28,6 +29,8 @@ interface PickSelection {
   score_home?: number | null;
   // Goles visitantes si el pick ya fue resuelto.
   score_away?: number | null;
+  // Estado individual de esta selección dentro del parlay.
+  status?: string;
 }
 
 // Tipamos el pick completo recibido desde el panel de administración.
@@ -919,7 +922,7 @@ export function PickTicket({ pick }: { pick: PickData }) {
             // Crece para llenar el espacio entre header y footer.
             flex: 1,
             display: "grid",
-            gridTemplateColumns: "228px 1fr",
+            gridTemplateColumns: "260px 1fr",
           }}
         >
           <aside
@@ -931,9 +934,9 @@ export function PickTicket({ pick }: { pick: PickData }) {
               background: `linear-gradient(180deg, ${theme.panel}, rgba(2, 6, 23, 0.82))`,
               borderRight: "1px solid rgba(255, 255, 255, 0.08)",
               overflow: "hidden",
-              maxWidth: 228,
-              minWidth: 228,
-              width: 228,
+              maxWidth: 260,
+              minWidth: 260,
+              width: 260,
               boxSizing: "border-box" as const,
             }}
           >
@@ -1125,8 +1128,13 @@ export function PickTicket({ pick }: { pick: PickData }) {
                   <TicketFlag code={pick.country_flag} size={20} />
                   <span>{getRegionLabel(pick)}</span>
                 </div>
-                <div style={{ marginTop: 19, fontSize: 32, lineHeight: 1.1, fontWeight: 950, color: "#f8fafc" }}>
-                  {pick.match_name}
+                <div style={{ marginTop: 19, display: "flex", alignItems: "center", gap: 12 }}>
+                  <div style={{ fontSize: 32, lineHeight: 1.1, fontWeight: 950, color: "#f8fafc" }}>
+                    {pick.match_name}
+                  </div>
+                  {isResolved && (pick.status === 'won' || pick.status === 'half-won') && <CheckCircle2 size={32} color="#34d399" />}
+                  {isResolved && (pick.status === 'lost' || pick.status === 'half-lost') && <XCircle size={32} color="#fb7185" />}
+                  {isResolved && pick.status === 'void' && <MinusCircle size={32} color="#fbbf24" />}
                 </div>
                 <div style={{ marginTop: 16, fontSize: 14, fontWeight: 800, color: "#94a3b8" }}>
                   {formatTime(pick.match_date)} COL · GMT-5
@@ -1187,8 +1195,13 @@ export function PickTicket({ pick }: { pick: PickData }) {
                           <TicketFlag code={selection.country_flag} size={compactParlay ? 15 : 17} />
                           <span>{regionLabel || "Liga"}</span>
                         </div>
-                        <div style={{ marginTop: compactParlay ? 3 : 6, fontSize: compactParlay ? 18 : 21, lineHeight: 1.08, fontWeight: 950, color: "#f8fafc" }}>
-                          {selection.match_name}
+                        <div style={{ marginTop: compactParlay ? 3 : 6, display: "flex", alignItems: "center", gap: 8 }}>
+                          <div style={{ fontSize: compactParlay ? 18 : 21, lineHeight: 1.08, fontWeight: 950, color: "#f8fafc" }}>
+                            {selection.match_name}
+                          </div>
+                          {isResolved && selection.status && (selection.status === 'won' || selection.status === 'half-won') && <CheckCircle2 size={compactParlay ? 18 : 21} color="#34d399" />}
+                          {isResolved && selection.status && (selection.status === 'lost' || selection.status === 'half-lost') && <XCircle size={compactParlay ? 18 : 21} color="#fb7185" />}
+                          {isResolved && selection.status === 'void' && <MinusCircle size={compactParlay ? 18 : 21} color="#fbbf24" />}
                         </div>
                         
                         <div style={{ marginTop: "auto", paddingTop: compactParlay ? 6 : 9, display: "grid", gridTemplateColumns: "90px 1fr", alignItems: "baseline" }}>

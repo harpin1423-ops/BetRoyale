@@ -721,6 +721,8 @@ router.get("/monthly-group", async (req, res) => {
         let totalStaked = 0;
         let totalPicks = 0;
         let ganados = 0;
+        let perdidos = 0;
+        let nulos = 0;
         filas.forEach((pick) => {
             const stake = Number(pick.stake) || 0;
             const odds = Number(pick.odds) || 1;
@@ -733,6 +735,7 @@ router.get("/monthly-group", async (req, res) => {
             else if (pick.status === "lost") {
                 totalProfit -= stake;
                 totalStaked += stake;
+                perdidos++;
                 totalPicks++;
             }
             else if (pick.status === "half-won") {
@@ -744,6 +747,11 @@ router.get("/monthly-group", async (req, res) => {
             else if (pick.status === "half-lost") {
                 totalProfit -= stake / 2;
                 totalStaked += stake;
+                perdidos++;
+                totalPicks++;
+            }
+            else if (pick.status === "void") {
+                nulos++;
                 totalPicks++;
             }
         });
@@ -766,6 +774,8 @@ router.get("/monthly-group", async (req, res) => {
             mesLabel,
             totalPicks,
             ganados,
+            perdidos,
+            nulos,
             profit: Number(totalProfit.toFixed(2)),
             yield: yieldPct,
             totalStaked: Number(totalStaked.toFixed(2)),
