@@ -358,8 +358,20 @@ async function searchProviderTeams(teamName: string): Promise<any[]> {
   // Evitamos gastar consultas con textos demasiado cortos.
   if (!teamName || teamName.trim().length < 2) return [];
 
-  // Consultamos el endpoint oficial de equipos.
-  const data = await apiFootballFetch("teams", { search: teamName.trim() });
+  // 1. Sanitizamos el nombre según las reglas estrictas de API-Football (solo alfanuméricos y espacios).
+  // Removemos acentos, símbolos y caracteres especiales que causan error 400 en el proveedor.
+  const sanitizedSearch = teamName
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // Quitamos diacríticos (acentos)
+    .replace(/[^a-zA-Z0-9\s]/g, " ") // Reemplazamos cualquier símbolo por un espacio
+    .replace(/\s+/g, " ")            // Colapsamos espacios múltiples
+    .trim();
+
+  // 2. Validamos que después de limpiar quede un texto útil (la API suele pedir min 3 caracteres).
+  if (sanitizedSearch.length < 3) return [];
+
+  // 3. Consultamos el endpoint oficial de equipos con el nombre ya limpio.
+  const data = await apiFootballFetch("teams", { search: sanitizedSearch });
 
   // Normalizamos la respuesta como arreglo.
   return Array.isArray(data?.response) ? data.response : [];
