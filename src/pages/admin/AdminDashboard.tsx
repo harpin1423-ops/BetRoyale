@@ -5485,17 +5485,34 @@ export function AdminDashboard() {
                                     key={`${candidate.provider_name}-${suggestionIndex}`}
                                     type="button"
                                     onClick={() => handleApplySuggestedTeamAlias(candidate)}
-                                    className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-left hover:border-primary hover:bg-primary/10 transition-all"
+                                    className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-left hover:border-primary hover:bg-primary/10 transition-all group"
                                   >
-                                    <div className="min-w-0">
-                                      <div className="text-sm font-bold text-white truncate">{candidate.provider_name}</div>
-                                      <div className="text-[11px] text-muted-foreground truncate">
-                                        {candidate.country_name || "Sin país"} {candidate.code ? `· ${candidate.code}` : ""} {candidate.provider_id ? `· ID ${candidate.provider_id}` : ""}
+                                    <div className="flex items-center gap-3 min-w-0">
+                                      {candidate.logo && (
+                                        <div className="w-10 h-10 rounded-lg bg-white/5 p-1.5 flex-shrink-0 border border-white/5">
+                                          <img src={candidate.logo} alt="Logo" className="w-full h-full object-contain" />
+                                        </div>
+                                      )}
+                                      <div className="min-w-0">
+                                        <div className="text-sm font-bold text-white truncate group-hover:text-primary transition-colors">{candidate.provider_name}</div>
+                                        <div className="flex flex-wrap gap-x-2 gap-y-0.5 mt-0.5">
+                                          <span className="text-[10px] text-muted-foreground uppercase font-medium">{candidate.country_name || "Sin país"}</span>
+                                          <span className="text-[10px] text-primary/60 font-bold uppercase tracking-tighter">·</span>
+                                          <span className="text-[10px] text-emerald-400/80 font-bold uppercase truncate max-w-[150px]">{candidate.league_name}</span>
+                                          {candidate.provider_id && (
+                                            <>
+                                              <span className="text-[10px] text-primary/60 font-bold uppercase tracking-tighter">·</span>
+                                              <span className="text-[10px] text-amber-400/70 font-mono">ID {candidate.provider_id}</span>
+                                            </>
+                                          )}
+                                        </div>
                                       </div>
                                     </div>
-                                    <span className="rounded-lg border border-primary/20 bg-primary/10 px-2 py-1 text-[10px] font-black uppercase tracking-widest text-primary">
-                                      Usar
-                                    </span>
+                                    <div className="flex-shrink-0">
+                                      <span className="rounded-lg border border-primary/20 bg-primary/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-all">
+                                        Vincular
+                                      </span>
+                                    </div>
                                   </button>
                                 ))}
                               </div>
