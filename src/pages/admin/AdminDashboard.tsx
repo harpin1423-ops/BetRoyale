@@ -1771,53 +1771,77 @@ export function AdminDashboard() {
       ? `${fixture.homeTeamName} vs ${fixture.awayTeamName}`
       : fixture.name || "";
 
+    /**
+     * @summary Compara dos nombres de forma flexible (exacta, inclusión o tokens compartidos).
+     */
+    const isFlexibleMatch = (a: string, b: string) => {
+      const nA = normalizeForMatch(a);
+      const nB = normalizeForMatch(b);
+      if (!nA || !nB) return false;
+      if (nA === nB) return true;
+      if (nA.includes(nB) || nB.includes(nA)) return true;
+      
+      // Si son nombres largos, probamos por palabras clave (tokens > 3 letras)
+      const tokensA = nA.split(/\s+/).filter(t => t.length > 3);
+      const tokensB = nB.split(/\s+/).filter(t => t.length > 3);
+      if (tokensA.length > 0 && tokensB.length > 0) {
+        return tokensA.some(t => tokensB.includes(t));
+      }
+      return false;
+    };
+
     const apiCountryRaw = (fixture.country || "").toLowerCase().trim();
     const apiCountryNormalized = normalizeForMatch(apiCountryRaw);
 
-    // Buscamos el country_id en BD local usando traducción y normalización.
+    // 1. Resolver País
     const matchedCountry = countries.find((c: any) => {
       const dbNameRaw = c.name.toLowerCase().trim();
-      const dbNameNormalized = normalizeForMatch(dbNameRaw);
-      
       return dbNameRaw === apiCountryRaw || 
-             dbNameNormalized === apiCountryNormalized ||
+             normalizeForMatch(dbNameRaw) === apiCountryNormalized ||
              COUNTRY_TRANSLATIONS[apiCountryRaw] === dbNameRaw ||
-             normalizeForMatch(COUNTRY_TRANSLATIONS[apiCountryRaw] || "") === dbNameNormalized;
+             normalizeForMatch(COUNTRY_TRANSLATIONS[apiCountryRaw] || "") === normalizeForMatch(dbNameRaw);
     });
     const resolvedCountryId = matchedCountry?.id?.toString() || "";
 
-    const apiLeagueNormalized = normalizeForMatch(fixture.league || "");
-
-    // Buscamos el league_id en BD local usando el nombre de liga que viene de la API.
+    // 2. Resolver Liga (priorizando el país encontrado)
+    const apiLeagueName = fixture.league || "";
     const matchedLeague = leagues.find((l: any) => {
-      const dbLeagueNormalized = normalizeForMatch(l.name);
       const isCorrectCountry = !resolvedCountryId || l.country_id?.toString() === resolvedCountryId;
-      
-      return isCorrectCountry && (dbLeagueNormalized === apiLeagueNormalized || l.name.toLowerCase().includes(fixture.league?.toLowerCase()));
+      return isCorrectCountry && isFlexibleMatch(l.name, apiLeagueName);
     });
     const resolvedLeagueId = matchedLeague?.id?.toString() || "";
 
-    const apiHomeTeamNormalized = normalizeForMatch(fixture.homeTeamName || "");
-    const apiAwayTeamNormalized = normalizeForMatch(fixture.awayTeamName || "");
+    // 3. Resolver Equipos (Buscamos globalmente pero priorizando coincidencias fuertes)
+    const apiHomeName = fixture.homeTeamName || "";
+    const apiAwayName = fixture.awayTeamName || "";
 
-    // Buscamos el home_team_id en BD local usando el ID de API-Football o el nombre normalizado como respaldo.
-    const matchedHomeTeam = teams.find((t: any) => {
-      const matchesId = t.api_team_id?.toString() === fixture.homeTeamId?.toString();
-      const dbNameNormalized = normalizeForMatch(t.name);
-      const dbProviderNameNormalized = normalizeForMatch(t.api_provider_name || "");
-      
-      return matchesId || dbNameNormalized === apiHomeTeamNormalized || dbProviderNameNormalized === apiHomeTeamNormalized;
-    });
+    const findBestTeamMatch = (apiName: string, apiId: any) => {
+      // Primero intentamos por ID oficial si existe en BD
+      if (apiId) {
+        const byId = teams.find(t => t.api_team_id?.toString() === apiId.toString());
+        if (byId) return byId;
+      }
+
+      // Luego intentamos coincidencia exacta normalizada
+      const exactMatch = teams.find(t => 
+        normalizeForMatch(t.name) === normalizeForMatch(apiName) || 
+        normalizeForMatch(t.api_provider_name || "") === normalizeForMatch(apiName)
+      );
+      if (exactMatch) return exactMatch;
+
+      // Finalmente coincidencia flexible (por tokens o inclusión)
+      // Filtramos por liga si la tenemos para reducir ruido
+      return teams.find(t => {
+        const matchesName = isFlexibleMatch(t.name, apiName) || isFlexibleMatch(t.api_provider_name || "", apiName);
+        const matchesLeague = !resolvedLeagueId || t.league_id?.toString() === resolvedLeagueId;
+        return matchesName && matchesLeague;
+      }) || teams.find(t => isFlexibleMatch(t.name, apiName) || isFlexibleMatch(t.api_provider_name || "", apiName));
+    };
+
+    const matchedHomeTeam = findBestTeamMatch(apiHomeName, fixture.homeTeamId);
+    const matchedAwayTeam = findBestTeamMatch(apiAwayName, fixture.awayTeamId);
+
     const resolvedHomeTeamId = matchedHomeTeam?.id?.toString() || "";
-
-    // Buscamos el away_team_id en BD local usando el ID de API-Football o el nombre normalizado como respaldo.
-    const matchedAwayTeam = teams.find((t: any) => {
-      const matchesId = t.api_team_id?.toString() === fixture.awayTeamId?.toString();
-      const dbNameNormalized = normalizeForMatch(t.name);
-      const dbProviderNameNormalized = normalizeForMatch(t.api_provider_name || "");
-      
-      return matchesId || dbNameNormalized === apiAwayTeamNormalized || dbProviderNameNormalized === apiAwayTeamNormalized;
-    });
     const resolvedAwayTeamId = matchedAwayTeam?.id?.toString() || "";
 
     // Si existe una selección activa, vinculamos ese fixture dentro del parlay.
