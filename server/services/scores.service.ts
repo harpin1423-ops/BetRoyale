@@ -455,53 +455,61 @@ function getProviderCandidateScore(expectedName: string, providerName: string): 
  * @returns Lista corta de candidatos con nombre técnico y metadatos básicos.
  */
 export async function searchProviderTeamCandidates(teamName: string): Promise<any[]> {
-  // Consultamos el proveedor con el nombre visible o alias parcial digitado por el admin.
-  const rawCandidates = await searchProviderTeams(teamName);
+  try {
+    // 1. Buscamos los equipos por nombre.
+    const rawCandidates = await searchProviderTeams(teamName);
 
-  // Procesamos los candidatos para enriquecerlos con datos de su liga actual.
-  // Usamos Promise.all para realizar las consultas de ligas en paralelo y ganar velocidad.
-  const normalizedCandidates = await Promise.all(
-    rawCandidates.slice(0, 8).map(async (candidate: any) => {
+    if (!rawCandidates || rawCandidates.length === 0) return [];
+
+    const normalizedCandidates: any[] = [];
+
+    // 2. Procesamos secuencialmente (máximo 5) para no saturar la API con peticiones concurrentes.
+    // Esto es crucial para usuarios con planes gratuitos o con límites de concurrencia estrictos.
+    for (const candidate of rawCandidates.slice(0, 5)) {
       const teamId = candidate?.team?.id;
       const providerName = String(candidate?.team?.name || "").trim();
       const countryName = String(candidate?.team?.country || "").trim();
 
-      // Intentamos obtener la liga principal actual donde juega este equipo.
       let leagueName = "Desconocida";
-      try {
-        if (teamId) {
-          // Buscamos ligas activas para este ID de equipo.
+
+      if (teamId) {
+        try {
+          // Consultamos la liga actual.
           const leaguesRes = await apiFootballFetch("leagues", { team: teamId, current: "true" });
           if (Array.isArray(leaguesRes?.response) && leaguesRes.response.length > 0) {
-            // Tomamos la primera liga devuelta como la principal.
             leagueName = leaguesRes.response[0].league?.name || "Desconocida";
           }
+        } catch (err: any) {
+          // Si falla la liga, no abortamos la búsqueda completa, solo marcamos como desconocida.
+          console.warn(`[SCORES] Error obteniendo liga para equipo ${teamId}: ${err.message}`);
         }
-      } catch (err) {
-        // Si falla la consulta de liga, mantenemos el valor por defecto.
-        console.warn(`[SCORES] No se pudo obtener liga para equipo ${teamId}`);
       }
 
-      // Calculamos puntaje interno de similitud para ordenamiento.
       const similarityScore = getProviderCandidateScore(teamName, providerName);
 
-      return {
+      normalizedCandidates.push({
         provider_id: teamId,
         provider_name: providerName,
         country_name: countryName,
-        league_name: leagueName, // <--- Nueva información solicitada por el usuario
+        league_name: leagueName,
         code: String(candidate?.team?.code || "").trim(),
         logo: String(candidate?.team?.logo || "").trim(),
         similarity_score: similarityScore,
-      };
-    })
-  );
+      });
 
-  // Devolvemos la lista filtrada y ordenada por relevancia.
-  return normalizedCandidates
-    .filter((candidate) => Boolean(candidate.provider_name))
-    .sort((a, b) => b.similarity_score - a.similarity_score || a.provider_name.localeCompare(b.provider_name))
-    .map(({ similarity_score, ...rest }) => rest);
+      // Pequeño respiro de 50ms para evitar spikes de tráfico.
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+
+    // 3. Devolvemos resultados ordenados.
+    return normalizedCandidates
+      .filter((candidate) => Boolean(candidate.provider_name))
+      .sort((a, b) => b.similarity_score - a.similarity_score || a.provider_name.localeCompare(b.provider_name));
+  } catch (error: any) {
+    console.error(`[SCORES] Error crítico buscando candidatos para "${teamName}":`, error.message);
+    // Propagamos el error para que la ruta lo capture con el mensaje original del proveedor.
+    throw error;
+  }
 }
 
 /**

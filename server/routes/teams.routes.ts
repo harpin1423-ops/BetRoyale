@@ -189,9 +189,10 @@ teamsRouter.get("/provider-alias-suggestions", authenticateToken, requireAdmin, 
 
     // Respondemos la lista para que el panel decida qué alias aplicar.
     return res.json({ candidates });
-  } catch (error) {
+  } catch (error: any) {
     console.error("[TEAMS] Error sugiriendo alias API-Football:", error);
-    return res.status(500).json({ error: "Error al buscar alias en API-Football" });
+    // Devolvemos el mensaje de error original para que el admin sepa qué pasó (ej: límite de cuota).
+    return res.status(500).json({ error: error.message || "Error al buscar alias en API-Football" });
   }
 });
 
