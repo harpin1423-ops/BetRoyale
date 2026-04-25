@@ -1466,6 +1466,33 @@ export function AdminDashboard() {
     checkApiData();
   }, []);
 
+  const [isSyncingTeams, setIsSyncingTeams] = useState(false);
+
+  const handleSyncTeams = async () => {
+    if (!window.confirm("¿Estás seguro de iniciar el barrido? Esto consumirá tokens de tu API y vinculará automáticamente equipos que no tengan ID. Puede tardar un par de minutos.")) {
+      return;
+    }
+    
+    setIsSyncingTeams(true);
+    try {
+      const res = await fetch("/api/teams/sync-all-api", {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success(data.message);
+        fetchTeams(); // Recargamos para ver los IDs vinculados
+      } else {
+        toast.error(data.error || "Error al sincronizar");
+      }
+    } catch (err) {
+      toast.error("Error conectando con el servidor");
+    } finally {
+      setIsSyncingTeams(false);
+    }
+  };
+
   /**
    * @summary Actualiza el formulario principal de picks y recalcula cuota total en parlays.
    * @param e - Evento de cambio de input, select o textarea del formulario.
@@ -5328,6 +5355,24 @@ export function AdminDashboard() {
                     <div className="bg-card border border-amber-500/20 rounded-xl px-4 py-3 text-amber-200">
                       <span className="font-bold text-amber-300">{filteredTeamsWithoutExactLinkCount}</span> sin vínculo exacto API
                     </div>
+                    <button
+                      type="button"
+                      onClick={handleSyncTeams}
+                      disabled={isSyncingTeams || filteredTeamsWithoutExactLinkCount === 0}
+                      className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-black uppercase tracking-wider px-5 py-3 rounded-xl transition-all shadow-lg shadow-amber-500/20 active:scale-95"
+                    >
+                      {isSyncingTeams ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Sincronizando...
+                        </>
+                      ) : (
+                        <>
+                          <Search className="w-4 h-4" />
+                          Realizar Barrido de Equipos
+                        </>
+                      )}
+                    </button>
                   </div>
                 </div>
 

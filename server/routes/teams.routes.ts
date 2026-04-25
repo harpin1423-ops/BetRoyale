@@ -340,3 +340,58 @@ teamsRouter.post("/bulk-delete", authenticateToken, requireAdmin, async (req, re
     return res.status(500).json({ error: "Error al eliminar equipos" });
   }
 });
+// ─── POST /api/teams/sync-all-api ───────────────────────────────────────────
+/** 
+ * Realiza un barrido masivo para vincular equipos locales con sus IDs oficiales de API-Football.
+ * Solo procesa equipos que aún no tienen api_team_id.
+ */
+teamsRouter.post("/sync-all-api", authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    // 1. Obtenemos los equipos que aún no tienen vínculo oficial.
+    const [teams]: any = await pool.query(
+      "SELECT id, name FROM teams WHERE api_team_id IS NULL"
+    );
+
+    if (teams.length === 0) {
+      return res.json({ message: "No hay equipos pendientes de sincronización.", synced: 0 });
+    }
+
+    let syncedCount = 0;
+    
+    // 2. Procesamos secuencialmente para respetar los límites de la API externa.
+    for (const team of teams) {
+      try {
+        // Buscamos candidatos en el proveedor usando el nombre local.
+        const candidates = await searchProviderTeamCandidates(team.name);
+        
+        if (candidates && candidates.length > 0) {
+          // Tomamos el mejor candidato (el primero devuelto por el buscador).
+          const best = candidates[0];
+          
+          // Actualizamos el equipo en BD con su identidad oficial.
+          await pool.query(
+            "UPDATE teams SET api_team_id = ?, api_provider_name = ?, api_name = ? WHERE id = ?",
+            [best.provider_id, best.provider_name, best.provider_name, team.id]
+          );
+          
+          syncedCount++;
+        }
+        
+        // Añadimos un pequeño delay de 150ms para evitar bloqueos por rate-limit del proveedor.
+        await new Promise(resolve => setTimeout(resolve, 150));
+      } catch (err) {
+        // Si un equipo falla, continuamos con el resto para no abortar todo el barrido.
+        console.error(`[TEAMS] Error sincronizando "${team.name}":`, err);
+      }
+    }
+
+    return res.json({ 
+      message: `Barrido completado exitosamente.`,
+      synced: syncedCount,
+      total_processed: teams.length
+    });
+  } catch (error) {
+    console.error("[TEAMS] Error crítico en barrido API:", error);
+    return res.status(500).json({ error: "Error durante el barrido masivo de equipos" });
+  }
+});
