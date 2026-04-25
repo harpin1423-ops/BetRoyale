@@ -1469,28 +1469,35 @@ export function AdminDashboard() {
   const [isSyncingTeams, setIsSyncingTeams] = useState(false);
 
   const handleSyncTeams = async () => {
-    if (!window.confirm("¿Estás seguro de iniciar el barrido? Esto consumirá tokens de tu API y vinculará automáticamente equipos que no tengan ID. Puede tardar un par de minutos.")) {
-      return;
-    }
-    
-    setIsSyncingTeams(true);
-    try {
-      const res = await fetch("/api/teams/sync-all-api", {
-        method: "POST",
-        headers: { "Authorization": `Bearer ${token}` }
-      });
-      const data = await res.json();
-      if (res.ok) {
-        toast.success(data.message);
-        fetchTeams(); // Recargamos para ver los IDs vinculados
-      } else {
-        toast.error(data.error || "Error al sincronizar");
+    setConfirmDialog({
+      isOpen: true,
+      title: "Confirmar Barrido de Equipos",
+      message: "Esta acción intentará vincular automáticamente todos los equipos que no tienen ID oficial de API-Football. Se consumirán tokens de tu cuota diaria de la API y el proceso puede tardar un par de minutos.",
+      confirmText: "Iniciar Barrido",
+      cancelText: "Cancelar",
+      variant: 'emerald',
+      onConfirm: async () => {
+        setConfirmDialog(null);
+        setIsSyncingTeams(true);
+        try {
+          const res = await fetch("/api/teams/sync-all-api", {
+            method: "POST",
+            headers: { "Authorization": `Bearer ${token}` }
+          });
+          const data = await res.json();
+          if (res.ok) {
+            toast.success(data.message);
+            fetchTeams(); // Recargamos para ver los IDs vinculados
+          } else {
+            toast.error(data.error || "Error al sincronizar");
+          }
+        } catch (err) {
+          toast.error("Error conectando con el servidor");
+        } finally {
+          setIsSyncingTeams(false);
+        }
       }
-    } catch (err) {
-      toast.error("Error conectando con el servidor");
-    } finally {
-      setIsSyncingTeams(false);
-    }
+    });
   };
 
   /**
