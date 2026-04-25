@@ -1861,6 +1861,36 @@ export function AdminDashboard() {
       // Cerramos el modo de búsqueda para esa selección.
       resetFixtureSearchState();
       return;
+    } else if (formData.is_parlay) {
+      // SI NO HAY SELECCIÓN ACTIVA EN PARLAY, AÑADIMOS UNA NUEVA AUTOMÁTICAMENTE.
+      // Esto permite al admin ir buscando y añadiendo partidos fluidamente.
+      const newSelection = {
+        country_id: resolvedCountryId,
+        league_id: resolvedLeagueId,
+        home_team: resolvedHomeTeamId,
+        away_team: resolvedAwayTeamId,
+        match_name: resolvedMatchName,
+        match_time: getFixtureDateTimeValue(fixture),
+        pick: "", 
+        odds: "", 
+        api_fixture_id: fixture.id,
+        thesportsdb_event_id: "",
+        score_home: null,
+        score_away: null
+      };
+
+      setFormData(prev => ({
+        ...prev,
+        selections: [...prev.selections, newSelection]
+      }));
+
+      // Confirmamos visualmente la nueva selección añadida.
+      const extraInfo = matchedLeague ? ` (• ${fixture.country} • ${fixture.league})` : "";
+      toast.success(`Nueva selección añadida: ${resolvedMatchName}${extraInfo}`);
+      
+      // Reseteamos el buscador para la siguiente selección.
+      resetFixtureSearchState();
+      return;
     }
 
     // Si es pick simple, guardamos el fixture en el formulario principal con todos sus datos.
