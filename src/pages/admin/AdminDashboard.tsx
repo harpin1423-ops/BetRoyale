@@ -1713,39 +1713,111 @@ export function AdminDashboard() {
    * @summary Aplica un fixture encontrado al pick simple o a la selección activa del parlay.
    * @param fixture - Resultado elegido desde el panel de búsqueda de API-Football.
    */
+  /**
+   * @summary Normaliza un string eliminando acentos y convirtiendo a minúsculas para comparaciones.
+   */
+  const normalizeForMatch = (str: string) => {
+    if (!str) return "";
+    return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  };
+
+  /**
+   * @summary Mapa de traducción de países comunes (API English -> DB Spanish).
+   */
+  const COUNTRY_TRANSLATIONS: Record<string, string> = {
+    "england": "inglaterra",
+    "spain": "españa",
+    "germany": "alemania",
+    "italy": "italia",
+    "france": "francia",
+    "netherlands": "países bajos",
+    "holland": "holanda",
+    "belgium": "bélgica",
+    "brazil": "brasil",
+    "usa": "estados unidos",
+    "united states": "estados unidos",
+    "united kingdom": "reino unido",
+    "scotland": "escocia",
+    "turkey": "turquía",
+    "greece": "grecia",
+    "switzerland": "suiza",
+    "norway": "noruega",
+    "denmark": "dinamarca",
+    "sweden": "suecia",
+    "russia": "rusia",
+    "ukraine": "ucrania",
+    "poland": "polonia",
+    "croatia": "croacia",
+    "czech republic": "república checa",
+    "mexico": "méxico",
+    "argentina": "argentina",
+    "colombia": "colombia",
+    "chile": "chile",
+    "peru": "perú",
+    "ecuador": "ecuador",
+    "venezuela": "venezuela",
+    "bolivia": "bolivia",
+    "paraguay": "paraguay",
+    "uruguay": "uruguay",
+    "japan": "japón",
+    "south korea": "corea del sur",
+    "saudi arabia": "arabia saudita",
+    "qatar": "catar"
+  };
+
   const handleApplyFixtureResult = (fixture: any) => {
     // Resolvemos el nombre del partido con los equipos reales de la API.
     const resolvedMatchName = fixture.homeTeamName && fixture.awayTeamName
       ? `${fixture.homeTeamName} vs ${fixture.awayTeamName}`
       : fixture.name || "";
 
-    // Buscamos el country_id en BD local usando el nombre de país que viene de la API.
-    const matchedCountry = countries.find(
-      (c: any) => c.name.toLowerCase() === (fixture.country || "").toLowerCase()
-    );
+    const apiCountryRaw = (fixture.country || "").toLowerCase().trim();
+    const apiCountryNormalized = normalizeForMatch(apiCountryRaw);
+
+    // Buscamos el country_id en BD local usando traducción y normalización.
+    const matchedCountry = countries.find((c: any) => {
+      const dbNameRaw = c.name.toLowerCase().trim();
+      const dbNameNormalized = normalizeForMatch(dbNameRaw);
+      
+      return dbNameRaw === apiCountryRaw || 
+             dbNameNormalized === apiCountryNormalized ||
+             COUNTRY_TRANSLATIONS[apiCountryRaw] === dbNameRaw ||
+             normalizeForMatch(COUNTRY_TRANSLATIONS[apiCountryRaw] || "") === dbNameNormalized;
+    });
     const resolvedCountryId = matchedCountry?.id?.toString() || "";
 
+    const apiLeagueNormalized = normalizeForMatch(fixture.league || "");
+
     // Buscamos el league_id en BD local usando el nombre de liga que viene de la API.
-    const matchedLeague = leagues.find(
-      (l: any) => l.name.toLowerCase() === (fixture.league || "").toLowerCase()
-        && (!resolvedCountryId || l.country_id?.toString() === resolvedCountryId)
-    );
+    const matchedLeague = leagues.find((l: any) => {
+      const dbLeagueNormalized = normalizeForMatch(l.name);
+      const isCorrectCountry = !resolvedCountryId || l.country_id?.toString() === resolvedCountryId;
+      
+      return isCorrectCountry && (dbLeagueNormalized === apiLeagueNormalized || l.name.toLowerCase().includes(fixture.league?.toLowerCase()));
+    });
     const resolvedLeagueId = matchedLeague?.id?.toString() || "";
 
-    // Buscamos el home_team_id en BD local usando el ID de API-Football o el nombre como respaldo.
-    const matchedHomeTeam = teams.find(
-      (t: any) => (t.api_team_id?.toString() === fixture.homeTeamId?.toString()) || 
-                 (t.name.toLowerCase() === (fixture.homeTeamName || "").toLowerCase()) ||
-                 (t.api_provider_name?.toLowerCase() === (fixture.homeTeamName || "").toLowerCase())
-    );
+    const apiHomeTeamNormalized = normalizeForMatch(fixture.homeTeamName || "");
+    const apiAwayTeamNormalized = normalizeForMatch(fixture.awayTeamName || "");
+
+    // Buscamos el home_team_id en BD local usando el ID de API-Football o el nombre normalizado como respaldo.
+    const matchedHomeTeam = teams.find((t: any) => {
+      const matchesId = t.api_team_id?.toString() === fixture.homeTeamId?.toString();
+      const dbNameNormalized = normalizeForMatch(t.name);
+      const dbProviderNameNormalized = normalizeForMatch(t.api_provider_name || "");
+      
+      return matchesId || dbNameNormalized === apiHomeTeamNormalized || dbProviderNameNormalized === apiHomeTeamNormalized;
+    });
     const resolvedHomeTeamId = matchedHomeTeam?.id?.toString() || "";
 
-    // Buscamos el away_team_id en BD local usando el ID de API-Football o el nombre como respaldo.
-    const matchedAwayTeam = teams.find(
-      (t: any) => (t.api_team_id?.toString() === fixture.awayTeamId?.toString()) || 
-                 (t.name.toLowerCase() === (fixture.awayTeamName || "").toLowerCase()) ||
-                 (t.api_provider_name?.toLowerCase() === (fixture.awayTeamName || "").toLowerCase())
-    );
+    // Buscamos el away_team_id en BD local usando el ID de API-Football o el nombre normalizado como respaldo.
+    const matchedAwayTeam = teams.find((t: any) => {
+      const matchesId = t.api_team_id?.toString() === fixture.awayTeamId?.toString();
+      const dbNameNormalized = normalizeForMatch(t.name);
+      const dbProviderNameNormalized = normalizeForMatch(t.api_provider_name || "");
+      
+      return matchesId || dbNameNormalized === apiAwayTeamNormalized || dbProviderNameNormalized === apiAwayTeamNormalized;
+    });
     const resolvedAwayTeamId = matchedAwayTeam?.id?.toString() || "";
 
     // Si existe una selección activa, vinculamos ese fixture dentro del parlay.
