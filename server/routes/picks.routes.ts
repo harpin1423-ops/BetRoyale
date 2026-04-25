@@ -1478,13 +1478,24 @@ router.post("/:id/manual-resolution", authenticateToken, requireAdmin, async (re
         return res.status(400).json({ error: "Estado final no permitido" });
       }
 
+      // Forzamos las selecciones pendientes al estado global si el estado global ya está decidido
+      let finalPersistedSelections = evaluatedSelections.map((selection) => selection.persistedSelection);
+      if (final_status !== "pending") {
+        finalPersistedSelections = finalPersistedSelections.map(sel => {
+          if (!sel.status || sel.status === "pending") {
+            return { ...sel, status: final_status };
+          }
+          return sel;
+        });
+      }
+
       // Guardamos estados manuales por selección y el estado final global del parlay.
       await pool.query(
         `UPDATE picks
          SET selections = ?, status = ?
          WHERE id = ?`,
         [
-          JSON.stringify(evaluatedSelections.map((selection) => selection.persistedSelection)),
+          JSON.stringify(finalPersistedSelections),
           final_status,
           id,
         ]

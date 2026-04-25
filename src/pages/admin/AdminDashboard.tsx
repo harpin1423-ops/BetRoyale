@@ -1732,6 +1732,22 @@ export function AdminDashboard() {
     );
     const resolvedLeagueId = matchedLeague?.id?.toString() || "";
 
+    // Buscamos el home_team_id en BD local usando el ID de API-Football o el nombre como respaldo.
+    const matchedHomeTeam = teams.find(
+      (t: any) => (t.api_team_id?.toString() === fixture.homeTeamId?.toString()) || 
+                 (t.name.toLowerCase() === (fixture.homeTeamName || "").toLowerCase()) ||
+                 (t.api_provider_name?.toLowerCase() === (fixture.homeTeamName || "").toLowerCase())
+    );
+    const resolvedHomeTeamId = matchedHomeTeam?.id?.toString() || "";
+
+    // Buscamos el away_team_id en BD local usando el ID de API-Football o el nombre como respaldo.
+    const matchedAwayTeam = teams.find(
+      (t: any) => (t.api_team_id?.toString() === fixture.awayTeamId?.toString()) || 
+                 (t.name.toLowerCase() === (fixture.awayTeamName || "").toLowerCase()) ||
+                 (t.api_provider_name?.toLowerCase() === (fixture.awayTeamName || "").toLowerCase())
+    );
+    const resolvedAwayTeamId = matchedAwayTeam?.id?.toString() || "";
+
     // Si existe una selección activa, vinculamos ese fixture dentro del parlay.
     if (formData.is_parlay && activeSelectionFixtureIndex !== null) {
       // Copiamos las selecciones actuales para evitar mutación directa.
@@ -1747,7 +1763,7 @@ export function AdminDashboard() {
         return;
       }
 
-      // Guardamos el fixture oficial enriquecido con datos de país, liga y nombre del partido.
+      // Guardamos el fixture oficial enriquecido con datos de país, liga, equipos y nombre del partido.
       newSelections[activeSelectionFixtureIndex] = {
         ...currentSelection,
         api_fixture_id: fixture.id,
@@ -1757,6 +1773,9 @@ export function AdminDashboard() {
         // Auto-rellenamos país y liga si los encontramos en la BD local.
         ...(resolvedCountryId && { country_id: resolvedCountryId }),
         ...(resolvedLeagueId && { league_id: resolvedLeagueId }),
+        // Auto-rellenamos equipos local y visitante si los encontramos en la BD local.
+        ...(resolvedHomeTeamId && { home_team: resolvedHomeTeamId }),
+        ...(resolvedAwayTeamId && { away_team: resolvedAwayTeamId }),
         match_time: currentSelection.match_time || getFixtureDateTimeValue(fixture)
       };
 
@@ -1783,6 +1802,9 @@ export function AdminDashboard() {
       ...(resolvedCountryId && { country_id: resolvedCountryId }),
       // Auto-rellenamos liga si la encontramos en la BD local.
       ...(resolvedLeagueId && { league_id: resolvedLeagueId }),
+      // Auto-rellenamos equipos local y visitante si los encontramos en la BD local.
+      ...(resolvedHomeTeamId && { home_team: resolvedHomeTeamId }),
+      ...(resolvedAwayTeamId && { away_team: resolvedAwayTeamId }),
       match_date: prev.match_date || getFixtureDateTimeValue(fixture)
     }));
 

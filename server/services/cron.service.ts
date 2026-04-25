@@ -190,10 +190,10 @@ async function processPendingPicks(minMinutes: number = 105): Promise<{ processe
     LEFT JOIN markets    m  ON p.pick         = m.id
     LEFT JOIN teams      ht ON p.home_team_id = ht.id
     LEFT JOIN teams      at ON p.away_team_id = at.id
-    /* Seleccionamos picks pendientes, picks sin marcador o parleys que aún conservan selecciones pendientes */
+    /* Seleccionamos picks pendientes, picks simples sin marcador, o parleys que aún conservan selecciones pendientes */
     WHERE (
       p.status = 'pending'
-      OR (p.score_home IS NULL AND p.score_away IS NULL)
+      OR (p.is_parlay = 0 AND p.score_home IS NULL AND p.score_away IS NULL AND p.status != 'void')
       OR (
         p.is_parlay = 1
         AND p.selections IS NOT NULL
