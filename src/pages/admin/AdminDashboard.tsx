@@ -3429,6 +3429,11 @@ export function AdminDashboard() {
                   </label>
                 </div>
 
+                {/* Buscador de partidos (Vínculo Automático) siempre visible primero */}
+                <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                  {renderFixtureSearchPanel()}
+                </div>
+
                 {!formData.is_parlay ? (
                   <div className="space-y-6 animate-in fade-in slide-in-from-top-4 duration-500">
                     <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
@@ -3485,11 +3490,6 @@ export function AdminDashboard() {
                           required
                           placeholder="Seleccionar mercado..."
                         />
-                      </div>
-
-                      {/* Reutilizamos el buscador compartido para pick simple y parlay. */}
-                      <div className="md:col-span-12">
-                        {renderFixtureSearchPanel()}
                       </div>
 
                       <div className="md:col-span-12 space-y-3">
@@ -3564,9 +3564,6 @@ export function AdminDashboard() {
                         Añadir Selección
                       </button>
                     </div>
-
-                    {/* Reutilizamos el panel compartido de búsqueda también dentro del flujo parlay. */}
-                    {renderFixtureSearchPanel()}
 
                     {formData.selections.length === 0 ? (
                       <div className="text-center py-12 text-muted-foreground text-sm border-2 border-dashed border-white/10 rounded-2xl bg-black/20">
