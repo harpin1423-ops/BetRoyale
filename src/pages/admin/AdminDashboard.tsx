@@ -3553,6 +3553,7 @@ export function AdminDashboard() {
                             <SearchableSelect
                               options={teams
                                 .filter(t => {
+                                  if (t.id.toString() === formData.home_team) return true;
                                   if (!formData.league_id) return true;
                                   const compatibleIds = getCompatibleLeagueIds(formData.league_id, leagues);
                                   return compatibleIds.includes(t.league_id.toString());
@@ -3677,6 +3678,7 @@ export function AdminDashboard() {
                                       size="sm"
                                       options={teams
                                         .filter(t => {
+                                          if (t.id.toString() === sel.home_team) return true;
                                           if (!sel.league_id) return true;
                                           const compatibleIds = getCompatibleLeagueIds(sel.league_id, leagues);
                                           return compatibleIds.includes(t.league_id.toString());
@@ -3695,6 +3697,7 @@ export function AdminDashboard() {
                                       size="sm"
                                       options={teams
                                         .filter(t => {
+                                          if (t.id.toString() === sel.away_team) return true;
                                           if (!sel.league_id) return true;
                                           const compatibleIds = getCompatibleLeagueIds(sel.league_id, leagues);
                                           return compatibleIds.includes(t.league_id.toString());
