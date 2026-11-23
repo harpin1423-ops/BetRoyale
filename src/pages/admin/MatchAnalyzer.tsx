@@ -38,6 +38,7 @@ type Profile = ReturnType<typeof teamProfile>;
 type Market = ReturnType<typeof priceMarkets>[number];
 type Context = { rank: number | null; absences: string[]; formation: string | null; xi: string[] };
 type Report = {
+  hudl?: { eligible:number; matched:number; message:string };
   oddsInfo?: string;
   fixture: Fixture;
   at: string;
@@ -613,6 +614,7 @@ export function MatchAnalyzer({ onDraft, standalone }: { onDraft?: (f: Fixture, 
               {comment && <p>{comment}</p>}
             </div>
           </div>
+          {report.hudl && <p className="ma-muted" role="status"><strong>Hudl StatsBomb</strong> · {report.hudl.matched}/{report.hudl.eligible} partidos históricos con eventos. {report.hudl.message}</p>}
           {report.warnings.map((w) => (
             <p key={w} className="ma-warning">
               {w}
@@ -712,6 +714,7 @@ export function MatchAnalyzer({ onDraft, standalone }: { onDraft?: (f: Fixture, 
           )}
           <details>
             <summary>Fuentes y cobertura</summary>
+            {report.hudl && <p>El xG de Hudl es la suma del xG de sus tiros. SCA/90 es nuestra estimación: hasta dos pases, conducciones o regates completados en la misma posesión antes de cada tiro, por 90 minutos. El xT neto es experimental: valora pases y conducciones con una cuadrícula entrenada en otros partidos de la muestra. Sin muestra suficiente no se publica. SCA y xT son contexto, no probabilidades de ganar.</p>}
             <p>
               {standalone?.source || "API-Football"} · {report.leagueSample} partidos de liga. Modelo de goles con ajuste Dixon-Coles y
               estimaciones de córners y amarillas por frecuencia observada. Las cuotas comparadas tienen hasta seis
