@@ -166,7 +166,7 @@ function buildApiFootballHeaders() {
  * @param params - Parametros query que se enviaran al proveedor.
  * @returns Respuesta JSON de API-Football.
  */
-async function apiFootballFetch(endpoint, params = {}) {
+export async function apiFootballFetch(endpoint, params = {}) {
     // Bloqueamos la llamada si el servidor no tiene llave configurada.
     if (!hasApiFootballKey()) {
         throw new Error("Falta configurar APIFOOTBALL_API_KEY o RAPIDAPI_KEY en el entorno.");
@@ -225,7 +225,7 @@ async function apiFootballFetch(endpoint, params = {}) {
  * @param fixture - Fixture recibido desde API-Football.
  * @returns Fixture liviano para el frontend.
  */
-function mapFixtureForAdmin(fixture) {
+export function mapFixtureForAdmin(fixture) {
     // Leemos la fecha ISO del proveedor.
     const fixtureDate = String(fixture?.fixture?.date || "");
     // Extraemos fecha legible para datetime-local.
@@ -279,8 +279,19 @@ async function searchProviderTeams(teamName) {
     // Evitamos gastar consultas con textos demasiado cortos.
     if (!teamName || teamName.trim().length < 2)
         return [];
-    // Consultamos el endpoint oficial de equipos.
-    const data = await apiFootballFetch("teams", { search: teamName.trim() });
+    // 1. Sanitizamos el nombre según las reglas estrictas de API-Football (solo alfanuméricos y espacios).
+    // Removemos acentos, símbolos y caracteres especiales que causan error 400 en el proveedor.
+    const sanitizedSearch = teamName
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "") // Quitamos diacríticos (acentos)
+        .replace(/[^a-zA-Z0-9\s]/g, " ") // Reemplazamos cualquier símbolo por un espacio
+        .replace(/\s+/g, " ") // Colapsamos espacios múltiples
+        .trim();
+    // 2. Validamos que después de limpiar quede un texto útil (la API suele pedir min 3 caracteres).
+    if (sanitizedSearch.length < 3)
+        return [];
+    // 3. Consultamos el endpoint oficial de equipos con el nombre ya limpio.
+    const data = await apiFootballFetch("teams", { search: sanitizedSearch });
     // Normalizamos la respuesta como arreglo.
     return Array.isArray(data?.response) ? data.response : [];
 }
@@ -360,37 +371,55 @@ function getProviderCandidateScore(expectedName, providerName) {
  * @returns Lista corta de candidatos con nombre técnico y metadatos básicos.
  */
 export async function searchProviderTeamCandidates(teamName) {
-    // Consultamos el proveedor con el nombre visible o alias parcial digitado por el admin.
-    const candidates = await searchProviderTeams(teamName);
-    // Convertimos la respuesta cruda del proveedor en un formato compacto para el panel.
-    const normalizedCandidates = candidates
-        .map((candidate) => {
-        // Leemos el nombre oficial del equipo que usa API-Football.
-        const providerName = String(candidate?.team?.name || "").trim();
-        // Calculamos una prioridad alta cuando el equipo coincide y no parece juvenil o reserva.
-        const similarityScore = getProviderCandidateScore(teamName, providerName);
-        // Devolvemos únicamente los campos útiles para la UI administrativa.
-        return {
-            // Guardamos el ID oficial del equipo en API-Football.
-            provider_id: candidate?.team?.id ?? null,
-            // Guardamos el nombre oficial del proveedor.
-            provider_name: providerName,
-            // Guardamos el país oficial para ayudar a desambiguar.
-            country_name: String(candidate?.team?.country || "").trim(),
-            // Guardamos el código corto cuando exista.
-            code: String(candidate?.team?.code || "").trim(),
-            // Guardamos el logo para posibles mejoras visuales.
-            logo: String(candidate?.team?.logo || "").trim(),
-            // Conservamos el puntaje interno para ordenar resultados antes de responder.
-            similarity_score: similarityScore,
-        };
-    })
-        // Descartamos respuestas vacías o incompletas del proveedor.
-        .filter((candidate) => Boolean(candidate.provider_name))
-        // Priorizamos coincidencias más cercanas antes de mostrar al admin.
-        .sort((left, right) => right.similarity_score - left.similarity_score || left.provider_name.localeCompare(right.provider_name));
-    // Quitamos el campo interno de ordenamiento antes de responder.
-    return normalizedCandidates.slice(0, 8).map(({ similarity_score, ...candidate }) => candidate);
+    try {
+        // 1. Buscamos los equipos por nombre.
+        const rawCandidates = await searchProviderTeams(teamName);
+        if (!rawCandidates || rawCandidates.length === 0)
+            return [];
+        const normalizedCandidates = [];
+        // 2. Procesamos secuencialmente (máximo 5) para no saturar la API con peticiones concurrentes.
+        // Esto es crucial para usuarios con planes gratuitos o con límites de concurrencia estrictos.
+        for (const candidate of rawCandidates.slice(0, 5)) {
+            const teamId = candidate?.team?.id;
+            const providerName = String(candidate?.team?.name || "").trim();
+            const countryName = String(candidate?.team?.country || "").trim();
+            let leagueName = "Desconocida";
+            if (teamId) {
+                try {
+                    // Consultamos la liga actual.
+                    const leaguesRes = await apiFootballFetch("leagues", { team: teamId, current: "true" });
+                    if (Array.isArray(leaguesRes?.response) && leaguesRes.response.length > 0) {
+                        leagueName = leaguesRes.response[0].league?.name || "Desconocida";
+                    }
+                }
+                catch (err) {
+                    // Si falla la liga, no abortamos la búsqueda completa, solo marcamos como desconocida.
+                    console.warn(`[SCORES] Error obteniendo liga para equipo ${teamId}: ${err.message}`);
+                }
+            }
+            const similarityScore = getProviderCandidateScore(teamName, providerName);
+            normalizedCandidates.push({
+                provider_id: teamId,
+                provider_name: providerName,
+                country_name: countryName,
+                league_name: leagueName,
+                code: String(candidate?.team?.code || "").trim(),
+                logo: String(candidate?.team?.logo || "").trim(),
+                similarity_score: similarityScore,
+            });
+            // Pequeño respiro de 50ms para evitar spikes de tráfico.
+            await new Promise(resolve => setTimeout(resolve, 50));
+        }
+        // 3. Devolvemos resultados ordenados.
+        return normalizedCandidates
+            .filter((candidate) => Boolean(candidate.provider_name))
+            .sort((a, b) => b.similarity_score - a.similarity_score || a.provider_name.localeCompare(b.provider_name));
+    }
+    catch (error) {
+        console.error(`[SCORES] Error crítico buscando candidatos para "${teamName}":`, error.message);
+        // Propagamos el error para que la ruta lo capture con el mensaje original del proveedor.
+        throw error;
+    }
 }
 /**
  * <summary>

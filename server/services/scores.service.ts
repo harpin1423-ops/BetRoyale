@@ -228,7 +228,7 @@ function buildApiFootballHeaders(): Record<string, string> {
  * @param params - Parametros query que se enviaran al proveedor.
  * @returns Respuesta JSON de API-Football.
  */
-async function apiFootballFetch(endpoint: string, params: Record<string, string | number | undefined | null> = {}): Promise<any> {
+export async function apiFootballFetch(endpoint: string, params: Record<string, string | number | undefined | null> = {}): Promise<any> {
   // Bloqueamos la llamada si el servidor no tiene llave configurada.
   if (!hasApiFootballKey()) {
     throw new Error("Falta configurar APIFOOTBALL_API_KEY o RAPIDAPI_KEY en el entorno.");
@@ -300,7 +300,7 @@ async function apiFootballFetch(endpoint: string, params: Record<string, string 
  * @param fixture - Fixture recibido desde API-Football.
  * @returns Fixture liviano para el frontend.
  */
-function mapFixtureForAdmin(fixture: any): any {
+export function mapFixtureForAdmin(fixture: any): any {
   // Leemos la fecha ISO del proveedor.
   const fixtureDate = String(fixture?.fixture?.date || "");
 

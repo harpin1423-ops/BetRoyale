@@ -5,6 +5,7 @@
  * Corre cada hora y procesa picks pendientes cuya fecha de partido ya pasó.
  */
 import cron from "node-cron";
+import { dailyScan, settleArchive } from "./matchAnalysis.service.js";
 import { pool } from "../config/database.js";
 import { getMatchResultByName, getMatchResultByProviderTeamIds, getFixtureResult, evaluatePickStatus, isFinished, } from "./scores.service.js";
 import { sendTelegramMessage, formatPickParaTelegram, } from "./telegram.service.js";
@@ -14,6 +15,8 @@ import { obtenerTelegramFullConfig } from "./settings.service.js";
  * Se ejecuta al minuto 5 de cada hora para evitar colisión con otros crons.
  */
 export function initCronJobs() {
+    cron.schedule("10 6 * * *", () => dailyScan().catch(() => console.warn("[Analizador] Falló la agenda diaria.")), { timezone: "America/Bogota", noOverlap: true });
+    cron.schedule("40 */4 * * *", () => settleArchive().catch(() => console.warn("[Analizador] Falló la revisión de pronósticos.")), { noOverlap: true });
     // Minuto 5 de cada hora: '5 * * * *'
     cron.schedule("5 * * * *", async () => {
         console.log(`[CRON] ${new Date().toISOString()} - Iniciando verificación de resultados (API-Football)...`);
@@ -149,10 +152,10 @@ async function processPendingPicks(minMinutes = 105) {
     LEFT JOIN markets    m  ON p.pick         = m.id
     LEFT JOIN teams      ht ON p.home_team_id = ht.id
     LEFT JOIN teams      at ON p.away_team_id = at.id
-    /* Seleccionamos picks pendientes, picks sin marcador o parleys que aún conservan selecciones pendientes */
+    /* Seleccionamos picks pendientes, picks simples sin marcador, o parleys que aún conservan selecciones pendientes */
     WHERE (
       p.status = 'pending'
-      OR (p.score_home IS NULL AND p.score_away IS NULL)
+      OR (p.is_parlay = 0 AND p.score_home IS NULL AND p.score_away IS NULL AND p.status != 'void')
       OR (
         p.is_parlay = 1
         AND p.selections IS NOT NULL

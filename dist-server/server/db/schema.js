@@ -847,6 +847,23 @@ export async function initDB() {
         ('YELLOW_+4.5', 'Más de 4.5 tarjetas amarillas', 'Amarillas +4.5'),
         ('YELLOW_+5.5', 'Más de 5.5 tarjetas amarillas', 'Amarillas +5.5')
     `);
+        await conexion.query(`CREATE TABLE IF NOT EXISTS match_analysis_snapshots (
+      fixture_id BIGINT UNSIGNED NOT NULL, bucket BIGINT UNSIGNED NOT NULL,
+      version VARCHAR(32) NOT NULL, kickoff BIGINT UNSIGNED NOT NULL,
+      captured BIGINT UNSIGNED NOT NULL, report JSON NOT NULL,
+      final_home SMALLINT UNSIGNED NULL, final_away SMALLINT UNSIGNED NULL,
+      PRIMARY KEY (fixture_id, version, bucket), INDEX ix_analysis_time (captured),
+      INDEX ix_analysis_pending (final_home,kickoff)
+    )`);
+        await conexion.query(`CREATE TABLE IF NOT EXISTS analyzer_fixture_history (
+      fixture_id BIGINT UNSIGNED PRIMARY KEY, league_id INT UNSIGNED NOT NULL, season SMALLINT UNSIGNED NOT NULL,
+      fixture JSON NOT NULL, INDEX ix_history_season (league_id,season)
+    )`);
+        await conexion.query(`CREATE TABLE IF NOT EXISTS analysis_event_metrics (
+      fixture_id BIGINT UNSIGNED NOT NULL, team_id BIGINT UNSIGNED NOT NULL,
+      xt DOUBLE NULL, sca DOUBLE NULL, touches INT UNSIGNED NULL, source VARCHAR(200) NOT NULL,
+      PRIMARY KEY (fixture_id, team_id)
+    )`);
         // ── 5. Tabla: users ──────────────────────────────────────────────────────
         // Usuarios registrados en la plataforma
         await conexion.query(`

@@ -141,7 +141,9 @@ function isRateLimitError(error) {
 export async function generatePickAnalysis(pickData) {
     const context = buildPromptContext(pickData);
     const prompt = buildSystemPrompt(context);
-    const requestedProvider = pickData.provider || "auto";
+    return generateAnalysisText(prompt, pickData.provider || "auto");
+}
+export async function generateAnalysisText(prompt, requestedProvider = "auto") {
     // ── Proveedor específico solicitado (sin fallback) ──────────────────────
     if (requestedProvider !== "auto") {
         if (!isProviderAvailable(requestedProvider)) {

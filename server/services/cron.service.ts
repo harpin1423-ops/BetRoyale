@@ -6,6 +6,7 @@
  */
 
 import cron from "node-cron";
+import { dailyScan, settleArchive } from "./matchAnalysis.service.js";
 import { pool } from "../config/database.js";
 import {
   getMatchResultByName,
@@ -25,6 +26,8 @@ import { obtenerTelegramFullConfig } from "./settings.service.js";
  * Se ejecuta al minuto 5 de cada hora para evitar colisión con otros crons.
  */
 export function initCronJobs() {
+  cron.schedule("10 6 * * *", () => dailyScan().catch(() => console.warn("[Analizador] Falló la agenda diaria.")), {timezone:"America/Bogota",noOverlap:true});
+  cron.schedule("40 */4 * * *", () => settleArchive().catch(() => console.warn("[Analizador] Falló la revisión de pronósticos.")), {noOverlap:true});
   // Minuto 5 de cada hora: '5 * * * *'
   cron.schedule("5 * * * *", async () => {
     console.log(

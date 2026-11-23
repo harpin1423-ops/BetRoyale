@@ -33,6 +33,7 @@ import { apiLimiter } from "./middleware/rateLimiter.js";
 import { initCronJobs } from "./services/cron.service.js";
 import scoresRouter from "./routes/scores.routes.js";
 import aiRouter from "./routes/ai.routes.js";
+import matchAnalysisRouter from "./routes/matchAnalysis.routes.js";
 /**
  * Crea y configura la instancia del servidor Express,
  * registra todos los middlewares y rutas, y arranca el servidor.
@@ -81,6 +82,7 @@ export async function startServer() {
     app.use("/api/pick-types", pickTypesRouter);
     // ─── Rutas de Picks y Marcadores ───────────────────────────────────────────
     app.use("/api/picks", picksRouter);
+    app.use("/api/match-analysis", matchAnalysisRouter);
     app.use("/api/markets", marketsRouter);
     app.use("/api/scores", scoresRouter);
     app.use("/api/ai", aiRouter);

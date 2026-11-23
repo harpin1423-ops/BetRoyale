@@ -189,7 +189,10 @@ export async function generatePickAnalysis(
 ): Promise<PickAnalysisResult> {
   const context = buildPromptContext(pickData);
   const prompt = buildSystemPrompt(context);
-  const requestedProvider = pickData.provider || "auto";
+  return generateAnalysisText(prompt,pickData.provider || "auto");
+}
+
+export async function generateAnalysisText(prompt:string,requestedProvider:AIProvider="auto"):Promise<PickAnalysisResult>{
 
   // ── Proveedor específico solicitado (sin fallback) ──────────────────────
   if (requestedProvider !== "auto") {

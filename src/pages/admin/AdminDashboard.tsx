@@ -7,6 +7,7 @@ import { useAuth } from "../../context/AuthContext";
 import { CountryFlag } from "../../components/CountryFlag";
 import { SearchableSelect } from "../../components/SearchableSelect";
 import { PickTicket } from "../../components/PickTicket";
+import { MatchAnalyzer } from "./MatchAnalyzer";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from "recharts";
 import { toast } from "sonner";
 
@@ -1799,7 +1800,7 @@ export function AdminDashboard() {
     "qatar": "catar"
   };
 
-  const handleApplyFixtureResult = (fixture: any) => {
+  const handleApplyFixtureResult = (fixture: any, newSingle = false) => {
     // Resolvemos el nombre del partido con los equipos reales de la API.
     const resolvedMatchName = fixture.homeTeamName && fixture.awayTeamName
       ? `${fixture.homeTeamName} vs ${fixture.awayTeamName}`
@@ -1879,7 +1880,7 @@ export function AdminDashboard() {
     const resolvedAwayTeamId = matchedAwayTeam?.id?.toString() || "";
 
     // Si existe una selección activa, vinculamos ese fixture dentro del parlay.
-    if (formData.is_parlay && activeSelectionFixtureIndex !== null) {
+    if (!newSingle && formData.is_parlay && activeSelectionFixtureIndex !== null) {
       // Copiamos las selecciones actuales para evitar mutación directa.
       const newSelections = [...formData.selections];
 
@@ -1919,7 +1920,7 @@ export function AdminDashboard() {
       // Cerramos el modo de búsqueda para esa selección.
       resetFixtureSearchState();
       return;
-    } else if (formData.is_parlay) {
+    } else if (!newSingle && formData.is_parlay) {
       // SI NO HAY SELECCIÓN ACTIVA EN PARLAY, AÑADIMOS UNA NUEVA AUTOMÁTICAMENTE.
       // Esto permite al admin ir buscando y añadiendo partidos fluidamente.
       const newSelection = {
@@ -3412,6 +3413,10 @@ export function AdminDashboard() {
               <List className="h-5 w-5" />
               Gestionar Picks
             </button>
+            <button onClick={() => setActiveTab("analyzer")} aria-pressed={activeTab === "analyzer"}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium ${activeTab === "analyzer" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-white/5"}`}>
+              <Activity className="h-5 w-5"/> Analizador de partidos
+            </button>
             <button
               onClick={() => setActiveTab("markets")}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeTab === "markets" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-white/5 hover:text-foreground"}`}
@@ -3479,7 +3484,17 @@ export function AdminDashboard() {
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 p-6 md:p-10 overflow-y-auto">
+        <main className="min-w-0 flex-1 p-6 md:p-10 overflow-y-auto">
+          {activeTab === "analyzer" && <MatchAnalyzer onDraft={(fixture,market,analysis) => {
+            if ((editingPickId || formData.match_name || formData.selections.length || formData.pick || formData.analysis) &&
+              !window.confirm("¿Reemplazar el pick que estás editando por este borrador?")) return;
+            cancelEdit();
+            resetFixtureSearchState();
+            handleApplyFixtureResult(fixture,true);
+            const localMarket=markets.find(m=>m.id===market.id || normalizeForMatch(m.label)===normalizeForMatch(market.label));
+            setFormData(prev=>({...prev,pick:localMarket?.id||"",odds:market.quote?String(market.quote.odds):"",analysis}));
+            setActiveTab("new-pick");
+          }}/>}
           {activeTab === "new-pick" && (
             <div className="w-full">
               <div className="flex items-center justify-between mb-2">
