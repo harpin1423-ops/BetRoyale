@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {findMatch,mapOffers} from "../server/services/moviOdds.mjs";
+import {findMatch,mapOffers,moviOddsFor,moviOddsKey} from "../server/services/moviOdds.mjs";
+import handler from "../api/analizador.js";
 import {priceMarkets} from "../dist-server/server/services/matchModel.js";
 
 const now=Date.parse("2026-11-23T12:00:00Z"), kickoff="2026-11-23T19:00:00Z";
@@ -8,6 +9,29 @@ const f={fixture:{id:713,timestamp:Date.parse(kickoff)/1000},teams:{home:{name:"
 const m={id:"42",sport:"soccer",in_play:false,kickoff_utc:kickoff,home:"Nurnberg",away:"Bochum"};
 const q={fixture_id:"42",group_id:"40",group_name:"Full Time Result",label:"Nurnberg",odds_dec:2.1};
 const snap={polled_at:"2026-11-23T11:59:00Z",quotes:[q]};
+
+test("MOVIODD habilita el analizador y autentica la solicitud sin exponer la clave", async t=>{
+  assert.equal(moviOddsKey({MOVIODDS_API_KEY:"principal",MOVIODD:"alias"}),"principal");
+  assert.equal(moviOddsKey({MOVIODDS_API_KEY:" ",MOVIODD:" "}),"");
+  const old=[process.env.MOVIODDS_API_KEY,process.env.MOVIODD];
+  t.after(()=>["MOVIODDS_API_KEY","MOVIODD"].forEach((name,i)=>{
+    if(old[i]===undefined) delete process.env[name]; else process.env[name]=old[i];
+  }));
+  delete process.env.MOVIODDS_API_KEY;
+  process.env.MOVIODD=" valor-de-prueba ";
+  let capabilities;
+  await handler({url:"/?capabilities=1",method:"GET",headers:{}},{
+    setHeader(){},status(){return this},json(value){capabilities=value}
+  });
+  assert.equal(capabilities.moviOdds,true);
+  assert.ok(!JSON.stringify(capabilities).includes("valor-de-prueba"));
+  const upstream=t.mock.method(globalThis,"fetch",async (_url,opts)=>{
+    assert.equal(opts.headers["X-API-Key"],"valor-de-prueba");
+    return Response.json({fixtures:[]});
+  });
+  assert.equal((await moviOddsFor(f)).status,"Sin partido coincidente en MoviOdds.");
+  assert.equal(upstream.mock.callCount(),1);
+});
 
 test("se vincula únicamente un partido prepartido con ambos equipos en el mismo orden",()=>{
   assert.equal(findMatch(f,[m],now),m);

@@ -1,4 +1,7 @@
 // Solo cotizaciones prepartido verificables; los IDs de MoviOdds no son los de las otras fuentes.
+export function moviOddsKey(env = process.env) {
+  return env.MOVIODDS_API_KEY?.trim() || env.MOVIODD?.trim() || "";
+}
 const plain = value => String(value ?? "").normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
 function team(value) {
   return plain(value).replace(/ß/g,"ss").replace(/[^\p{L}\p{N}]+/gu," ").trim().split(/\s+/)
@@ -57,7 +60,7 @@ async function read(path,ttl) {
   if(cache.size>=128) cache.delete(cache.keys().next().value);
   const entry={until:Date.now()+ttl,data:null};
   entry.data=(async()=>{
-    const res=await fetch("https://moviodds.com"+path,{headers:{"X-API-Key":process.env.MOVIODDS_API_KEY},redirect:"error",signal:AbortSignal.timeout(8000)});
+    const res=await fetch("https://moviodds.com"+path,{headers:{"X-API-Key":moviOddsKey()},redirect:"error",signal:AbortSignal.timeout(8000)});
     if(!res.ok) throw new Error(String(res.status));
     return res.json();
   })().catch(e=>{entry.until=Date.now()+60000;throw e;});

@@ -1,5 +1,5 @@
 import { createHash, timingSafeEqual } from "node:crypto";
-import { moviOddsFor } from "../server/services/moviOdds.mjs";
+import { moviOddsFor, moviOddsKey } from "../server/services/moviOdds.mjs";
 import { modelVersion, priceMarkets, project, rankPicks, teamProfile, venueHistory } from "../dist-server/server/services/matchModel.js";
 
 const zone = "America/Bogota", dayMs = 86400000, cache = new Map();
@@ -68,7 +68,7 @@ export default async function handler(req,res) {
   const send=(code,body)=>res.status(code).json(body);
   res.setHeader("Cache-Control","private, no-store");
   if(req.method!=="GET") return send(405,{error:"Método no permitido."});
-  const movi=Boolean(process.env.MOVIODDS_API_KEY);
+  const movi=Boolean(moviOddsKey());
   if(p.has("capabilities")) return send(200,{football:Boolean(process.env.ANALYZER_ACCESS_CODE && process.env.APIFOOTBALL_API_KEY),moviOdds:movi});
   if(paid && !permitted(req)) return send(403,{error:"El acceso a API-Football no está configurado o el código no es válido."});
   if(date && (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(Date.parse(date)) || Math.abs(Date.parse(date)-since)>370*dayMs))
