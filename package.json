@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
+    "build:analizador": "vite build --config analizador/vite.config.ts",
     "build": "vite build && npx tsc -p tsconfig.server.json",
     "start": "node dist-server/server.js",
     "preview": "vite preview",

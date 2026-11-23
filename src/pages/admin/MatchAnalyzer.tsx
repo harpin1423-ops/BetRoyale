@@ -160,6 +160,19 @@ function Summary({ f, model, report }: { f: Fixture; model?: Model; report?: Rep
     </>
   );
 }
+function QuoteCheck({ markets }: { markets: Market[] }) {
+  const [market, setMarket] = useState("1"), [odd, setOdd] = useState("");
+  const selected = markets.find(m => m.id === market);
+  const number = Number(odd.replace(",", "."));
+  return <div className="ma-toolbar">
+    <label>Mercado<select value={market} onChange={e=>setMarket(e.target.value)}>
+      {markets.map(m=><option key={m.id} value={m.id}>{m.label}</option>)}
+    </select></label>
+    <label>Cuota de tu casa<input inputMode="decimal" placeholder="Ej. 2,15" value={odd} onChange={e=>setOdd(e.target.value)} /></label>
+    <output aria-live="polite">{selected && Number.isFinite(number) && number>1 ?
+      "EV estimado: "+pct(number*selected.p-1)+" · Cuota justa: "+dec(selected.fair) : "Introduce una cuota decimal mayor que 1."}</output>
+  </div>;
+}
 function insight(r: Report) {
   const [h, a] = [r.home.stats, r.away.stats];
   if (!r.model) return "La muestra disponible aún es insuficiente para proyectar este encuentro.";
@@ -282,8 +295,9 @@ function Archive({ items, onOpen }: { items: Archived[]; onOpen: (id: string) =>
     </>
   );
 }
-export function MatchAnalyzer({ onDraft }: { onDraft: (f: Fixture, m: Market, analysis: string) => void }) {
-  const [day, setDay] = useState(today),
+export function MatchAnalyzer({ onDraft, standalone }: { onDraft?: (f: Fixture, m: Market, analysis: string) => void;
+  standalone?: { source:string; get:<T>(url:string)=>Promise<T> } }) {
+  const [day, setDay] = useState(() => standalone?.source === "OpenLigaDB" ? "" : today()),
     [view, setView] = useState<"agenda" | "archive">("agenda"),
     [query, setQuery] = useState(""),
     [league, setLeague] = useState("");
@@ -306,7 +320,7 @@ export function MatchAnalyzer({ onDraft }: { onDraft: (f: Fixture, m: Market, an
     setList([]);
     setHistory([]);
     const url = view === "agenda" ? "/api/match-analysis/fixtures?date=" + day : "/api/match-analysis/archive";
-    api
+    (standalone || api)
       .get<any[]>(url)
       .then((rows) => {
         if (id === request.current) (view === "agenda" ? setList : setHistory)(rows);
@@ -320,14 +334,14 @@ export function MatchAnalyzer({ onDraft }: { onDraft: (f: Fixture, m: Market, an
     return () => {
       request.current++;
     };
-  }, [day, view, reload]);
+  }, [day, view, reload, standalone]);
   async function open(id: string) {
     const seq = ++request.current;
     setBusy(true);
     setError("");
     setComment("");
     try {
-      const data = await api.get<Report>(
+      const data = await (standalone || api).get<Report>(
         "/api/match-analysis/" + id + (view === "archive" ? "?snapshot=first" : ""),
       );
       if (seq === request.current) {
@@ -395,7 +409,7 @@ export function MatchAnalyzer({ onDraft }: { onDraft: (f: Fixture, m: Market, an
           </span>
           <h2>Analizador de partidos</h2>
         </div>
-        <nav aria-label="Vista del analizador">
+        {!standalone && <nav aria-label="Vista del analizador">
           {(["agenda", "archive"] as const).map((v) => (
             <button
               key={v}
@@ -414,7 +428,7 @@ export function MatchAnalyzer({ onDraft }: { onDraft: (f: Fixture, m: Market, an
               {v === "agenda" ? "Agenda" : "Registro"}
             </button>
           ))}
-        </nav>
+        </nav>}
       </header>
       {error && (
         <p className="ma-error" role="alert">
@@ -430,12 +444,12 @@ export function MatchAnalyzer({ onDraft }: { onDraft: (f: Fixture, m: Market, an
         <>
           <div className="ma-toolbar">
             <label>
-              Fecha · Colombia
+              {standalone?.source === "OpenLigaDB" && !day ? "Próximos 14 días · Colombia" : "Fecha · Colombia"}
               <input
                 type="date"
                 value={day}
                 onChange={(e) => {
-                  if (e.target.value) {
+                  if (e.target.value || standalone?.source === "OpenLigaDB") {
                     setDay(e.target.value);
                     setLeague("");
                   }
@@ -469,10 +483,10 @@ export function MatchAnalyzer({ onDraft }: { onDraft: (f: Fixture, m: Market, an
           </div>
           {!busy && !error && (
             <>
-              <label className="ma-filter">
+              {standalone?.source !== "OpenLigaDB" && <label className="ma-filter">
                 <input type="checkbox" checked={valueOnly} onChange={(e) => setValueOnly(e.target.checked)} /> Con
                 valor esperado positivo
-              </label>
+              </label>}
               <h3>
                 Próximos encuentros <small>{filtered.length}</small>
               </h3>
@@ -571,8 +585,8 @@ export function MatchAnalyzer({ onDraft }: { onDraft: (f: Fixture, m: Market, an
               <small>
                 {report.fixture.date} · Informe {stamp(report.at)} COL · {report.version}
               </small>
-              {view==="agenda"&&best&&Date.now()<report.fixture.timestamp*1000&&<button className="ma-draft" onClick={()=>onDraft(report.fixture,best,insight(report)+" Mercado: "+best.label+" · Cuota justa "+dec(best.fair)+".")}><FilePlus2 size={16}/> Crear borrador del pick</button>}
-              {view === "agenda" && report.model && (
+              {onDraft&&view==="agenda"&&best&&Date.now()<report.fixture.timestamp*1000&&<button className="ma-draft" onClick={()=>onDraft(report.fixture,best,insight(report)+" Mercado: "+best.label+" · Cuota justa "+dec(best.fair)+".")}><FilePlus2 size={16}/> Crear borrador del pick</button>}
+              {!standalone && view === "agenda" && report.model && (
                 <button
                   className="ma-back"
                   disabled={busy}
@@ -604,6 +618,8 @@ export function MatchAnalyzer({ onDraft }: { onDraft: (f: Fixture, m: Market, an
             </p>
           ))}
           <h3>Mercados y cuotas</h3>
+          {standalone?.source === "OpenLigaDB" && <p className="ma-muted">Las cuotas justas son estimaciones del modelo. Esta fuente no publica cuotas de casas de apuestas.</p>}
+          {standalone && report.markets.length>0 && <QuoteCheck key={report.fixture.id} markets={report.markets}/>}
           {report.markets.length === 0 ? (
             <p className="ma-empty">
               El modelo requiere tres partidos por equipo en la sede correspondiente y diez partidos de liga
@@ -631,7 +647,7 @@ export function MatchAnalyzer({ onDraft }: { onDraft: (f: Fixture, m: Market, an
                   <span>
                     EV<b className={m.ev != null && m.ev > 0 ? "ma-edge" : ""}>{m.ev == null ? "—" : pct(m.ev)}</b>
                   </span>
-                  {view === "agenda" && Date.now() < report.fixture.timestamp * 1000 && (
+                  {onDraft && view === "agenda" && Date.now() < report.fixture.timestamp * 1000 && (
                     <button
                       title={"Crear borrador · " + m.label}
                       aria-label={"Crear borrador · " + m.label}
@@ -696,11 +712,11 @@ export function MatchAnalyzer({ onDraft }: { onDraft: (f: Fixture, m: Market, an
           <details>
             <summary>Fuentes y cobertura</summary>
             <p>
-              API-Football · {report.leagueSample} partidos de liga. Modelo de goles con ajuste Dixon-Coles y
+              {standalone?.source || "API-Football"} · {report.leagueSample} partidos de liga. Modelo de goles con ajuste Dixon-Coles y
               estimaciones de córners y amarillas por frecuencia observada. Las cuotas comparadas tienen hasta seis
               horas de antigüedad.
             </p>
-            {view === "agenda" && Date.now() < report.fixture.timestamp * 1000 && (
+            {!standalone && view === "agenda" && Date.now() < report.fixture.timestamp * 1000 && (
               <>
                 <p>
                   Para añadir xT neto, SCA/90 y toques en el área, descarga la plantilla, conserva las filas que
