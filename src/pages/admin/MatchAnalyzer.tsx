@@ -38,6 +38,7 @@ type Profile = ReturnType<typeof teamProfile>;
 type Market = ReturnType<typeof priceMarkets>[number];
 type Context = { rank: number | null; absences: string[]; formation: string | null; xi: string[] };
 type Report = {
+  oddsInfo?: string;
   fixture: Fixture;
   at: string;
   version: string;
@@ -483,7 +484,7 @@ export function MatchAnalyzer({ onDraft, standalone }: { onDraft?: (f: Fixture, 
           </div>
           {!busy && !error && (
             <>
-              {standalone?.source !== "OpenLigaDB" && <label className="ma-filter">
+              {(standalone?.source !== "OpenLigaDB" || list.some(f=>f.value)) && <label className="ma-filter">
                 <input type="checkbox" checked={valueOnly} onChange={(e) => setValueOnly(e.target.checked)} /> Con
                 valor esperado positivo
               </label>}
@@ -618,7 +619,7 @@ export function MatchAnalyzer({ onDraft, standalone }: { onDraft?: (f: Fixture, 
             </p>
           ))}
           <h3>Mercados y cuotas</h3>
-          {standalone?.source === "OpenLigaDB" && <p className="ma-muted">Las cuotas justas son estimaciones del modelo. Esta fuente no publica cuotas de casas de apuestas.</p>}
+          {report.oddsInfo ? <p className="ma-muted" role="status">{report.oddsInfo}</p> : standalone?.source === "OpenLigaDB" && <p className="ma-muted">Sin fuente automática de cuotas conectada. Puedes comparar una cuota de tu casa con la estimación del modelo.</p>}
           {standalone && report.markets.length>0 && <div key={report.fixture.id}><QuoteCheck markets={report.markets}/></div>}
           {report.markets.length === 0 ? (
             <p className="ma-empty">

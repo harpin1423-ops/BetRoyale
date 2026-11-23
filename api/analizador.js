@@ -1,4 +1,5 @@
 import { createHash, timingSafeEqual } from "node:crypto";
+import { moviOddsFor } from "../server/services/moviOdds.mjs";
 import { modelVersion, priceMarkets, project, rankPicks, teamProfile, venueHistory } from "../dist-server/server/services/matchModel.js";
 
 const zone = "America/Bogota", dayMs = 86400000, cache = new Map();
@@ -67,7 +68,8 @@ export default async function handler(req,res) {
   const send=(code,body)=>res.status(code).json(body);
   res.setHeader("Cache-Control","private, no-store");
   if(req.method!=="GET") return send(405,{error:"Método no permitido."});
-  if(p.has("capabilities")) return send(200,{football:Boolean(process.env.ANALYZER_ACCESS_CODE && process.env.APIFOOTBALL_API_KEY)});
+  const movi=Boolean(process.env.MOVIODDS_API_KEY);
+  if(p.has("capabilities")) return send(200,{football:Boolean(process.env.ANALYZER_ACCESS_CODE && process.env.APIFOOTBALL_API_KEY),moviOdds:movi});
   if(paid && !permitted(req)) return send(403,{error:"El acceso a API-Football no está configurado o el código no es válido."});
   if(date && (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(Date.parse(date)) || Math.abs(Date.parse(date)-since)>370*dayMs))
     return send(400,{error:"Selecciona una fecha del próximo año o del último año."});
@@ -102,11 +104,14 @@ export default async function handler(req,res) {
         season=await football("fixtures",{league:f.league.id,season:f.league.season});
         const ids=[...new Set(["home","away"].flatMap(side=>venueHistory(season,f.teams[side].id,side,since/1000).map(g=>g.fixture.id)))];
         [stats,offers]=await Promise.all([ids.length ? football("fixtures",{ids:ids.join("-")}).catch(()=>{warnings.push("Estadísticas detalladas no disponibles.");return [];}) : [],
-          football("odds",{fixture:id}).catch(()=>{warnings.push("Sin cuotas disponibles en el proveedor.");return [];})]);
+          movi ? [] : football("odds",{fixture:id}).catch(()=>{warnings.push("Sin cuotas disponibles en el proveedor.");return [];})]);
       }
     }
     if(!f || !scheduled(f)) return send(409,{error:"El encuentro no está disponible para el análisis prepartido."});
-    const report=makeReport(f,season,stats,offers,warnings);
+    const prices=movi ? await moviOddsFor(f) : null;
+    if(!scheduled(f)) return send(409,{error:"El partido ya comenzó."});
+    const report=makeReport(f,season,stats,prices?.offers ?? offers,warnings);
+    if(prices) report.oddsInfo=prices.status;
     return send(200,report);
   }catch{return send(503,{error:paid?"API-Football no devolvió datos. Revisa la cobertura, la cuota de consultas y la clave.":"OpenLigaDB no respondió. Inténtalo de nuevo en unos minutos."});}
 }
