@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { MatchAnalyzer } from "../src/pages/admin/MatchAnalyzer";
-import brand from "../public/logo_avatar_premium.png";
 import "./panel.css";
+const brand = new URL("../public/logo_avatar_premium.png", import.meta.url).href;
 
 function App() {
   const [paid,setPaid]=useState(false), [code,setCode]=useState(""), [active,setActive]=useState(""),[edit,setEdit]=useState(false);
@@ -28,7 +28,7 @@ function App() {
     {edit&&paid&&!active&&<form className="access" onSubmit={e=>{e.preventDefault();setActive(code);setEdit(false);}}>
       <label>Código de acceso <input type="password" value={code} onChange={e=>setCode(e.target.value)} required /></label><button>Conectar API-Football</button>
     </form>}
-    <MatchAnalyzer key={active?"private":"open"} standalone={client}/>
+    <div key={active?"private":"open"}><MatchAnalyzer standalone={client}/></div>
     <footer>Datos: {active?"API-Football":<><a href="https://www.openligadb.de/">OpenLigaDB</a> · <a href="https://opendatacommons.org/licenses/odbl/1-0/">ODbL</a></>}. Probabilidades estimadas; no garantizan resultados.</footer>
   </>;
 }

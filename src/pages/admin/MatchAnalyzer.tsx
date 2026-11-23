@@ -619,7 +619,7 @@ export function MatchAnalyzer({ onDraft, standalone }: { onDraft?: (f: Fixture, 
           ))}
           <h3>Mercados y cuotas</h3>
           {standalone?.source === "OpenLigaDB" && <p className="ma-muted">Las cuotas justas son estimaciones del modelo. Esta fuente no publica cuotas de casas de apuestas.</p>}
-          {standalone && report.markets.length>0 && <QuoteCheck key={report.fixture.id} markets={report.markets}/>}
+          {standalone && report.markets.length>0 && <div key={report.fixture.id}><QuoteCheck markets={report.markets}/></div>}
           {report.markets.length === 0 ? (
             <p className="ma-empty">
               El modelo requiere tres partidos por equipo en la sede correspondiente y diez partidos de liga

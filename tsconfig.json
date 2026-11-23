@@ -26,6 +26,7 @@
   "exclude": [
     "node_modules",
     "dist",
+    "dist-analizador",
     "dist-server",
     "old_picks.ts"
   ]
