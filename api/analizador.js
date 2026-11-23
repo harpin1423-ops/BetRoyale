@@ -1,6 +1,7 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { moviOddsFor, moviOddsKey } from "../server/services/moviOdds.mjs";
 import { hudlConfigured, hudlHistory } from "../server/services/statsBomb.mjs";
+import { auditLeague } from "../server/services/footballCoverage.mjs";
 import { modelVersion, priceMarkets, project, rankPicks, teamProfile, venueHistory } from "../dist-server/server/services/matchModel.js";
 
 const zone = "America/Bogota", dayMs = 86400000, cache = new Map();
@@ -80,6 +81,13 @@ export default async function handler(req,res) {
   const movi=Boolean(moviOddsKey());
   const hudl=p.get("hudl")==="1", codeSet=Boolean(process.env.ANALYZER_ACCESS_CODE);
   if(p.has("capabilities")) return send(200,{football:Boolean(codeSet && process.env.APIFOOTBALL_API_KEY),moviOdds:movi,hudl:codeSet && hudlConfigured()});
+  if(p.has("coverage")) {
+    if(!permitted(req) || !process.env.APIFOOTBALL_API_KEY) return send(403,{error:"Acceso privado requerido."});
+    const league=p.get("coverage");
+    if(!/^[1-9]\d{0,5}$/.test(league)) return send(400,{error:"ID de liga inválido."});
+    try {return send(200,await auditLeague(Number(league),football));}
+    catch {return send(503,{error:"No se pudo verificar la temporada actual. Revisa el ID de liga, la cobertura de tu plan y la cuota de consultas."});}
+  }
   if((paid || hudl) && (!permitted(req) || (paid && !process.env.APIFOOTBALL_API_KEY) || (hudl && !hudlConfigured())))
     return send(403,{error:"El acceso privado no está configurado o el código no es válido."});
   if(date && (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(Date.parse(date)) || Math.abs(Date.parse(date)-since)>370*dayMs))

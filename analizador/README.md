@@ -1,5 +1,7 @@
 # Analizador independiente
 
+**Auditar cobertura internacional:** con una clave privada y vigente en `APIFOOTBALL_API_KEY`, ejecutar `node scripts/audit-football-coverage.mjs`. Revisa 2. Bundesliga, Championship, Liga MX, Superliga danesa, Premier League egipcia y Primera A colombiana. Para otras ligas, pasa sus IDs separados por espacios. Solo consulta datos; no compra servicios ni publica picks. Por liga hace hasta tres solicitudes: temporada actual, partidos finalizados y detalles de los últimos 20. La tabla indica cuántos de la muestra traen marcador, córners, amarillas y xG para **ambos equipos**; muestra cero significa que no hay muestra, no que la cobertura sea 0 %. No mide precisión predictiva ni implica cobertura futura. Un plan que rechaza la consulta no se registra como cero.
+
 La configuración de Vercel en la raíz del repositorio publica únicamente este cliente y la función `/api/analizador`. No conecta con MySQL, no utiliza las cuentas de la plataforma y no envía notificaciones ni procesa pagos.
 
 En la portada se muestran los próximos 14 días de Bundesliga y 2. Bundesliga. El calendario y los resultados de 90 minutos provienen de [OpenLigaDB](https://www.openligadb.de/) (ODbL). No requiere claves. La cuota introducida por el usuario se calcula solo en su navegador.

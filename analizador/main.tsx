@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { MatchAnalyzer } from "../src/pages/admin/MatchAnalyzer";
 import { HudlFile } from "./HudlFile";
+import { LeagueCoverage } from "./LeagueCoverage";
 import "./panel.css";
 const brand = new URL("../public/logo_avatar_premium.png", import.meta.url).href;
 
@@ -36,6 +37,7 @@ function App() {
       <button>Abrir analizador privado</button>
     </form>}
     <div key={active?"private":"open"}><MatchAnalyzer standalone={client}/></div>
+    {active && paid && <LeagueCoverage code={active}/>}
     <HudlFile/>
     <footer>Datos: {client.source==="API-Football"?"API-Football":<><a href="https://www.openligadb.de/">OpenLigaDB</a> · <a href="https://opendatacommons.org/licenses/odbl/1-0/">ODbL</a></>}. Probabilidades estimadas; no garantizan resultados.</footer>
   </>;
